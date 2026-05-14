@@ -37,8 +37,9 @@ DATA_ROOT = os.path.expanduser(
     "~/Library/CloudStorage/GoogleDrive-abhishek@stackbox.xyz"
     "/My Drive/Clients Self/HUL/Sales Route/Kolkata"
 )
-DATA_FILE     = f"{DATA_ROOT}/Active_Outlet_Master_Kolkata.xlsx"
-PROPOSED_PLAN = os.path.expanduser("~/Downloads/test2_p2_output.xlsx")
+DATA_FILE       = f"{DATA_ROOT}/Active_Outlet_Master_Kolkata.xlsx"
+PROPOSED_PLAN   = os.path.expanduser("~/Downloads/test2_p2_output.xlsx")
+BEATS_390_FILE  = f"{DATA_ROOT}/218390/All_Beat_Designs_218390_V3.xlsx"
 CACHE_DIR  = os.path.join(os.path.dirname(__file__), "data")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
@@ -348,6 +349,9 @@ def load_beats():
         "D":"#2563eb","D+F":"#0891b2","D+F+N":"#0d9488",
         "F":"#16a34a","F+N":"#65a30d","N":"#ca8a04",
         "PP":"#dc2626","PP-A":"#ea580c","PP-B":"#9333ea",
+        # Existing beat PLG names
+        "D+F+NUTS":"#0891b2","DETS":"#2563eb","FNB":"#16a34a",
+        "FNB+NUTS":"#65a30d","HUL+NUTS":"#0d9488","NUTS":"#ca8a04",
     }
 
     def _make_plg_idx(vals):
@@ -355,41 +359,37 @@ def load_beats():
         plgs = [p for p in PLG_ORDER if p in seen]
         return {p: i for i, p in enumerate(plgs)}, plgs
 
-    ROOT390 = f"{DATA_ROOT}/218390"
     ROOT391 = f"{DATA_ROOT}/218391"
 
-    # ── Proposed 218390 ────────────────────────────────────────────────────────
-    df390p = pd.read_excel(f"{ROOT390}/Abhishek Output/combined_output.xlsx", dtype=str)
-    df390p["lat"] = pd.to_numeric(df390p["latitude"], errors="coerce")
-    df390p["lon"] = pd.to_numeric(df390p["longitude"], errors="coerce")
-    df390p = df390p.dropna(subset=["lat","lon"])
-    df390p = df390p[df390p["lat"].between(22.35,22.60) & df390p["lon"].between(88.20,88.42)].copy()
+    # ── V3 Proposed 218390 (All_Beat_Designs_218390_V3.xlsx · V3 Beats) ───────
+    df390p = pd.read_excel(BEATS_390_FILE, sheet_name="V3 Beats", dtype=str)
+    df390p["lat"] = pd.to_numeric(df390p["Latitude"], errors="coerce")
+    df390p["lon"] = pd.to_numeric(df390p["Longitude"], errors="coerce")
+    df390p["Market"] = pd.to_numeric(df390p["Market"], errors="coerce")
+    df390p = df390p.dropna(subset=["lat","lon","PLG","Market"]).copy()
     plg_idx390p, _ = _make_plg_idx(df390p["PLG"])
-    dse_vals390p   = sorted(df390p["dse"].dropna().unique().tolist())
+    dse_vals390p   = sorted(df390p["DSE"].dropna().unique().tolist())
     dse_idx390p    = {d: i for i, d in enumerate(dse_vals390p)}
     beats_390 = [
         [round(float(r.lat),5), round(float(r.lon),5),
-         plg_idx390p.get(r.PLG, 0), int(r.market)-1,
-         dse_idx390p.get(str(r.dse), 0)]
+         plg_idx390p.get(r.PLG, 0), int(r.Market)-1,
+         dse_idx390p.get(str(r.DSE), 0)]
         for r in df390p.itertuples()
     ]
 
-    # ── Existing 218390 ────────────────────────────────────────────────────────
-    df390e = pd.read_csv(f"{ROOT390}/Existing/218390.csv", dtype=str)
-    df390e = df390e.rename(columns={"New PLG":"ex_plg","RSSP Code":"ex_dse","Market":"ex_mkt"})
-    df390e["lat"] = pd.to_numeric(df390e["Latitude"],  errors="coerce")
+    # ── Existing 218390 (All_Beat_Designs_218390_V3.xlsx · Existing Beats) ────
+    df390e = pd.read_excel(BEATS_390_FILE, sheet_name="Existing Beats", dtype=str)
+    df390e["lat"] = pd.to_numeric(df390e["Latitude"], errors="coerce")
     df390e["lon"] = pd.to_numeric(df390e["Longitude"], errors="coerce")
-    df390e["ex_mkt"] = pd.to_numeric(df390e["ex_mkt"], errors="coerce")
-    df390e = df390e.dropna(subset=["lat","lon","ex_plg","ex_mkt"]).copy()
-    df390e = df390e[df390e["lat"].between(22.35,22.60) & df390e["lon"].between(88.10,88.55)]
-    plg_idx390e, _ = _make_plg_idx(df390e["ex_plg"])
-    dse_vals390e   = sorted(df390e["ex_dse"].dropna().unique().tolist())
+    df390e["Market"] = pd.to_numeric(df390e["Market"], errors="coerce")
+    df390e = df390e.dropna(subset=["lat","lon","PLG","Market"]).copy()
+    plg_idx390e, _ = _make_plg_idx(df390e["PLG"])
+    dse_vals390e   = sorted(df390e["DSE"].dropna().unique().tolist())
     dse_idx390e    = {d: i for i, d in enumerate(dse_vals390e)}
     ex_beats_390 = [
         [round(float(r.lat),5), round(float(r.lon),5),
-         plg_idx390e.get(r.ex_plg, 0),
-         int(r.ex_mkt)-1,
-         dse_idx390e.get(str(r.ex_dse), 0)]
+         plg_idx390e.get(r.PLG, 0), int(r.Market)-1,
+         dse_idx390e.get(str(r.DSE), 0)]
         for r in df390e.itertuples()
     ]
 
