@@ -1,0 +1,6 @@
+*.xlsx
+*.csv
+*.parquet
+*.geojson
+__pycache__/
+.env

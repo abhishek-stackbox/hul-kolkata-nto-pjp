@@ -1,0 +1,2394 @@
+import json, os, warnings, hashlib, time
+import streamlit as st
+import streamlit.components.v1 as components
+import pandas as pd
+
+VERLAUF_DB        = "postgresql://postgres:password@localhost/verlauf"
+VERLAUF_USER_FILES = os.path.expanduser(
+    "~/projects/work/stackbox/verlauf/verlauf-backend/user-files"
+)
+
+warnings.filterwarnings("ignore")
+
+st.set_page_config(
+    page_title="HUL Kolkata NTO & PJP",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+st.markdown("""
+<style>
+header[data-testid="stHeader"]     { display:none !important; }
+footer                              { display:none !important; }
+section[data-testid="stSidebar"]   { display:none !important; }
+.block-container                    { padding:0 !important; max-width:100% !important; }
+[data-testid="stAppViewContainer"] { padding:0 !important; background:#0a1929 !important; }
+[data-testid="stCustomComponentV1"]{
+    position:fixed !important; top:0; left:0;
+    width:100vw !important; height:100vh !important; z-index:9999;
+}
+[data-testid="stCustomComponentV1"] iframe{
+    width:100% !important; height:100% !important;
+    border:none !important; display:block !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+DATA_ROOT = os.path.expanduser(
+    "~/Library/CloudStorage/GoogleDrive-abhishek@stackbox.xyz"
+    "/My Drive/Clients Self/HUL/Sales Route/Kolkata"
+)
+DATA_FILE     = f"{DATA_ROOT}/Active_Outlet_Master_Kolkata.xlsx"
+PROPOSED_PLAN = os.path.expanduser("~/Downloads/test2_p2_output.xlsx")
+CACHE_DIR  = os.path.join(os.path.dirname(__file__), "data")
+os.makedirs(CACHE_DIR, exist_ok=True)
+
+def _cache_path(name): return os.path.join(CACHE_DIR, f"{name}.parquet")
+def _json_path(name):  return os.path.join(CACHE_DIR, f"{name}.json")
+
+def _xlsx_mtime():
+    try: return os.path.getmtime(DATA_FILE)
+    except: return 0
+
+def _cache_valid(name):
+    j = _json_path(name)
+    if not os.path.exists(j):
+        return False
+    src_mtime = _xlsx_mtime()
+    if src_mtime == 0:
+        return True   # source files not accessible (cloud) — trust committed JSON
+    return os.path.getmtime(j) > src_mtime
+
+RS_COLORS = [
+    "#2563eb","#dc2626","#16a34a","#ea580c","#9333ea",
+    "#0891b2","#ca8a04","#db2777","#0d9488","#6d28d9",
+    "#b45309","#be185d","#0284c7","#15803d","#b91c1c",
+    "#7c3aed","#065f46","#1e3a5f","#78350f","#134e4a",
+    "#4c1d95","#881337",
+]
+
+def _rgb(h):
+    h = h.lstrip("#")
+    return [int(h[0:2],16), int(h[2:4],16), int(h[4:6],16)]
+
+
+def _load_json(name):
+    with open(_json_path(name)) as f:
+        return json.load(f)
+
+def _save_json(name, data):
+    with open(_json_path(name), "w") as f:
+        json.dump(data, f)
+
+
+@st.cache_data
+def load():
+    if _cache_valid("outlets") and _cache_valid("rs_info") and _cache_valid("stats") and _cache_valid("excl_outlets"):
+        try:
+            return (
+                _load_json("outlets"),
+                _load_json("rs_info"),
+                _load_json("boundaries"),
+                _load_json("stats"),
+                _load_json("excl_outlets"),
+            )
+        except Exception:
+            pass
+
+    df_all = pd.read_excel(DATA_FILE, sheet_name="Active Outlets", dtype=str)
+    excl_raw = df_all[df_all["Exclude (Incorrect Lat-Long)"].notna()].copy()
+    df = df_all[df_all["Exclude (Incorrect Lat-Long)"].isna()].copy()
+
+    df["lat"]    = pd.to_numeric(df["Latitude"],    errors="coerce")
+    df["lon"]    = pd.to_numeric(df["Longitude"],   errors="coerce")
+    df["rs_lat"] = pd.to_numeric(df["RS Latitude"], errors="coerce")
+    df["rs_lon"] = pd.to_numeric(df["RS Longitude"],errors="coerce")
+    df = df.dropna(subset=["lat","lon"]).copy()
+    df["combined_moc"] = pd.to_numeric(df["Combined MOC"], errors="coerce").fillna(0)
+
+    # Proposed RS: from plan output file (Outlet Code → new distributor)
+    proposed_rs_map = {}
+    if os.path.exists(PROPOSED_PLAN):
+        try:
+            _plan = pd.read_excel(PROPOSED_PLAN, usecols=["code","distributor"], dtype=str)
+            proposed_rs_map = dict(zip(_plan["code"].str.strip(), _plan["distributor"].str.strip()))
+        except Exception:
+            pass
+    df["new_rs"] = df["Outlet Code"].map(proposed_rs_map).fillna(df["RS Code"])
+
+    rs_ll = df.dropna(subset=["rs_lat","rs_lon"]).groupby("RS Code")[["rs_lat","rs_lon"]].first()
+    rs_ll_dict = {code: (float(rs_ll.loc[code,"rs_lat"]), float(rs_ll.loc[code,"rs_lon"]))
+                  for code in rs_ll.index}
+
+    def _hav(la1, lo1, la2, lo2):
+        from math import radians, sin, cos, sqrt, atan2
+        R = 6371.0
+        dlat = radians(la2-la1); dlon = radians(lo2-lo1)
+        a = sin(dlat/2)**2 + cos(radians(la1))*cos(radians(la2))*sin(dlon/2)**2
+        return round(R * 2 * atan2(sqrt(a), sqrt(1-a)), 1)
+
+    counts = df.groupby(["RS Code","RS Name","Distributor Type"]).size().reset_index(name="n")
+    counts["_ord"] = counts["Distributor Type"].map({"General":0,"WS":1,"Pharma":2}).fillna(3)
+    counts = counts.sort_values(["_ord","n"], ascending=[True,False]).drop(columns="_ord")
+    prop_counts = df.groupby("new_rs").size().to_dict()
+    type_agg = df.groupby(["RS Code","Distributor Type"]).agg(
+        n=("Outlet Code","count"), moc=("combined_moc","sum")
+    ).reset_index()
+    rs_total_moc = df.groupby("RS Code")["combined_moc"].sum().to_dict()
+    _WS_CH = {"WHOLESALE", "PHARMA WHOLESALE"}
+    df["_biz"] = df["primarychannel"].apply(
+        lambda x: "WS" if str(x).strip().upper() in _WS_CH else "General")
+    biz_agg = df.groupby(["RS Code","_biz"]).agg(
+        n=("Outlet Code","count"), moc=("combined_moc","sum")
+    ).reset_index()
+
+    # Per-RS gain/loss for proposed view
+    _moved    = df[df["new_rs"] != df["RS Code"]]
+    _gained   = _moved.groupby("new_rs").agg(
+        gained_n=("Outlet Code","count"), gained_moc=("combined_moc","sum")).to_dict("index")
+    _lost     = _moved.groupby("RS Code").agg(
+        lost_n=("Outlet Code","count"), lost_moc=("combined_moc","sum")).to_dict("index")
+    _prop_moc = df.groupby("new_rs")["combined_moc"].sum().to_dict()
+
+    rs_info, rs_index = [], {}
+    for i, row in enumerate(counts.itertuples(index=False)):
+        code  = getattr(row, "RS_Code",  None) or row[0]
+        name  = getattr(row, "RS_Name",  None) or row[1]
+        rtype = getattr(row, "Distributor_Type", None) or row[2]
+        n     = row[-1]
+        color = RS_COLORS[i % len(RS_COLORS)]
+        lat = lon = None
+        if code in rs_ll.index:
+            lat = float(rs_ll.loc[code, "rs_lat"])
+            lon = float(rs_ll.loc[code, "rs_lon"])
+        ba    = biz_agg[biz_agg["RS Code"] == code]
+        gen_r = ba[ba["_biz"]=="General"]
+        ws_r  = ba[ba["_biz"]=="WS"]
+        rs_info.append({
+            "idx": i, "code": code, "name": name, "type": rtype,
+            "lat": lat, "lon": lon,
+            "color": color, "rgb": _rgb(color),
+            "outlet_count":  int(n),
+            "proposed_count":int(prop_counts.get(code, 0)),
+            "moc":           round(float(rs_total_moc.get(code, 0))),
+            "proposed_moc":  round(float(_prop_moc.get(code, 0)), 2),
+            "gained_n":      int(_gained.get(code, {}).get("gained_n", 0)),
+            "gained_moc":    round(float(_gained.get(code, {}).get("gained_moc", 0)), 2),
+            "lost_n":        int(_lost.get(code, {}).get("lost_n", 0)),
+            "lost_moc":      round(float(_lost.get(code, {}).get("lost_moc", 0)), 2),
+            "gen_n":         int(gen_r["n"].sum()),
+            "gen_moc":       round(float(gen_r["moc"].sum())),
+            "ws_n":          int(ws_r["n"].sum()),
+            "ws_moc":        round(float(ws_r["moc"].sum())),
+        })
+        rs_index[code] = i
+
+    rs_col   = list(df.columns).index("RS Code")
+    new_col  = list(df.columns).index("new_rs")
+    lat_col  = list(df.columns).index("lat")
+    lon_col  = list(df.columns).index("lon")
+    name_col = list(df.columns).index("Outlet Name")
+    cl_col   = list(df.columns).index("Classification")
+    moc_col  = list(df.columns).index("combined_moc")
+    ch_col   = list(df.columns).index("primarychannel")
+    cp_col   = list(df.columns).index("Channel Program")
+    oc_col   = list(df.columns).index("Outlet Code")
+    outlets = []
+    for row in df.itertuples(index=False):
+        ri = rs_index.get(row[rs_col], -1)
+        if ri < 0:
+            continue
+        ni = rs_index.get(row[new_col], ri)
+        outlets.append([round(row[lat_col],5), round(row[lon_col],5), ri, ni, row[name_col],
+                        str(row[cl_col]) if row[cl_col] else "",
+                        round(float(row[moc_col]), 2) if row[moc_col] else 0,
+                        str(row[ch_col]) if row[ch_col] else "",
+                        str(row[cp_col]) if row[cp_col] else "",
+                        str(row[oc_col]) if row[oc_col] else ""])
+
+    with open(f"{DATA_ROOT}/rs_boundaries.geojson") as f:
+        geo = json.load(f)
+    for feat in geo["features"]:
+        code = feat["properties"]["RS_CODE"]
+        if code in rs_index:
+            idx = rs_index[code]
+            feat["properties"].update(rs_idx=idx, color=rs_info[idx]["color"],
+                rgb=rs_info[idx]["rgb"], rs_type=rs_info[idx]["type"])
+        else:
+            feat["properties"].update(rs_idx=-1, color="#9ca3af", rgb=[156,163,175], rs_type="Unknown")
+
+    reassigned = int((df["RS Code"] != df["new_rs"]).sum())
+    gen_cnt = int(df[df["Distributor Type"]=="General"].shape[0])
+    pha_cnt = int(df[df["Distributor Type"]=="Pharma"].shape[0])
+    ws_cnt  = int(df[df["Distributor Type"]=="WS"].shape[0])
+    gen_rs  = int(df[df["Distributor Type"]=="General"]["RS Code"].nunique())
+    pha_rs  = int(df[df["Distributor Type"]=="Pharma"]["RS Code"].nunique())
+    stats = {
+        "total":      len(outlets),
+        "general":    gen_cnt,
+        "pharma":     pha_cnt,
+        "ws":         ws_cnt,
+        "general_rs": gen_rs,
+        "pharma_rs":  pha_rs,
+        "rs_count":   len(rs_info),
+        "reassigned": reassigned,
+    }
+
+    excl_raw["lat2"] = pd.to_numeric(excl_raw["Latitude"],  errors="coerce")
+    excl_raw["lon2"] = pd.to_numeric(excl_raw["Longitude"], errors="coerce")
+    excl_raw = excl_raw.dropna(subset=["lat2","lon2"])
+    excl_outlets = []
+    for _, r in excl_raw.iterrows():
+        rl     = rs_ll_dict.get(r["RS Code"])
+        rs_lat = round(rl[0], 5) if rl else None
+        rs_lon = round(rl[1], 5) if rl else None
+        dist   = _hav(r.lat2, r.lon2, rl[0], rl[1]) if rl else None
+        excl_outlets.append([round(r.lat2,5), round(r.lon2,5), r["Outlet Name"], r["RS Code"],
+                             rs_lat, rs_lon, dist])
+
+    _save_json("outlets",       outlets)
+    _save_json("rs_info",       rs_info)
+    _save_json("boundaries",    geo)
+    _save_json("stats",         stats)
+    _save_json("excl_outlets",  excl_outlets)
+    return outlets, rs_info, geo, stats, excl_outlets
+
+
+@st.cache_data
+def load_dupes():
+    if _cache_valid("dupe_pairs") and _cache_valid("dupe_stats"):
+        try:
+            return _load_json("dupe_pairs"), _load_json("dupe_stats")
+        except Exception:
+            pass
+
+    dupes = pd.read_excel(
+        f"{DATA_ROOT}/output/hul_kolkata_validated.xlsx",
+        sheet_name="Confirmed Duplicates", dtype=str
+    )
+    master = pd.read_excel(DATA_FILE, sheet_name="Active Outlets", dtype=str)
+    master["lat"] = pd.to_numeric(master["Latitude"],  errors="coerce")
+    master["lon"] = pd.to_numeric(master["Longitude"], errors="coerce")
+    ll = master.drop_duplicates("Outlet Code").set_index("Outlet Code")[["lat","lon"]]
+
+    pairs, rs_set = [], set()
+    for _, r in dupes.iterrows():
+        ca, cb = r["code_a"], r["code_b"]
+        if ca not in ll.index or cb not in ll.index:
+            continue
+        a, b = ll.loc[ca], ll.loc[cb]
+        if any(pd.isna(x) for x in [a.lat, a.lon, b.lat, b.lon]):
+            continue
+        dist = round(float(r["dist_m"])) if str(r.get("dist_m","")) not in ("","nan","None") else 0
+        pairs.append({
+            "na": r["name_a"], "nb": r["name_b"],
+            "ca": ca, "cb": cb,
+            "rsa": r["rs_code_a"], "rsb": r.get("rs_code_b",""),
+            "reason": r.get("ai_reason",""),
+            "la":  round(float(a.lat),5), "loa": round(float(a.lon),5),
+            "lb":  round(float(b.lat),5), "lob": round(float(b.lon),5),
+            "dist": dist,
+        })
+        rs_set.add(r["rs_code_a"])
+
+    pairs.sort(key=lambda p: p["dist"])
+    dupe_stats = {
+        "total":  len(pairs),
+        "rs_aff": len(rs_set),
+        "saved":  max(1, round(len(pairs)/220)),
+    }
+
+    _save_json("dupe_pairs", pairs)
+    _save_json("dupe_stats", dupe_stats)
+    return pairs, dupe_stats
+
+
+@st.cache_data
+def load_clusters():
+    if _cache_valid("clusters") and _cache_valid("cluster_stats"):
+        try:
+            return _load_json("clusters"), _load_json("cluster_stats")
+        except Exception:
+            pass
+
+    df = pd.read_excel(DATA_FILE, sheet_name="Active Outlets", dtype=str)
+    df = df[df["Exclude (Incorrect Lat-Long)"].isna()].copy()
+    df["lat"] = pd.to_numeric(df["Latitude"],  errors="coerce")
+    df["lon"] = pd.to_numeric(df["Longitude"], errors="coerce")
+    df = df.dropna(subset=["lat","lon"])
+
+    GRID = 0.0002
+    df["glat"] = (df["lat"] / GRID).round() * GRID
+    df["glon"] = (df["lon"] / GRID).round() * GRID
+    grid = df.groupby(["glat","glon"]).size().reset_index(name="n")
+    grid = grid[grid["n"] >= 5].sort_values("n", ascending=False).reset_index(drop=True)
+
+    clusters = [
+        {"i": int(i), "lat": round(row.glat,5), "lon": round(row.glon,5), "n": int(row.n)}
+        for i, row in grid.iterrows()
+    ]
+    cluster_stats = {"total": len(clusters), "max_n": int(grid["n"].max())}
+
+    _save_json("clusters", clusters)
+    _save_json("cluster_stats", cluster_stats)
+    return clusters, cluster_stats
+
+
+@st.cache_data
+def load_beats():
+    cache_keys = ["beats_390","beats_391","ex_beats_390","ex_beats_391",
+                  "plg_info","dse_info","beat_stats"]
+    if all(_cache_valid(k) for k in cache_keys):
+        try:
+            return tuple(_load_json(k) for k in cache_keys)
+        except Exception:
+            pass
+
+    PLG_ORDER  = ["D","D+F","D+F+N","F","F+N","N","PP","PP-A","PP-B"]
+    PLG_COLORS = {
+        "D":"#2563eb","D+F":"#0891b2","D+F+N":"#0d9488",
+        "F":"#16a34a","F+N":"#65a30d","N":"#ca8a04",
+        "PP":"#dc2626","PP-A":"#ea580c","PP-B":"#9333ea",
+    }
+
+    def _make_plg_idx(vals):
+        seen = {v for v in vals if pd.notna(v)}
+        plgs = [p for p in PLG_ORDER if p in seen]
+        return {p: i for i, p in enumerate(plgs)}, plgs
+
+    ROOT390 = f"{DATA_ROOT}/218390"
+    ROOT391 = f"{DATA_ROOT}/218391"
+
+    # ── Proposed 218390 ────────────────────────────────────────────────────────
+    df390p = pd.read_excel(f"{ROOT390}/Abhishek Output/combined_output.xlsx", dtype=str)
+    df390p["lat"] = pd.to_numeric(df390p["latitude"], errors="coerce")
+    df390p["lon"] = pd.to_numeric(df390p["longitude"], errors="coerce")
+    df390p = df390p.dropna(subset=["lat","lon"])
+    df390p = df390p[df390p["lat"].between(22.35,22.60) & df390p["lon"].between(88.20,88.42)].copy()
+    plg_idx390p, _ = _make_plg_idx(df390p["PLG"])
+    dse_vals390p   = sorted(df390p["dse"].dropna().unique().tolist())
+    dse_idx390p    = {d: i for i, d in enumerate(dse_vals390p)}
+    beats_390 = [
+        [round(float(r.lat),5), round(float(r.lon),5),
+         plg_idx390p.get(r.PLG, 0), int(r.market)-1,
+         dse_idx390p.get(str(r.dse), 0)]
+        for r in df390p.itertuples()
+    ]
+
+    # ── Existing 218390 ────────────────────────────────────────────────────────
+    df390e = pd.read_csv(f"{ROOT390}/Existing/218390.csv", dtype=str)
+    df390e = df390e.rename(columns={"New PLG":"ex_plg","RSSP Code":"ex_dse","Market":"ex_mkt"})
+    df390e["lat"] = pd.to_numeric(df390e["Latitude"],  errors="coerce")
+    df390e["lon"] = pd.to_numeric(df390e["Longitude"], errors="coerce")
+    df390e["ex_mkt"] = pd.to_numeric(df390e["ex_mkt"], errors="coerce")
+    df390e = df390e.dropna(subset=["lat","lon","ex_plg","ex_mkt"]).copy()
+    df390e = df390e[df390e["lat"].between(22.35,22.60) & df390e["lon"].between(88.10,88.55)]
+    plg_idx390e, _ = _make_plg_idx(df390e["ex_plg"])
+    dse_vals390e   = sorted(df390e["ex_dse"].dropna().unique().tolist())
+    dse_idx390e    = {d: i for i, d in enumerate(dse_vals390e)}
+    ex_beats_390 = [
+        [round(float(r.lat),5), round(float(r.lon),5),
+         plg_idx390e.get(r.ex_plg, 0),
+         int(r.ex_mkt)-1,
+         dse_idx390e.get(str(r.ex_dse), 0)]
+        for r in df390e.itertuples()
+    ]
+
+    # ── Proposed 218391 ────────────────────────────────────────────────────────
+    df391p = pd.read_excel(f"{ROOT391}/PLG_Working_218391.xlsx", dtype=str)
+    df391p["lat"] = pd.to_numeric(df391p["Latitude"], errors="coerce")
+    df391p["lon"] = pd.to_numeric(df391p["Longitude"], errors="coerce")
+    df391p = df391p.dropna(subset=["lat","lon"]).copy()
+    plg_idx391p, _ = _make_plg_idx(df391p["New_PLGs"])
+    beats_391 = [
+        [round(float(r.lat),5), round(float(r.lon),5),
+         plg_idx391p.get(str(r.New_PLGs).split(",")[0].strip(), -1), -1, -1]
+        for r in df391p.itertuples()
+    ]
+
+    # ── Existing 218391 ────────────────────────────────────────────────────────
+    ex_391_frames = []
+    ex_391_dir    = f"{ROOT391}/Existing"
+    for fn in sorted(os.listdir(ex_391_dir)):
+        if not fn.endswith(".xlsx"): continue
+        plg_name = fn[:-5]
+        tmp = pd.read_excel(f"{ex_391_dir}/{fn}", dtype=str)
+        tmp["lat"] = pd.to_numeric(tmp["Latitude"], errors="coerce")
+        tmp["lon"] = pd.to_numeric(tmp["Longitude"], errors="coerce")
+        tmp["plg_name"] = plg_name
+        ex_391_frames.append(tmp)
+    df391e = pd.concat(ex_391_frames, ignore_index=True)
+    df391e = df391e.rename(columns={"DSE Code":"dse_code"})
+    df391e["lat"] = pd.to_numeric(df391e["Latitude"], errors="coerce")
+    df391e["lon"] = pd.to_numeric(df391e["Longitude"], errors="coerce")
+    df391e["Market"] = pd.to_numeric(df391e["Market"], errors="coerce")
+    df391e = df391e.dropna(subset=["lat","lon","Market"]).copy()
+    plg_idx391e, _ = _make_plg_idx(df391e["plg_name"])
+    dse_vals391e   = sorted(df391e["dse_code"].dropna().unique().tolist())
+    dse_idx391e    = {d: i for i, d in enumerate(dse_vals391e)}
+    ex_beats_391 = [
+        [round(float(r.lat),5), round(float(r.lon),5),
+         plg_idx391e.get(r.plg_name, 0),
+         int(r.Market)-1,
+         dse_idx391e.get(str(r.dse_code), 0)]
+        for r in df391e.itertuples()
+    ]
+
+    # ── Build unified PLG info (union of all sources) ──────────────────────────
+    all_plg_names = set()
+    for idx_map in [plg_idx390p, plg_idx390e, plg_idx391p, plg_idx391e]:
+        all_plg_names.update(idx_map.keys())
+    plgs     = [p for p in PLG_ORDER if p in all_plg_names]
+    plg_info = [{"idx":i,"name":p,"color":PLG_COLORS.get(p,"#6b7280")} for i,p in enumerate(plgs)]
+    plg_idx  = {p: i for i, p in enumerate(plgs)}
+
+    def _remap_plg(beats, old_idx):
+        """Remap plg indices from a local plg_idx to the unified plg_idx."""
+        inv = {v: k for k, v in old_idx.items()}
+        return [[b[0],b[1], plg_idx.get(inv.get(b[2],""), b[2]), b[3], b[4]] for b in beats]
+
+    beats_390    = _remap_plg(beats_390,    plg_idx390p)
+    ex_beats_390 = _remap_plg(ex_beats_390, plg_idx390e)
+    beats_391    = _remap_plg(beats_391,    plg_idx391p)
+    ex_beats_391 = _remap_plg(ex_beats_391, plg_idx391e)
+
+    # ── DSE info: combined from all sources ────────────────────────────────────
+    all_dse = sorted(set(dse_vals390p) | set(dse_vals390e))
+    dse_idx_all = {d: i for i, d in enumerate(all_dse)}
+    dse_info    = [{"idx": i, "name": d} for i, d in enumerate(all_dse)]
+
+    def _remap_dse(beats, old_idx):
+        inv = {v: k for k, v in old_idx.items()}
+        return [[b[0],b[1],b[2],b[3], dse_idx_all.get(inv.get(b[4],""), b[4])] for b in beats]
+
+    beats_390    = _remap_dse(beats_390,    dse_idx390p)
+    ex_beats_390 = _remap_dse(ex_beats_390, dse_idx390e)
+
+    # 391 existing DSE: keep as-is with 391-specific dse_idx_391
+    dse_info_391 = [{"idx": i, "name": d} for i, d in enumerate(dse_vals391e)]
+    _save_json("dse_info_391", dse_info_391)
+
+    beat_stats = {
+        "prop_390":  len(beats_390),
+        "prop_391":  len(beats_391),
+        "ex_390":    len(ex_beats_390),
+        "ex_391":    len(ex_beats_391),
+        "plgs":      len(plgs),
+        "markets":   6,
+    }
+
+    for name, data in [("beats_390",beats_390),("beats_391",beats_391),
+                       ("ex_beats_390",ex_beats_390),("ex_beats_391",ex_beats_391),
+                       ("plg_info",plg_info),("dse_info",dse_info),("beat_stats",beat_stats)]:
+        _save_json(name, data)
+
+    return beats_390, beats_391, ex_beats_390, ex_beats_391, plg_info, dse_info, beat_stats
+
+
+outlets, rs_info, boundaries, stats, excl_outlets = load()
+dupe_pairs, dupe_stats                            = load_dupes()
+clusters, cluster_stats                           = load_clusters()
+beats_390, beats_391, ex_beats_390, ex_beats_391, plg_info, dse_info, beat_stats = load_beats()
+dse_info_391 = _load_json("dse_info_391") if os.path.exists(_json_path("dse_info_391")) else []
+
+import re as _re
+_delivery_html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                   "..", "hul-kolkata-beats", "delivery_map.html")
+_delivery_data = {}
+try:
+    with open(_delivery_html_path, encoding="utf-8") as _f:
+        _dhcontent = _f.read()
+    _m = _re.search(r'const DATA\s*=\s*(\{)', _dhcontent)
+    if _m:
+        _s = _m.start(1); _depth = 0
+        for _i, _ch in enumerate(_dhcontent[_s:]):
+            if _ch == '{': _depth += 1
+            elif _ch == '}':
+                _depth -= 1
+                if _depth == 0:
+                    _delivery_data = json.loads(_dhcontent[_s:_s+_i+1])
+                    break
+except Exception:
+    pass
+
+DATA_BLOCK = (
+    "const OUTLETS    = " + json.dumps(outlets)       + ";\n"
+    "const RS_INFO    = " + json.dumps(rs_info)       + ";\n"
+    "const BOUNDARIES = " + json.dumps(boundaries)    + ";\n"
+    "const STATS      = " + json.dumps(stats)         + ";\n"
+    "const DUPE_PAIRS = " + json.dumps(dupe_pairs)    + ";\n"
+    "const DUPE_STATS = " + json.dumps(dupe_stats)    + ";\n"
+    "const CLUSTERS   = " + json.dumps(clusters)      + ";\n"
+    "const CLUSTER_ST = " + json.dumps(cluster_stats) + ";\n"
+    "const BEATS_390    = " + json.dumps(beats_390)     + ";\n"
+    "const BEATS_391    = " + json.dumps(beats_391)     + ";\n"
+    "const EX_BEATS_390 = " + json.dumps(ex_beats_390)  + ";\n"
+    "const EX_BEATS_391 = " + json.dumps(ex_beats_391)  + ";\n"
+    "const PLG_INFO     = " + json.dumps(plg_info)      + ";\n"
+    "const DSE_INFO     = " + json.dumps(dse_info)      + ";\n"
+    "const DSE_INFO_391 = " + json.dumps(dse_info_391)  + ";\n"
+    "const BEAT_STATS   = " + json.dumps(beat_stats)    + ";\n"
+    "const EXCL_OUTLETS = " + json.dumps(excl_outlets)  + ";\n"
+    "const DELIVERY_DATA= " + json.dumps(_delivery_data).replace("</", r"<\/") + ";\n"
+)
+
+# ── HTML ───────────────────────────────────────────────────────────────────────
+HTML_TEMPLATE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>HUL Kolkata NTO &amp; PJP</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.0/dist/maplibre-gl.css" rel="stylesheet"/>
+<script src="https://unpkg.com/maplibre-gl@4.7.0/dist/maplibre-gl.js"></script>
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;
+  font-family:'Segoe UI',Arial,sans-serif;background:#f8fafc;}
+
+#slides{width:100vw;height:100vh;overflow-y:scroll;overflow-x:hidden;
+  scroll-snap-type:y mandatory;}
+#slides::-webkit-scrollbar{display:none;}
+.slide{width:100vw;height:100vh;scroll-snap-align:start;position:relative;overflow:hidden;}
+
+.map-wrap{position:absolute;top:0;left:0;right:400px;bottom:0;}
+.map-wrap .maplibregl-map{width:100% !important;height:100% !important;}
+.maplibregl-ctrl-logo{display:none !important;}
+.maplibregl-ctrl-attrib{font-size:10px !important;opacity:0.45;}
+.maplibregl-popup{z-index:20 !important;}
+.maplibregl-marker{z-index:6 !important;}
+
+.panel{position:absolute;top:0;right:0;width:400px;height:100%;
+  background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);
+  box-shadow:-4px 0 28px rgba(0,0,0,0.10);
+  overflow-y:auto;padding:24px 20px;z-index:20;}
+.panel::-webkit-scrollbar{width:4px;}
+.panel::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:2px;}
+
+.panel h2{font-size:15px;font-weight:700;color:#111827;
+  padding-bottom:10px;border-bottom:2px solid #e5e7eb;margin-bottom:3px;}
+.p-sub{font-size:12px;color:#9ca3af;margin-bottom:12px;}
+.kpi-r{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.kpi{background:#f9fafb;border-radius:8px;padding:10px 12px;}
+.kpi .kv{font-size:20px;font-weight:700;color:#111827;}
+.kpi .kl{font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;margin-top:2px;}
+
+.filter-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.f-chip{padding:5px 14px;border:2px solid #e5e7eb;border-radius:20px;
+  background:white;cursor:pointer;font-size:12px;font-weight:600;color:#374151;transition:all .15s;}
+.f-chip.active{border-color:#1565C0;background:#e3f2fd;color:#1565C0;}
+.f-chip:hover:not(.active){border-color:#9ca3af;}
+
+.beat-chip{padding:4px 10px;border:2px solid #e5e7eb;border-radius:20px;
+  background:white;cursor:pointer;font-size:11px;font-weight:700;color:#374151;transition:all .15s;}
+.beat-chip.active{color:white;}
+.beat-chip:hover:not(.active){border-color:#9ca3af;}
+
+.toggle-row{display:flex;gap:0;margin-bottom:12px;
+  border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;}
+.t-btn{flex:1;padding:8px 0;font-size:13px;font-weight:700;
+  background:white;border:none;cursor:pointer;color:#6b7280;transition:all .15s;}
+.t-btn.active{background:#1565C0;color:white;}
+
+.dt-tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px;}
+.dt-tbl th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+  color:#9ca3af;padding:5px 4px;border-bottom:1px solid #e5e7eb;text-align:right;}
+.dt-tbl th:first-child,.dt-tbl th:nth-child(2){text-align:left;}
+.dt-tbl td{padding:6px 4px;border-bottom:1px solid #f3f4f6;color:#374151;text-align:right;}
+.dt-tbl td:first-child{text-align:left;max-width:140px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dt-tbl td:nth-child(2){text-align:left;}
+.dt-tbl tr:hover td{background:#f9fafb;cursor:pointer;}
+.dc{width:9px;height:9px;border-radius:2px;display:inline-block;
+  margin-right:5px;flex-shrink:0;vertical-align:middle;}
+
+.rs-item{display:flex;align-items:center;padding:7px 6px;border-radius:8px;
+  cursor:pointer;transition:background .12s;gap:9px;}
+.rs-item:hover{background:#f3f4f6;}
+.rs-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+.rs-name{font-size:12.5px;font-weight:500;color:#111827;flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rs-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;
+  text-transform:uppercase;letter-spacing:.4px;flex-shrink:0;white-space:nowrap;}
+.rs-cnt{font-size:13px;font-weight:700;color:#374151;flex-shrink:0;
+  min-width:44px;text-align:right;}
+
+.reass-box{background:#e3f2fd;border:1px solid #90caf9;border-radius:10px;
+  padding:10px 14px;margin-bottom:12px;}
+.reass-box b{color:#0d47a1;font-size:15px;}
+
+.dupe-item{padding:8px 10px;border-radius:8px;cursor:pointer;
+  border-bottom:1px solid #f3f4f6;transition:background .12s;}
+.dupe-item:hover{background:#fff7ed;}
+.dupe-item .d-na{font-size:12px;font-weight:600;color:#111827;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dupe-item .d-nb{font-size:11px;color:#6b7280;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dupe-item .d-meta{font-size:10px;color:#9ca3af;margin-top:2px;}
+.dupe-dist{display:inline-block;padding:1px 6px;border-radius:8px;
+  font-size:10px;font-weight:700;background:#fee2e2;color:#dc2626;margin-left:6px;}
+
+.cl-item{padding:9px 10px;cursor:pointer;border-bottom:1px solid #f3f4f6;
+  transition:background .12s;}
+.cl-item:hover{background:#f0f9ff;}
+.cl-item.sel{background:#eff6ff;}
+
+.dl-btn{width:100%;padding:9px 0;background:#1565C0;color:white;
+  border:none;border-radius:8px;font-size:13px;font-weight:700;
+  cursor:pointer;margin-bottom:12px;transition:background .15s;}
+.dl-btn:hover{background:#0d47a1;}
+
+.page-lbl{position:absolute;bottom:16px;left:16px;
+  font-size:11px;font-weight:700;letter-spacing:1px;color:#6b7280;
+  text-transform:uppercase;z-index:60;
+  background:rgba(255,255,255,0.9);padding:4px 11px;border-radius:20px;pointer-events:none;}
+.zoom-hint{position:absolute;bottom:16px;
+  left:calc((100% - 400px)/2);transform:translateX(-50%);
+  font-size:11px;color:#9ca3af;background:rgba(255,255,255,0.85);
+  padding:4px 11px;border-radius:20px;z-index:25;pointer-events:none;white-space:nowrap;}
+
+#nav-dots{position:fixed;bottom:20px;left:0;width:100vw;
+  display:flex;justify-content:center;gap:10px;z-index:9999;}
+.dot{width:8px;height:8px;border-radius:50%;background:rgba(0,0,0,0.2);
+  cursor:pointer;transition:all .2s;border:1.5px solid rgba(0,0,0,0.1);}
+.dot.active{background:#1565C0;transform:scale(1.35);border-color:#1565C0;}
+#nav-dots.dark-mode .dot{background:rgba(255,255,255,0.35);border-color:rgba(255,255,255,0.4);}
+#nav-dots.dark-mode .dot.active{background:#90caf9;border-color:#90caf9;}
+
+#slide-0{
+  background:linear-gradient(135deg,#0a1929 0%,#0d47a1 55%,#0a1929 100%);
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;color:white;}
+.t-badge{background:rgba(21,101,192,0.35);border:1px solid rgba(21,101,192,0.6);
+  border-radius:20px;padding:7px 22px;font-size:12px;font-weight:700;
+  letter-spacing:1.5px;text-transform:uppercase;color:#90caf9;margin-bottom:28px;}
+.t-h1{font-size:54px;font-weight:800;line-height:1.1;margin-bottom:14px;
+  background:linear-gradient(90deg,#fff 30%,#90caf9 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.t-sub{font-size:17px;color:#94a3b8;margin-bottom:46px;max-width:520px;line-height:1.55;}
+.s-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
+  max-width:800px;width:90%;margin-bottom:36px;}
+.s-box{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
+  border-radius:12px;padding:22px 16px;}
+.s-box .sv{font-size:30px;font-weight:700;color:#f1f5f9;margin-bottom:6px;}
+.s-box .sl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;}
+.scroll-h{font-size:13px;color:#64748b;display:flex;align-items:center;gap:10px;}
+.arr{width:26px;height:26px;border:2px solid #334155;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  animation:bounce .65s infinite alternate;}
+@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(5px)}}
+kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
+  color:#90caf9;font-family:monospace;}
+
+/* Density slider */
+.slider-wrap{margin-bottom:12px;}
+.slider-wrap label{font-size:11px;font-weight:700;color:#6b7280;
+  text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;}
+.slider-row{display:flex;align-items:center;gap:10px;}
+.slider-row input[type=range]{flex:1;accent-color:#1565C0;cursor:pointer;}
+.slider-val{font-size:18px;font-weight:800;color:#1565C0;min-width:36px;text-align:right;}
+.cluster-meta{font-size:11px;color:#6b7280;margin-bottom:8px;padding:6px 8px;
+  background:#f9fafb;border-radius:6px;}
+
+/* ── Slide 6 delivery map ── */
+#d6-map .leaflet-control-attribution{font-size:9px;opacity:.5;}
+#d6-beat-list .d6bc{padding:8px 12px;border-bottom:1px solid #f0f2f5;display:flex;
+  align-items:flex-start;gap:7px;cursor:pointer;transition:background .1s;}
+#d6-beat-list .d6bc:hover{background:#f5f8ff;}
+#d6-beat-list .d6bc.sel{background:#e8f0fe;border-left:3px solid #1565C0;}
+#d6-beat-list .d6bc.hid{opacity:.35;}
+.d6bc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+.d6bc-info{flex:1;min-width:0;}
+.d6bc-title{font-weight:600;font-size:12px;color:#222;display:flex;
+  align-items:center;gap:5px;flex-wrap:wrap;}
+.d6bc-meta{font-size:11px;color:#777;margin-top:2px;}
+.d6bc-tags{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px;}
+.d6tag{padding:1px 5px;border-radius:9px;font-size:10px;font-weight:600;}
+.d6t-plg{background:#fff3e0;color:#e65100;}
+.d6t-val{background:#e6f4ea;color:#1e7e34;}
+.d6strip{display:flex;gap:3px;margin-top:4px;flex-wrap:wrap;}
+.d6sdot{display:inline-flex;align-items:center;gap:3px;font-size:10px;color:#555;}
+.d6dot8{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block;}
+.d6eye{margin-left:auto;background:none;border:none;cursor:pointer;
+  font-size:14px;opacity:.6;padding:0 2px;flex-shrink:0;align-self:center;}
+.d6eye:hover{opacity:1;}
+#slide-6 select{width:100%;padding:5px 8px;border:1px solid #e5e7eb;border-radius:8px;
+  font-size:12px;cursor:pointer;color:#374151;background:#fff;margin-bottom:8px;}
+#slide-6 select:focus{outline:none;border-color:#1565C0;}
+.d6tck{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:2px 0;}
+.d6tsw{width:11px;height:11px;border-radius:50%;flex-shrink:0;display:inline-block;}
+#d6-stats{display:flex;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;
+  flex-shrink:0;background:#f9fafb;}
+#d6-stats .kpi{flex:1;text-align:center;border-radius:0;padding:7px 2px;background:transparent;}
+#d6-stats .kv{font-size:14px;}
+#d6-stats .kl{font-size:9px;}
+.d6-lhdr{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
+  letter-spacing:.5px;margin:8px 0 5px;}
+.d6-bp{font-size:12px;min-width:200px;}
+.d6-bp h3{font-size:13px;color:#1565C0;margin-bottom:5px;}
+.d6-bp table{width:100%;border-collapse:collapse;}
+.d6-bp td{padding:3px 0;}
+.d6-bp td:first-child{color:#666;width:95px;}
+.d6-bp td:last-child{font-weight:600;}
+</style>
+</head>
+<body>
+
+<div id="slides">
+
+<!-- SLIDE 0 · TITLE -->
+<div class="slide" id="slide-0">
+  <div class="t-badge">HUL Calcutta Metro &middot; NTO &amp; PJP</div>
+  <h1 class="t-h1">New Territory<br/>Organization</h1>
+  <p class="t-sub">Outlet and distributor analysis for Calcutta Metro</p>
+  <div class="s-grid" id="title-stats"></div>
+  <div class="scroll-h">
+    <div class="arr">&#8595;</div>
+    Scroll to explore &nbsp;&middot;&nbsp;
+    <kbd>&#8593;</kbd><kbd>&#8595;</kbd> keys to navigate
+  </div>
+</div>
+
+<!-- SLIDE 1 · OUTLETS & DISTRIBUTORS -->
+<div class="slide" id="slide-1">
+  <div class="map-wrap" id="map-1"></div>
+  <div class="page-lbl">1 / 7 &middot; Outlets &amp; Distributors</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel">
+    <h2>Outlets &amp; Distributors</h2>
+    <p class="p-sub">Calcutta Metro &middot; all active outlets</p>
+    <div class="filter-row">
+      <button class="f-chip active" onclick="setFilter('ALL')">All</button>
+      <button class="f-chip"        onclick="setFilter('General')">General</button>
+      <button class="f-chip"        onclick="setFilter('Pharma')">Pharma</button>
+      <button class="f-chip"        onclick="setFilter('WS')">WS</button>
+      <button class="f-chip" id="excl-btn" onclick="toggleExcl()"
+        style="color:#ef4444;border-color:#fca5a5">Excl.</button>
+    </div>
+    <div id="p1-excl-panel" style="display:none;margin-bottom:12px">
+      <p style="font-size:11px;color:#ef4444;margin-bottom:6px">
+        GPS is far from mapped RS &middot; verify retag or remove
+      </p>
+      <button class="dl-btn" style="background:#ef4444;margin-bottom:0" onclick="downloadExcl()">
+        &#8595; Download Excluded Outlets CSV</button>
+    </div>
+    <div class="kpi-r" id="p1-kpis"></div>
+    <table class="dt-tbl">
+      <thead><tr>
+        <th style="width:20px;padding:5px 4px 5px 0;text-align:center">
+          <input type="checkbox" id="p1-sel-all-chk" onclick="toggleSelectAllRS()"
+            style="accent-color:#1565C0;width:13px;height:13px;cursor:pointer;vertical-align:middle"/>
+        </th>
+        <th>Distributor</th><th>Type</th><th>Outlets</th><th>MOC</th></tr></thead>
+      <tbody id="p1-tb"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- SLIDE 2 · TERRITORY OVERLAPS -->
+<div class="slide" id="slide-2">
+  <div class="map-wrap" id="map-2"></div>
+  <div class="page-lbl">2 / 7 &middot; Territory Overlaps</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel">
+    <h2>Territory Overlaps</h2>
+    <div class="toggle-row" style="margin-bottom:8px">
+      <button class="t-btn active" id="t-gen" onclick="setTerType('General')">General</button>
+      <button class="t-btn"        id="t-pha" onclick="setTerType('Pharma')">Pharma</button>
+    </div>
+    <div class="toggle-row">
+      <button class="t-btn active" id="t-existing" onclick="setView('existing')">Existing</button>
+      <button class="t-btn"        id="t-proposed" onclick="setView('proposed')">Proposed</button>
+    </div>
+    <button class="dl-btn" id="p2-dl-btn" style="display:none;margin-top:8px" onclick="downloadProposed()">
+      &#8595; Download Proposed Plan CSV</button>
+    <table class="dt-tbl" style="margin-top:8px">
+      <thead><tr>
+        <th style="width:20px;padding:5px 4px 5px 0;text-align:center">
+          <input type="checkbox" id="p2-sel-all-chk" onclick="toggleSelectAllRS2()"
+            style="accent-color:#1565C0;width:13px;height:13px;cursor:pointer;vertical-align:middle"/>
+        </th>
+        <th>Distributor</th><th id="p2-col-ol">Outlets</th><th id="p2-col-moc">MOC</th></tr></thead>
+      <tbody id="p2-tb"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- SLIDE 3 · DUPLICATE OUTLETS -->
+<div class="slide" id="slide-3">
+  <div class="map-wrap" id="map-3"></div>
+  <div class="page-lbl">3 / 7 &middot; Duplicate Outlets</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;">
+    <h2>Duplicate Outlets</h2>
+    <p class="p-sub">AI-verified pairs &middot; same store, two entries</p>
+    <div class="kpi-r" id="p3-kpis"></div>
+    <button class="dl-btn" onclick="downloadDupes()">&#8595; Download Duplicate Pairs CSV</button>
+    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
+      letter-spacing:.5px;margin:4px 0 6px;flex-shrink:0">Pairs (sorted by distance)</div>
+    <div id="p3-list" style="overflow-y:scroll;flex:1;min-height:0;"></div>
+  </div>
+</div>
+
+<!-- SLIDE 4 · HIGH DENSITY CLUSTERS -->
+<div class="slide" id="slide-4">
+  <div class="map-wrap" id="map-4"></div>
+  <div class="page-lbl">4 / 7 &middot; High Density Clusters</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel">
+    <h2>High Density Clusters</h2>
+    <p class="p-sub">~20m grid cells &middot; slide to adjust threshold</p>
+    <button class="dl-btn" onclick="downloadClusters()" style="margin-bottom:8px">&#8595; Download Cluster Data CSV</button>
+    <div class="slider-wrap">
+      <label>Min outlets per cluster</label>
+      <div class="slider-row">
+        <input type="range" min="5" max="50" value="5" id="density-slider"
+          oninput="setDensity(+this.value)">
+        <span class="slider-val" id="density-val">5</span>
+      </div>
+    </div>
+    <div class="kpi-r" id="p4-kpis"></div>
+    <div class="cluster-meta" id="p4-meta"></div>
+    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
+      letter-spacing:.5px;margin-bottom:6px">Top Clusters</div>
+    <div id="p4-list" style="overflow-y:auto;max-height:calc(100vh - 390px)"></div>
+  </div>
+</div>
+
+<!-- SLIDE 5 · BEATS -->
+<div class="slide" id="slide-5">
+  <div class="map-wrap" id="map-5"></div>
+  <div class="page-lbl">5 / 7 &middot; Beats &middot; RS 218390 &amp; 218391</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;">
+    <div style="padding:16px 18px 10px;flex-shrink:0;border-bottom:1px solid #e5e7eb;overflow-y:auto;max-height:70vh">
+      <h2 style="margin-bottom:8px">Beats</h2>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">RS</div>
+      <div class="toggle-row" style="margin-bottom:10px">
+        <button class="t-btn active" id="p5-rs390" onclick="setBeatsRS('218390')">218390</button>
+        <button class="t-btn"        id="p5-rs391" onclick="setBeatsRS('218391')">218391</button>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">View</div>
+      <div class="toggle-row" style="margin-bottom:10px">
+        <button class="t-btn active" id="p5-vproposed" onclick="setBeatsView('proposed')">Proposed</button>
+        <button class="t-btn"        id="p5-vexisting" onclick="setBeatsView('existing')">Existing</button>
+      </div>
+      <div class="kpi-r" id="p5-kpis"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by PLG</div>
+      <div class="filter-row" id="p5-chips" style="flex-wrap:wrap;gap:4px"></div>
+      <div id="p5-day-section">
+        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by Day</div>
+        <div class="filter-row" id="p5-day-chips" style="flex-wrap:wrap;gap:4px"></div>
+      </div>
+      <div id="p5-dse-section">
+        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by Salesman</div>
+        <div class="filter-row" style="flex-wrap:wrap;gap:4px" id="p5-dse-chips"></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Legend</div>
+      <div id="p5-legend"></div>
+    </div>
+    <div style="flex:1;min-height:0"></div>
+  </div>
+</div>
+
+<!-- SLIDE 6 · DELIVERY BEATS -->
+<div class="slide" id="slide-6">
+  <div class="map-wrap" id="d6-map"></div>
+  <div class="page-lbl">6 / 7 &middot; Delivery Beats &middot; RS 218390</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;">
+    <div style="padding:16px 18px 10px;flex-shrink:0;border-bottom:1px solid #e5e7eb;overflow-y:auto;max-height:55vh;">
+      <h2 style="margin-bottom:4px;">Delivery Beats</h2>
+      <p class="p-sub" style="margin-bottom:10px">RS 218390 &middot; beat routing scenarios</p>
+      <div class="d6-lhdr" style="margin-top:0">Beat Design</div>
+      <select id="d6-design-sel"></select>
+      <div class="d6-lhdr">Seller Limit</div>
+      <select id="d6-scen-sel"></select>
+      <div class="d6-lhdr">Market Day</div>
+      <div class="filter-row" id="d6-day-btns" style="flex-wrap:wrap;gap:4px;margin-bottom:2px;"></div>
+      <div class="d6-lhdr">Truck Type</div>
+      <div id="d6-truck-filters" style="margin-bottom:6px;"></div>
+      <div class="d6-lhdr">Layers</div>
+      <div class="filter-row" style="gap:4px">
+        <button class="beat-chip active" id="d6-tg-hull" onclick="d6tgl('hull')" style="background:#1565C0;color:#fff;border-color:#1565C0">Zones</button>
+        <button class="beat-chip active" id="d6-tg-pts"  onclick="d6tgl('pts')"  style="background:#1565C0;color:#fff;border-color:#1565C0">Outlets</button>
+        <button class="beat-chip active" id="d6-tg-cent" onclick="d6tgl('cent')" style="background:#1565C0;color:#fff;border-color:#1565C0">Trucks</button>
+      </div>
+    </div>
+    <div id="d6-stats">
+      <div class="kpi"><div class="kv" id="d6-s-beats">—</div><div class="kl">Beats</div></div>
+      <div class="kpi"><div class="kv" id="d6-s-trucks">—</div><div class="kl">Trucks</div></div>
+      <div class="kpi"><div class="kv" id="d6-s-cost">—</div><div class="kl">Cost</div></div>
+      <div class="kpi"><div class="kv" id="d6-s-val">—</div><div class="kl">MOC/Day</div></div>
+      <div class="kpi"><div class="kv" id="d6-s-rt">—</div><div class="kl">RT km</div></div>
+    </div>
+    <div style="display:flex;align-items:center;padding:5px 12px;border-bottom:1px solid #e5e7eb;
+      flex-shrink:0;gap:6px;background:#f9fafb;">
+      <span id="d6-beat-list-count" style="font-size:11px;font-weight:600;color:#6b7280;flex:1">—</span>
+      <button class="dl-btn" style="width:auto;padding:4px 10px;font-size:11px;margin:0"
+        onclick="d6showAll()">Show All</button>
+      <button class="dl-btn" style="width:auto;padding:4px 10px;font-size:11px;margin:0;background:#6b7280"
+        onclick="d6hideAll()">Hide All</button>
+    </div>
+    <div id="d6-beat-list" style="overflow-y:auto;flex:1;min-height:0;"></div>
+  </div>
+</div>
+
+</div><!-- /#slides -->
+
+<div id="nav-dots">
+  <div class="dot" onclick="goTo(0)"></div>
+  <div class="dot" onclick="goTo(1)"></div>
+  <div class="dot" onclick="goTo(2)"></div>
+  <div class="dot" onclick="goTo(3)"></div>
+  <div class="dot" onclick="goTo(4)"></div>
+  <div class="dot" onclick="goTo(5)"></div>
+  <div class="dot" onclick="goTo(6)"></div>
+</div>
+
+<script>
+__DATA_BLOCK__
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+function fN(v){return(v||0).toLocaleString();}
+
+// CARTO Voyager tiles — clean roads, minimal POI labels
+const BASE_TILES=[
+  'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+  'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+  'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+  'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'];
+const KOL_CENTER=[88.43,22.60];
+const KOL_ZOOM=10;
+const MAPS={};
+
+// ── Pre-build GeoJSON ─────────────────────────────────────────────────────────
+const _OUTLET_GJ={
+  type:'FeatureCollection',
+  features:OUTLETS.filter(o=>RS_INFO[o[2]]!=null).map(o=>({
+    type:'Feature',
+    geometry:{type:'Point',coordinates:[o[1],o[0]]},
+    properties:{
+      ri:o[2], ni:o[3],
+      tp:RS_INFO[o[2]].type==='Pharma'?1:RS_INFO[o[2]].type==='WS'?2:0,
+      color:RS_INFO[o[2]].color,
+      ncolor:RS_INFO[o[3]]!=null?RS_INFO[o[3]].color:RS_INFO[o[2]].color,
+      name:o[4]
+    }
+  }))
+};
+// Pre-group outlets by color|tp for efficient Canvas 2D batching
+const _OL_GROUPS={};
+_OUTLET_GJ.features.forEach(f=>{
+  const k=f.properties.color+'|'+f.properties.tp;
+  if(!_OL_GROUPS[k])_OL_GROUPS[k]={color:f.properties.color,tp:f.properties.tp,pts:[]};
+  _OL_GROUPS[k].pts.push({lng:f.geometry.coordinates[0],lat:f.geometry.coordinates[1],nc:f.properties.ncolor});
+});
+const _OL_NGROUPS={};
+_OUTLET_GJ.features.forEach(f=>{
+  const k=f.properties.ncolor+'|'+f.properties.tp;
+  if(!_OL_NGROUPS[k])_OL_NGROUPS[k]={color:f.properties.ncolor,tp:f.properties.tp,pts:[]};
+  _OL_NGROUPS[k].pts.push({lng:f.geometry.coordinates[0],lat:f.geometry.coordinates[1]});
+});
+
+// ── RS marker helpers ─────────────────────────────────────────────────────────
+function _rsPopupHTML(rs){
+  const genLine=rs.gen_n>0
+    ?'<br/><span style="color:#6b7280">General:</span> <b>'+fN(rs.gen_n)+'</b> &middot; MOC '+fN(rs.gen_moc):''
+  const wsLine=rs.ws_n>0
+    ?'<br/><span style="color:#6b7280">WS:</span> <b>'+fN(rs.ws_n)+'</b> &middot; MOC '+fN(rs.ws_moc):''
+  return '<div style="font-size:12px">'
+    +'<b>'+rs.name+'</b>'
+    +'<span style="color:#9ca3af;font-size:10px;margin-left:6px">'+rs.code+'</span><br/>'
+    +'<span style="color:#6b7280;font-size:11px">'+rs.type+'</span>'
+    +'<div style="margin-top:6px;font-size:11px;line-height:1.8">'
+    +'Total: <b>'+fN(rs.outlet_count)+'</b> &middot; MOC <b>'+fN(rs.moc)+'</b>'
+    +genLine+wsLine
+    +'</div></div>';
+}
+function _addRSMarkers(m,popup,rsFilter){
+  const markers=[];
+  RS_INFO.filter(r=>r.lat!=null&&r.lon!=null&&(!rsFilter||rsFilter.includes(r.code))).forEach(rs=>{
+    const el=document.createElement('div');
+    el.style.cssText='width:18px;height:18px;border-radius:50%;background:'+rs.color
+      +';border:3px solid #fff;cursor:pointer;'
+      +'box-shadow:0 2px 8px rgba(0,0,0,0.7),0 0 0 1px rgba(0,0,0,0.15);';
+    new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([rs.lon,rs.lat]).addTo(m);
+    el.addEventListener('mouseenter',()=>{
+      popup.setLngLat([rs.lon,rs.lat]).setHTML(_rsPopupHTML(rs)).addTo(m);
+    });
+    el.addEventListener('mouseleave',()=>popup.remove());
+    markers.push({el,rs});
+  });
+  return markers;
+}
+function _filterRSMarkers(markers,typeFilter){
+  markers.forEach(({el,rs})=>{
+    el.style.display=(typeFilter===null||rs.type===typeFilter)?'':'none';
+  });
+}
+
+// ── Cluster outlet lookup (snaps each outlet to 20m grid) ─────────────────────
+const _CGRID_INV=5000; // 1/0.0002
+function _gridKey(lat,lon){return Math.round(lat*_CGRID_INV)+'|'+Math.round(lon*_CGRID_INV);}
+const _CL_IDX={};
+CLUSTERS.forEach(c=>{_CL_IDX[_gridKey(c.lat,c.lon)]={i:c.i,n:c.n};});
+const _OL_CL=OUTLETS.map(o=>{const k=_gridKey(o[0],o[1]);return _CL_IDX[k]||null;});
+
+// Canvas 2D overlay factory — bypasses WebGL circle layers
+function _makeOutletCanvas(m,dpr){
+  const wrap=m.getContainer();
+  const oc=document.createElement('canvas');
+  oc.style.cssText='position:absolute;top:0;left:0;pointer-events:none;z-index:2;';
+  const resize=()=>{
+    oc.width=wrap.offsetWidth*dpr; oc.height=wrap.offsetHeight*dpr;
+    oc.style.width=wrap.offsetWidth+'px'; oc.style.height=wrap.offsetHeight+'px';
+  };
+  resize(); wrap.appendChild(oc);
+  m.on('resize',resize);
+  return {canvas:oc,ctx:oc.getContext('2d'),resize};
+}
+
+function _drawGroups(m,ctx,oc,dpr,groups,tp_filter,radius_fn){
+  const dpr2=dpr; ctx.clearRect(0,0,oc.width,oc.height);
+  const z=m.getZoom();
+  const r=radius_fn(z)*dpr2;
+  const b=m.getBounds();
+  const pad=0.03;
+  const sLat=b.getSouth()-pad,nLat=b.getNorth()+pad,wLng=b.getWest()-pad,eLng=b.getEast()+pad;
+  Object.values(groups).forEach(g=>{
+    if(tp_filter!==null&&g.tp!==tp_filter)return;
+    ctx.fillStyle=g.color; ctx.beginPath();
+    g.pts.forEach(p=>{
+      if(p.lat<sLat||p.lat>nLat||p.lng<wLng||p.lng>eLng)return;
+      const pt=m.project([p.lng,p.lat]);
+      ctx.moveTo(pt.x*dpr2+r,pt.y*dpr2);
+      ctx.arc(pt.x*dpr2,pt.y*dpr2,r,0,Math.PI*2);
+    });
+    ctx.globalAlpha=0.85; ctx.fill();
+  });
+  ctx.globalAlpha=1;
+}
+
+const _RS_GJ={
+  type:'FeatureCollection',
+  features:RS_INFO.filter(r=>r.lat!=null&&r.lon!=null).map(r=>({
+    type:'Feature',
+    geometry:{type:'Point',coordinates:[r.lon,r.lat]},
+    properties:{idx:r.idx,name:r.name,tp:r.type,color:r.color,cnt:r.outlet_count}
+  }))
+};
+
+const _BEATS_BY_PLG={};
+PLG_INFO.forEach(p=>{_BEATS_BY_PLG[p.idx]=[];});
+BEATS_390.forEach(b=>{if(_BEATS_BY_PLG[b[2]])_BEATS_BY_PLG[b[2]].push(b);});
+
+const MKT_COLORS=['#ef4444','#f97316','#84cc16','#22c55e','#3b82f6','#a855f7'];
+const MKT_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function colorMatchExpr(prop){
+  const args=RS_INFO.flatMap(r=>[r.idx,r.color]);
+  return['match',['get',prop],...args,'#9ca3af'];
+}
+
+// ── TITLE ─────────────────────────────────────────────────────────────────────
+document.getElementById('title-stats').innerHTML=[
+  [fN(STATS.total),'Active Outlets'],
+  [STATS.rs_count,'Distributors'],
+  [fN(DUPE_STATS.total),'Duplicate Pairs'],
+  [fN(CLUSTER_ST.total),'Dense Clusters'],
+].map(([v,l])=>'<div class="s-box"><div class="sv">'+v+'</div><div class="sl">'+l+'</div></div>').join('');
+
+// ── MAP FACTORY ───────────────────────────────────────────────────────────────
+function makeMap(mapId,loadFn,center,zoom){
+  const el=document.getElementById(mapId);
+  if(!el)return;
+  let map;
+  try{
+    map=new maplibregl.Map({container:el,
+      style:{version:8,sources:{},layers:[]},
+      center:center||KOL_CENTER,zoom:zoom||KOL_ZOOM,
+      scrollZoom:false,dragRotate:false,attributionControl:false});
+  }catch(e){
+    el.innerHTML='<div style="padding:20px;color:red">Map error: '+e+'</div>';
+    return;
+  }
+  MAPS[mapId]={map,init:false};
+
+  const doInit=()=>{
+    if(MAPS[mapId].init)return;
+    if(!map.isStyleLoaded()){setTimeout(doInit,50);return;}
+    MAPS[mapId].init=true;
+    map.resize();
+    try{
+      map.addSource('_base',{type:'raster',tiles:BASE_TILES,tileSize:256,
+        attribution:'&copy; OpenStreetMap &copy; CARTO'});
+      map.addLayer({id:'_base',type:'raster',source:'_base',minzoom:0,maxzoom:22});
+    }catch(e){console.warn('[HUL] basemap',mapId,e);}
+    try{loadFn(map);}
+    catch(e){console.error('[HUL] loadFn err',mapId,e);}
+    setTimeout(()=>map.resize(),300);
+  };
+
+  map.once('load',doInit);
+  setTimeout(doInit,100);
+  setTimeout(doInit,800);
+  setTimeout(doInit,2500);
+
+  el.addEventListener('wheel',e=>{
+    if(e.ctrlKey||e.metaKey){
+      e.preventDefault();e.stopPropagation();
+      const d=-(e.deltaY)*(e.deltaMode===0?0.08:1.5);
+      map.jumpTo({zoom:Math.max(5,Math.min(19,map.getZoom()+Math.max(-2,Math.min(2,d))))});
+    }
+  },{passive:false});
+  el.addEventListener('touchmove',e=>{if(e.touches.length>=2)e.preventDefault();},{passive:false});
+}
+
+function flyTo(mapId,lon,lat){
+  if(lon==null||lat==null)return;
+  if(MAPS[mapId])MAPS[mapId].map.flyTo({center:[lon,lat],zoom:13,duration:700});
+}
+function resizeMap(id){const m=MAPS[id];if(m&&m.map)m.map.resize();}
+
+// ── SLIDE 1 · OUTLETS & DISTRIBUTORS ─────────────────────────────────────────
+let curFilter='ALL';
+let selRS=new Set();
+const _DPR=window.devicePixelRatio||1;
+
+function initSlide1(){
+  if(MAPS['map-1'])return;
+  makeMap('map-1',m=>{
+    const rsPopup=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:8,maxWidth:'240px'});
+    const olPopup=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:6,maxWidth:'220px'});
+    const {canvas:oc,ctx:ctx2}=_makeOutletCanvas(m,_DPR);
+    MAPS['map-1']._oc=oc;
+
+    function drawExcl(){
+      ctx2.clearRect(0,0,oc.width,oc.height);
+      const dpr=_DPR;
+      const z=m.getZoom();
+      const r=Math.max(2,2+(z-9)/(14-9)*7)*dpr;
+      const b=m.getBounds();const pad=0.05;
+      const sl=b.getSouth()-pad,nl=b.getNorth()+pad,wl=b.getWest()-pad,el=b.getEast()+pad;
+      const tpF=curFilter==='General'?0:curFilter==='Pharma'?1:curFilter==='WS'?2:null;
+      // Draw all normal outlets as light grey context layer
+      ctx2.fillStyle='#9ca3af';ctx2.globalAlpha=0.2;
+      ctx2.beginPath();
+      OUTLETS.forEach(o=>{
+        if(o[0]<sl||o[0]>nl||o[1]<wl||o[1]>el)return;
+        const rs=RS_INFO[o[2]];if(!rs)return;
+        if(tpF!==null){const tp=rs.type==='Pharma'?1:rs.type==='WS'?2:0;if(tp!==tpF)return;}
+        if(selRS.size>0&&!selRS.has(o[2]))return;
+        const pt=m.project([o[1],o[0]]);
+        ctx2.moveTo(pt.x*dpr+r,pt.y*dpr);ctx2.arc(pt.x*dpr,pt.y*dpr,r,0,Math.PI*2);
+      });
+      ctx2.fill();
+      // Draw excluded outlets on top with dashed lines to RS
+      EXCL_OUTLETS.forEach(o=>{
+        if(o[0]<sl||o[0]>nl||o[1]<wl||o[1]>el)return;
+        const rs=RS_INFO.find(r=>r.code===o[3]);
+        if(tpF!==null){
+          if(rs){const tp=rs.type==='Pharma'?1:rs.type==='WS'?2:0;if(tp!==tpF)return;}
+        }
+        if(selRS.size>0&&rs&&!selRS.has(rs.idx))return;
+        const pt=m.project([o[1],o[0]]);
+        const ptx=pt.x*dpr,pty=pt.y*dpr;
+        if(o[4]!==null&&o[5]!==null){
+          const rpt=m.project([o[5],o[4]]);
+          ctx2.strokeStyle='#ef4444';ctx2.lineWidth=1.5*dpr;ctx2.globalAlpha=0.4;
+          ctx2.setLineDash([4*dpr,3*dpr]);
+          ctx2.beginPath();ctx2.moveTo(ptx,pty);ctx2.lineTo(rpt.x*dpr,rpt.y*dpr);ctx2.stroke();
+          ctx2.setLineDash([]);
+        }
+        ctx2.fillStyle='#ef4444';ctx2.globalAlpha=0.85;
+        ctx2.beginPath();ctx2.arc(ptx,pty,4*dpr,0,Math.PI*2);ctx2.fill();
+      });
+      ctx2.globalAlpha=1;
+    }
+
+    function draw1(){
+      if(_showExcl){drawExcl();return;}
+      if(selRS.size===0){
+        const tpF=curFilter==='General'?0:curFilter==='Pharma'?1:curFilter==='WS'?2:null;
+        _drawGroups(m,ctx2,oc,_DPR,_OL_GROUPS,tpF,z=>Math.max(2,2+(z-9)/(14-9)*7));
+      } else {
+        ctx2.clearRect(0,0,oc.width,oc.height);
+        const z=m.getZoom();const dpr=_DPR;
+        const r=Math.max(2,2+(z-9)/(14-9)*7)*dpr;
+        const b=m.getBounds();const pad=0.03;
+        const sl=b.getSouth()-pad,nl=b.getNorth()+pad,wl=b.getWest()-pad,el=b.getEast()+pad;
+        const tpF=curFilter==='General'?0:curFilter==='Pharma'?1:curFilter==='WS'?2:null;
+        const byCol={};
+        OUTLETS.forEach(o=>{
+          if(!selRS.has(o[2]))return;
+          const rs=RS_INFO[o[2]];if(!rs)return;
+          if(tpF!==null){const tp=rs.type==='Pharma'?1:rs.type==='WS'?2:0;if(tp!==tpF)return;}
+          if(o[0]<sl||o[0]>nl||o[1]<wl||o[1]>el)return;
+          if(!byCol[rs.color])byCol[rs.color]=[];byCol[rs.color].push(o);
+        });
+        ctx2.globalAlpha=0.85;
+        Object.entries(byCol).forEach(([col,pts])=>{
+          ctx2.fillStyle=col;ctx2.beginPath();
+          pts.forEach(o=>{
+            const pt=m.project([o[1],o[0]]);
+            ctx2.moveTo(pt.x*dpr+r,pt.y*dpr);ctx2.arc(pt.x*dpr,pt.y*dpr,r,0,Math.PI*2);
+          });
+          ctx2.fill();
+        });
+        ctx2.globalAlpha=1;
+      }
+    }
+    MAPS['map-1']._draw=draw1;
+    m.on('render',draw1);
+
+    MAPS['map-1']._rsMarkers=_addRSMarkers(m,rsPopup);
+
+    // Outlet tooltip — separate popup so it doesn't conflict with RS marker popup
+    m.on('mousemove',e=>{
+      if(_showExcl||m.getZoom()<10){olPopup.remove();m.getCanvas().style.cursor='';return;}
+      // suppress if mouse is over an RS HTML marker
+      if(e.originalEvent.target.closest('.maplibregl-marker')){olPopup.remove();m.getCanvas().style.cursor='';return;}
+      const b=m.getBounds(),pad=0.005;
+      const sl=b.getSouth()-pad,nl=b.getNorth()+pad,wl=b.getWest()-pad,el=b.getEast()+pad;
+      const tpF=curFilter==='General'?0:curFilter==='Pharma'?1:curFilter==='WS'?2:null;
+      let best=null,bestD=18*18;
+      OUTLETS.forEach(o=>{
+        if(selRS.size>0&&!selRS.has(o[2]))return;
+        if(o[0]<sl||o[0]>nl||o[1]<wl||o[1]>el)return;
+        const rs=RS_INFO[o[2]];if(!rs)return;
+        if(tpF!==null){const tp=rs.type==='Pharma'?1:rs.type==='WS'?2:0;if(tp!==tpF)return;}
+        const pt=m.project([o[1],o[0]]);
+        const d=(pt.x-e.point.x)**2+(pt.y-e.point.y)**2;
+        if(d<bestD){bestD=d;best={o,rs};}
+      });
+      if(best){
+        const {o,rs}=best;
+        m.getCanvas().style.cursor='pointer';
+        const _ok=v=>v&&v!=='0'&&v!=='nan'&&v!=='None';
+        const parts=[];
+        if(_ok(o[7]))parts.push(o[7]);
+        if(_ok(o[5]))parts.push(o[5]);
+        if(_ok(o[8]))parts.push(o[8]);
+        const chLine=parts.length?'<br/><span style="color:#6b7280;font-size:10px">'+parts.join(' &middot; ')+'</span>':'';
+        const mocLine='<br/><span style="color:#6b7280;font-size:10px">MOC: <b>'+(+o[6]).toFixed(2)+'</b></span>';
+        olPopup.setLngLat([o[1],o[0]])
+          .setHTML('<div style="font-size:12px"><b>'+o[4]+'</b><br/>'
+            +'<span style="color:'+rs.color+'">&#11044; '+rs.name+'</span>'
+            +chLine+mocLine+'</div>')
+          .addTo(m);
+      } else {m.getCanvas().style.cursor='';olPopup.remove();}
+    });
+  });
+  renderPanel1();
+}
+
+let _exclMarkers=null, _showExcl=false;
+// Build a set of RS codes present in excluded outlets for RS marker filtering
+const _EXCL_RS_CODES=new Set(EXCL_OUTLETS.map(o=>o[3]));
+
+function toggleExcl(){
+  _showExcl=!_showExcl;
+  const btn=document.getElementById('excl-btn');
+  btn.style.background=_showExcl?'#fee2e2':'';
+  btn.style.borderColor=_showExcl?'#ef4444':'#fca5a5';
+  btn.textContent=_showExcl?'Show All':'Excl.';
+  const exclPanel=document.getElementById('p1-excl-panel');
+  if(exclPanel)exclPanel.style.display=_showExcl?'':'none';
+  const m=MAPS['map-1']&&MAPS['map-1'].map;
+  if(!m)return;
+  // Build excluded markers lazily
+  if(!_exclMarkers){
+    const pop=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:8,maxWidth:'220px'});
+    _exclMarkers=EXCL_OUTLETS.map(o=>{
+      const el=document.createElement('div');
+      el.style.cssText='width:16px;height:16px;border-radius:50%;background:#ef4444;color:white;'
+        +'font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;'
+        +'border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.6);cursor:pointer;z-index:10;';
+      el.textContent='✕';
+      new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([o[1],o[0]]).addTo(m);
+      el.addEventListener('mouseenter',()=>{
+        const rs=RS_INFO.find(r=>r.code===o[3]);
+        const distText=o[6]!=null?'<br/><b style="color:#ef4444">'+o[6]+' km from RS</b>':'';
+        const rsText=rs
+          ?'<span style="color:'+rs.color+'">&#11044; '+rs.name+'</span><br/>'
+          :'<span style="color:#9ca3af">RS '+o[3]+'</span><br/>';
+        pop.setLngLat([o[1],o[0]])
+          .setHTML('<div style="font-size:12px"><b>'+o[2]+'</b><br/>'+rsText+distText
+            +'<br/><span style="color:#9ca3af;font-size:10px">Incorrect GPS &middot; verify retag or remove</span></div>')
+          .addTo(m);
+      });
+      el.addEventListener('mouseleave',()=>pop.remove());
+      return el;
+    });
+  }
+  // Apply type + selRS filter to excl markers visibility
+  _exclMarkers.forEach((el,i)=>{
+    if(!_showExcl){el.style.display='none';return;}
+    const o=EXCL_OUTLETS[i];
+    const rs=RS_INFO.find(r=>r.code===o[3]);
+    const typeOk=curFilter==='ALL'||(rs&&rs.type===curFilter);
+    const selOk=selRS.size===0||(rs&&selRS.has(rs.idx));
+    el.style.display=(typeOk&&selOk)?'':'none';
+  });
+  // Show only RS markers that have excluded outlets AND match type + selRS filter
+  const markers=MAPS['map-1']&&MAPS['map-1']._rsMarkers;
+  if(markers)markers.forEach(({el,rs})=>{
+    if(_showExcl){
+      const selOk=selRS.size===0||selRS.has(rs.idx);
+      el.style.display=(_EXCL_RS_CODES.has(rs.code)&&(curFilter==='ALL'||rs.type===curFilter)&&selOk)?'':'none';
+    } else {
+      const typeOk=curFilter==='ALL'||rs.type===curFilter;
+      el.style.display=(typeOk&&(selRS.size===0||selRS.has(rs.idx)))?'':'none';
+    }
+  });
+  // Canvas redraws via draw1 (drawExcl path when _showExcl=true)
+  if(MAPS['map-1']&&MAPS['map-1']._draw)MAPS['map-1']._draw();
+  if(!_showExcl)renderPanel1();
+}
+
+function setFilter(f){
+  curFilter=f;
+  document.querySelectorAll('.f-chip').forEach((b,i)=>{
+    b.classList.toggle('active',['ALL','General','Pharma','WS'][i]===f);
+  });
+  const markers=MAPS['map-1']&&MAPS['map-1']._rsMarkers;
+  if(markers)markers.forEach(({el,rs})=>{
+    if(_showExcl){
+      el.style.display=(_EXCL_RS_CODES.has(rs.code)&&(f==='ALL'||rs.type===f))?'':'none';
+    } else {
+      const typeOk=f==='ALL'||rs.type===f;
+      el.style.display=(typeOk&&(selRS.size===0||selRS.has(rs.idx)))?'':'none';
+    }
+  });
+  if(_showExcl&&_exclMarkers){
+    _exclMarkers.forEach((el,i)=>{
+      const o=EXCL_OUTLETS[i];
+      const rs=RS_INFO.find(r=>r.code===o[3]);
+      const typeOk=f==='ALL'||(rs&&rs.type===f);
+      const selOk=selRS.size===0||(rs&&selRS.has(rs.idx));
+      el.style.display=(typeOk&&selOk)?'':'none';
+    });
+  }
+  if(MAPS['map-1']&&MAPS['map-1']._draw)MAPS['map-1']._draw();
+  renderPanel1();
+}
+
+function toggleRS(idx){
+  if(selRS.has(idx))selRS.delete(idx);else selRS.add(idx);
+  const markers=MAPS['map-1']&&MAPS['map-1']._rsMarkers;
+  if(markers){
+    if(_showExcl){
+      markers.forEach(({el,rs})=>{
+        const typeOk=curFilter==='ALL'||rs.type===curFilter;
+        const selOk=_EXCL_RS_CODES.has(rs.code)&&(selRS.size===0||selRS.has(rs.idx));
+        el.style.display=(typeOk&&selOk)?'':'none';
+      });
+    } else {
+      markers.forEach(({el,rs})=>{
+        const typeOk=curFilter==='ALL'||rs.type===curFilter;
+        el.style.display=(typeOk&&(selRS.size===0||selRS.has(rs.idx)))?'':'none';
+      });
+    }
+  }
+  if(_showExcl&&_exclMarkers){
+    _exclMarkers.forEach((el,i)=>{
+      const o=EXCL_OUTLETS[i];
+      const rs=RS_INFO.find(r=>r.code===o[3]);
+      const typeOk=curFilter==='ALL'||(rs&&rs.type===curFilter);
+      const selOk=selRS.size===0||(rs&&selRS.has(rs.idx));
+      el.style.display=(typeOk&&selOk)?'':'none';
+    });
+  }
+  if(MAPS['map-1']&&MAPS['map-1']._draw)MAPS['map-1']._draw();
+  renderPanel1();
+}
+
+function clearRSSelection(){
+  selRS.clear();
+  const markers=MAPS['map-1']&&MAPS['map-1']._rsMarkers;
+  if(markers&&!_showExcl)_filterRSMarkers(markers,curFilter==='ALL'?null:curFilter);
+  if(MAPS['map-1']&&MAPS['map-1']._draw)MAPS['map-1']._draw();
+  renderPanel1();
+}
+
+function renderPanel1(){
+  const filt=curFilter==='ALL'?RS_INFO:RS_INFO.filter(r=>r.type===curFilter);
+  const activeFilt=selRS.size>0?filt.filter(r=>selRS.has(r.idx)):filt;
+  const totalOut=activeFilt.reduce((s,r)=>s+r.outlet_count,0);
+  document.getElementById('p1-kpis').innerHTML=
+    '<div class="kpi"><div class="kv">'+fN(totalOut)+'</div>'
+   +'<div class="kl">'+(selRS.size>0?'Selected Outlets':'Outlets')+'</div></div>'
+   +'<div class="kpi"><div class="kv">'+filt.length+'</div><div class="kl">Distributors</div></div>';
+  const sorted=[...filt].sort((a,b)=>b.outlet_count-a.outlet_count);
+  const TB={General:'background:#e3f2fd;color:#1565C0',Pharma:'background:#e8f5e9;color:#2e7d32',
+             WS:'background:#fff3e0;color:#e65100'};
+  document.getElementById('p1-tb').innerHTML=sorted.map(rs=>{
+    const isSel=selRS.size===0||selRS.has(rs.idx);
+    const chk='<input type="checkbox"'+(isSel?' checked':'')+' style="pointer-events:none;'
+      +'accent-color:#1565C0;width:13px;height:13px;vertical-align:middle"/>';
+    return'<tr style="cursor:pointer;'+(isSel?'background:#eff6ff;':'')+'" '
+     +'onclick="toggleRS('+rs.idx+')">'
+     +'<td style="padding:6px 4px 6px 0;text-align:center">'+chk+'</td>'
+     +'<td><span class="dc" style="background:'+rs.color+'"></span>'+rs.name
+     +'<div style="font-size:10px;color:#9ca3af;margin-left:14px">'+rs.code+'</div></td>'
+     +'<td><span class="rs-badge" style="'+(TB[rs.type]||'')+'">'+rs.type+'</span></td>'
+     +'<td>'+fN(rs.outlet_count)+'</td>'
+     +'<td>'+fN(rs.moc)+'</td></tr>';
+  }).join('');
+  const chkAll=document.getElementById('p1-sel-all-chk');
+  if(chkAll){
+    if(selRS.size===0){chkAll.checked=true;chkAll.indeterminate=false;}
+    else if(filt.every(r=>selRS.has(r.idx))){chkAll.checked=true;chkAll.indeterminate=false;}
+    else{chkAll.checked=false;chkAll.indeterminate=true;}
+  }
+}
+
+function toggleSelectAllRS(){
+  const filt=curFilter==='ALL'?RS_INFO:RS_INFO.filter(r=>r.type===curFilter);
+  if(selRS.size===0)selectAllRS();
+  else if(filt.every(rs=>selRS.has(rs.idx)))clearRSSelection();
+  else selectAllRS();
+}
+
+function selectAllRS(){
+  const filt=curFilter==='ALL'?RS_INFO:RS_INFO.filter(r=>r.type===curFilter);
+  filt.forEach(rs=>selRS.add(rs.idx));
+  const markers=MAPS['map-1']&&MAPS['map-1']._rsMarkers;
+  if(markers&&!_showExcl)markers.forEach(({el,rs})=>{
+    const typeOk=curFilter==='ALL'||rs.type===curFilter;
+    el.style.display=typeOk?'':'none';
+  });
+  if(MAPS['map-1']&&MAPS['map-1']._draw)MAPS['map-1']._draw();
+  renderPanel1();
+}
+
+function downloadExcl(){
+  const hdr=['Outlet Name','RS Code','RS Name','Outlet Lat','Outlet Lon','RS Lat','RS Lon','Distance to RS (km)'];
+  const rows=[hdr,...EXCL_OUTLETS.map(o=>{
+    const rs=RS_INFO.find(r=>r.code===o[3]);
+    return[o[2],o[3],rs?rs.name:'',o[0],o[1],
+           o[4]!=null?o[4]:'',o[5]!=null?o[5]:'',o[6]!=null?o[6]:''];
+  })];
+  const csv=rows.map(r=>r.map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')).join('\\r\\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='hul_kolkata_excluded_outlets.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+function downloadProposed(){
+  const hdr=['Outlet Code','Outlet Name','Old RS Code','Old RS Name','New RS Code','New RS Name',
+             'primarychannel','Classification','Channel Program','MOC'];
+  const rows=[hdr,...OUTLETS.map(o=>{
+    const oldRS=RS_INFO[o[2]],newRS=RS_INFO[o[3]];
+    return[o[9]||'',o[4],
+           oldRS?oldRS.code:'',oldRS?oldRS.name:'',
+           newRS?newRS.code:'',newRS?newRS.name:'',
+           o[7]||'',o[5]||'',o[8]||'',o[6]||0];
+  })];
+  const csv=rows.map(r=>r.map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')).join('\\r\\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='hul_kolkata_proposed_plan.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+// ── SLIDE 2 · TERRITORY OVERLAPS ─────────────────────────────────────────────
+let curView='existing', curTerType='General';
+let selRS2=new Set();
+
+function _applyTer2Filters(m){
+  const typeF=['==',['get','rs_type'],curTerType];
+  let f=typeF;
+  if(selRS2.size>0)f=['all',typeF,['in',['get','rs_idx'],['literal',[...selRS2]]]];
+  if(m.getLayer('ter-fill'))m.setFilter('ter-fill',f);
+  if(m.getLayer('ter-line'))m.setFilter('ter-line',f);
+}
+
+function initSlide2(){
+  if(MAPS['map-2'])return;
+  makeMap('map-2',m=>{
+    m.addSource('territories',{type:'geojson',data:BOUNDARIES});
+    m.addLayer({id:'ter-fill',type:'fill',source:'territories',paint:{
+      'fill-color':['coalesce',['get','color'],'#9ca3af'],'fill-opacity':0.12
+    }});
+    m.addLayer({id:'ter-line',type:'line',source:'territories',paint:{
+      'line-color':['coalesce',['get','color'],'#9ca3af'],
+      'line-width':2,'line-opacity':0.8
+    }});
+    _applyTer2Filters(m);
+    const _rsm2=_addRSMarkers(m,new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:8,maxWidth:'220px'}));
+    _filterRSMarkers(_rsm2,curTerType);
+    MAPS['map-2']._rsMarkers=_rsm2;
+    const {canvas:oc,ctx:ctx2}=_makeOutletCanvas(m,_DPR);
+    function draw2(){
+      const tpF=curTerType==='General'?0:1;
+      if(selRS2.size===0){
+        const grps=curView==='proposed'?_OL_NGROUPS:_OL_GROUPS;
+        _drawGroups(m,ctx2,oc,_DPR,grps,tpF,z=>Math.max(2,2+(z-9)/(14-9)*7));
+      } else {
+        ctx2.clearRect(0,0,oc.width,oc.height);
+        const z=m.getZoom();const dpr=_DPR;
+        const r=Math.max(2,2+(z-9)/(14-9)*7)*dpr;
+        const b=m.getBounds();const pad=0.03;
+        const sl=b.getSouth()-pad,nl=b.getNorth()+pad,wl=b.getWest()-pad,el=b.getEast()+pad;
+        const byCol={};
+        OUTLETS.forEach(o=>{
+          const rsIdx=curView==='proposed'?o[3]:o[2];
+          if(!selRS2.has(rsIdx))return;
+          const rs=RS_INFO[rsIdx];if(!rs||rs.type!==curTerType)return;
+          if(o[0]<sl||o[0]>nl||o[1]<wl||o[1]>el)return;
+          if(!byCol[rs.color])byCol[rs.color]=[];byCol[rs.color].push(o);
+        });
+        ctx2.globalAlpha=0.85;
+        Object.entries(byCol).forEach(([col,pts])=>{
+          ctx2.fillStyle=col;ctx2.beginPath();
+          pts.forEach(o=>{const pt=m.project([o[1],o[0]]);
+            ctx2.moveTo(pt.x*dpr+r,pt.y*dpr);ctx2.arc(pt.x*dpr,pt.y*dpr,r,0,Math.PI*2);});
+          ctx2.fill();
+        });
+        ctx2.globalAlpha=1;
+      }
+    }
+    MAPS['map-2']._draw=draw2;
+    m.on('render',draw2);
+
+    const olPopup2=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:6,maxWidth:'260px'});
+    m.on('mousemove',e=>{
+      if(m.getZoom()<10){olPopup2.remove();m.getCanvas().style.cursor='';return;}
+      if(e.originalEvent.target.closest('.maplibregl-marker')){olPopup2.remove();m.getCanvas().style.cursor='';return;}
+      const b=m.getBounds(),pad=0.005;
+      const sl=b.getSouth()-pad,nl=b.getNorth()+pad,wl=b.getWest()-pad,el=b.getEast()+pad;
+      const tpF=curTerType==='General'?0:1;
+      let best=null,bestD=18*18;
+      OUTLETS.forEach(o=>{
+        if(o[0]<sl||o[0]>nl||o[1]<wl||o[1]>el)return;
+        const rsIdx=curView==='proposed'?o[3]:o[2];
+        const rs=RS_INFO[rsIdx];if(!rs)return;
+        if(rs.type!==curTerType)return;
+        if(selRS2.size>0&&!selRS2.has(rsIdx))return;
+        const pt=m.project([o[1],o[0]]);
+        const d=(pt.x-e.point.x)**2+(pt.y-e.point.y)**2;
+        if(d<bestD){bestD=d;best={o,rs};}
+      });
+      if(best){
+        const {o,rs}=best;
+        m.getCanvas().style.cursor='pointer';
+        const oldRS=RS_INFO[o[2]],newRS=RS_INFO[o[3]];
+        const moved=o[2]!==o[3];
+        const rsLine=moved
+          ?'<span style="color:'+oldRS.color+'">&#11044; '+oldRS.name+'</span> &rarr; <span style="color:'+newRS.color+'">'+newRS.name+'</span>'
+          :'<span style="color:'+rs.color+'">&#11044; '+rs.name+'</span>';
+        const _ok=v=>v&&v!=='0'&&v!=='nan'&&v!=='None';
+        const parts=[];if(_ok(o[7]))parts.push(o[7]);if(_ok(o[5]))parts.push(o[5]);if(_ok(o[8]))parts.push(o[8]);
+        const chLine=parts.length?'<br/><span style="color:#6b7280;font-size:10px">'+parts.join(' &middot; ')+'</span>':'';
+        const mocLine='<br/><span style="color:#6b7280;font-size:10px">MOC: <b>'+(+o[6]).toFixed(2)+'</b></span>';
+        olPopup2.setLngLat([o[1],o[0]])
+          .setHTML('<div style="font-size:12px"><b>'+o[4]+'</b><br/>'+rsLine+chLine+mocLine+'</div>')
+          .addTo(m);
+      } else {m.getCanvas().style.cursor='';olPopup2.remove();}
+    });
+  });
+  renderPanel2();
+}
+
+function setTerType(t){
+  curTerType=t;selRS2.clear();
+  document.getElementById('t-gen').classList.toggle('active',t==='General');
+  document.getElementById('t-pha').classList.toggle('active',t==='Pharma');
+  const m=MAPS['map-2']&&MAPS['map-2'].map;
+  if(m)_applyTer2Filters(m);
+  if(MAPS['map-2']&&MAPS['map-2']._rsMarkers)_filterRSMarkers(MAPS['map-2']._rsMarkers,t);
+  if(MAPS['map-2']&&MAPS['map-2']._draw)MAPS['map-2']._draw();
+  renderPanel2();
+}
+
+function setView(v){
+  curView=v;
+  if(MAPS['map-2']&&MAPS['map-2']._draw)MAPS['map-2']._draw();
+  renderPanel2();
+}
+
+function renderPanel2(){
+  document.getElementById('t-existing').classList.toggle('active',curView==='existing');
+  document.getElementById('t-proposed').classList.toggle('active',curView==='proposed');
+  const isProposed=curView==='proposed';
+  const dlBtn=document.getElementById('p2-dl-btn');
+  if(dlBtn)dlBtn.style.display=isProposed?'':'none';
+  const colOl=document.getElementById('p2-col-ol');
+  const colMoc=document.getElementById('p2-col-moc');
+  if(colOl)colOl.textContent=isProposed?'Prop. Outlets':'Outlets';
+  if(colMoc)colMoc.textContent=isProposed?'Prop. MOC':'MOC';
+  const filt=RS_INFO.filter(r=>r.type===curTerType);
+  const sorted=[...filt].sort((a,b)=>(isProposed?b.proposed_count-a.proposed_count:b.outlet_count-a.outlet_count));
+  document.getElementById('p2-tb').innerHTML=sorted.map(rs=>{
+    const isSel=selRS2.size===0||selRS2.has(rs.idx);
+    const chk='<input type="checkbox"'+(isSel?' checked':'')+' style="pointer-events:none;'
+      +'accent-color:#1565C0;width:13px;height:13px;vertical-align:middle"/>';
+    let olCell,mocCell;
+    if(isProposed){
+      const gainN=rs.gained_n>0?'<span style="color:#16a34a;font-size:9px"> +'+fN(rs.gained_n)+'</span>':'';
+      const lossN=rs.lost_n>0?'<span style="color:#dc2626;font-size:9px"> −'+fN(rs.lost_n)+'</span>':'';
+      const gainM=rs.gained_moc>0?'<span style="color:#16a34a;font-size:9px"> +'+rs.gained_moc.toFixed(1)+'</span>':'';
+      const lossM=rs.lost_moc>0?'<span style="color:#dc2626;font-size:9px"> −'+rs.lost_moc.toFixed(1)+'</span>':'';
+      olCell=fN(rs.proposed_count)+gainN+lossN;
+      mocCell=rs.proposed_moc.toFixed(1)+gainM+lossM;
+    } else {
+      olCell=fN(rs.outlet_count);
+      mocCell=fN(rs.moc);
+    }
+    return'<tr style="cursor:pointer;'+(isSel?'background:#eff6ff;':'')+'" '
+     +'onclick="toggleRS2('+rs.idx+')">'
+     +'<td style="padding:6px 4px 6px 0;text-align:center">'+chk+'</td>'
+     +'<td><span class="dc" style="background:'+rs.color+'"></span>'+rs.name
+     +'<div style="font-size:10px;color:#9ca3af;margin-left:14px">'+rs.code+'</div></td>'
+     +'<td>'+olCell+'</td>'
+     +'<td>'+mocCell+'</td></tr>';
+  }).join('');
+  const chkAll=document.getElementById('p2-sel-all-chk');
+  if(chkAll){
+    if(selRS2.size===0){chkAll.checked=true;chkAll.indeterminate=false;}
+    else if(filt.every(r=>selRS2.has(r.idx))){chkAll.checked=true;chkAll.indeterminate=false;}
+    else{chkAll.checked=false;chkAll.indeterminate=true;}
+  }
+}
+
+function _applyRS2Markers(){
+  const markers=MAPS['map-2']&&MAPS['map-2']._rsMarkers;
+  if(!markers)return;
+  markers.forEach(({el,rs})=>{
+    const typeOk=rs.type===curTerType;
+    const selOk=selRS2.size===0||selRS2.has(rs.idx);
+    el.style.display=(typeOk&&selOk)?'':'none';
+  });
+}
+
+function toggleRS2(idx){
+  if(selRS2.has(idx))selRS2.delete(idx);else selRS2.add(idx);
+  const m=MAPS['map-2']&&MAPS['map-2'].map;
+  if(m)_applyTer2Filters(m);
+  _applyRS2Markers();
+  if(MAPS['map-2']&&MAPS['map-2']._draw)MAPS['map-2']._draw();
+  renderPanel2();
+}
+
+function clearRS2Selection(){
+  selRS2.clear();
+  const m=MAPS['map-2']&&MAPS['map-2'].map;
+  if(m)_applyTer2Filters(m);
+  if(MAPS['map-2']&&MAPS['map-2']._rsMarkers)_filterRSMarkers(MAPS['map-2']._rsMarkers,curTerType);
+  if(MAPS['map-2']&&MAPS['map-2']._draw)MAPS['map-2']._draw();
+  renderPanel2();
+}
+
+function selectAllRS2(){
+  RS_INFO.filter(r=>r.type===curTerType).forEach(rs=>selRS2.add(rs.idx));
+  const m=MAPS['map-2']&&MAPS['map-2'].map;
+  if(m)_applyTer2Filters(m);
+  _applyRS2Markers();
+  if(MAPS['map-2']&&MAPS['map-2']._draw)MAPS['map-2']._draw();
+  renderPanel2();
+}
+
+function toggleSelectAllRS2(){
+  const filt=RS_INFO.filter(r=>r.type===curTerType);
+  if(selRS2.size===0)selectAllRS2();
+  else if(filt.every(rs=>selRS2.has(rs.idx)))clearRS2Selection();
+  else selectAllRS2();
+}
+
+// ── SLIDE 3 · DUPLICATE OUTLETS ───────────────────────────────────────────────
+let _sel3=-1;
+
+function initSlide3(){
+  if(MAPS['map-3'])return;
+  makeMap('map-3',m=>{
+    const popup=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:8,maxWidth:'240px'});
+    const {canvas:oc3,ctx:ctx3}=_makeOutletCanvas(m,_DPR);
+    function draw3(){
+      ctx3.clearRect(0,0,oc3.width,oc3.height);
+      const z=m.getZoom();
+      const dpr=_DPR;
+      const r=Math.max(2,1.5+(z-9)/(15-9)*7)*dpr;
+      const b=m.getBounds();
+      const pad=0.04;
+      const sl=b.getSouth()-pad,nl=b.getNorth()+pad,wl=b.getWest()-pad,el=b.getEast()+pad;
+      // Lines
+      ctx3.strokeStyle='#f97316';ctx3.lineWidth=1.5*dpr;ctx3.globalAlpha=0.4;
+      DUPE_PAIRS.forEach(p=>{
+        if(p.la===p.lb&&p.loa===p.lob)return;
+        if(p.la<sl||p.la>nl||p.loa<wl||p.loa>el)return;
+        const a=m.project([p.loa,p.la]),bp=m.project([p.lob,p.lb]);
+        ctx3.beginPath();ctx3.moveTo(a.x*dpr,a.y*dpr);ctx3.lineTo(bp.x*dpr,bp.y*dpr);ctx3.stroke();
+      });
+      // Point A (red)
+      ctx3.fillStyle='#ef4444';ctx3.globalAlpha=0.85;ctx3.beginPath();
+      DUPE_PAIRS.forEach(p=>{
+        if(p.la<sl||p.la>nl||p.loa<wl||p.loa>el)return;
+        const pt=m.project([p.loa,p.la]);
+        ctx3.moveTo(pt.x*dpr+r,pt.y*dpr);ctx3.arc(pt.x*dpr,pt.y*dpr,r,0,Math.PI*2);
+      });
+      ctx3.fill();
+      // Point B (orange)
+      ctx3.fillStyle='#f97316';ctx3.beginPath();
+      DUPE_PAIRS.forEach(p=>{
+        if(p.lb<sl||p.lb>nl||p.lob<wl||p.lob>el)return;
+        const pt=m.project([p.lob,p.lb]);
+        ctx3.moveTo(pt.x*dpr+r,pt.y*dpr);ctx3.arc(pt.x*dpr,pt.y*dpr,r,0,Math.PI*2);
+      });
+      ctx3.fill();
+      // Selection ring
+      if(_sel3>=0&&_sel3<DUPE_PAIRS.length){
+        const p=DUPE_PAIRS[_sel3];
+        const rsel=r+3*dpr;
+        ctx3.strokeStyle='#1565C0';ctx3.lineWidth=2.5*dpr;ctx3.globalAlpha=1;
+        [[p.loa,p.la],[p.lob,p.lb]].forEach(([ln,la])=>{
+          const pt=m.project([ln,la]);
+          ctx3.beginPath();ctx3.arc(pt.x*dpr,pt.y*dpr,rsel,0,Math.PI*2);ctx3.stroke();
+        });
+      }
+      ctx3.globalAlpha=1;
+    }
+    MAPS['map-3']._draw=draw3;
+    m.on('render',draw3);
+    // Hover tooltip via map events
+    function findNearDupe(px){
+      const b=m.getBounds();const pad=0.02;
+      const sl=b.getSouth()-pad,nl=b.getNorth()+pad,wl=b.getWest()-pad,el=b.getEast()+pad;
+      let best=null,bestD=16*16;
+      DUPE_PAIRS.forEach((p,i)=>{
+        if(p.la>=sl&&p.la<=nl&&p.loa>=wl&&p.loa<=el){
+          const pt=m.project([p.loa,p.la]);
+          const d=(pt.x-px.x)**2+(pt.y-px.y)**2;
+          if(d<bestD){bestD=d;best={p,i,side:0};}
+        }
+        if(p.lb>=sl&&p.lb<=nl&&p.lob>=wl&&p.lob<=el){
+          const pt=m.project([p.lob,p.lb]);
+          const d=(pt.x-px.x)**2+(pt.y-px.y)**2;
+          if(d<bestD){bestD=d;best={p,i,side:1};}
+        }
+      });
+      return best;
+    }
+    m.on('mousemove',e=>{
+      const nr=findNearDupe(e.point);
+      if(nr){
+        const {p,side}=nr;
+        const [ln,la]=side===0?[p.loa,p.la]:[p.lob,p.lb];
+        const nm=side===0?p.na:p.nb,vs=side===0?p.nb:p.na;
+        m.getCanvas().style.cursor='pointer';
+        popup.setLngLat([ln,la])
+          .setHTML('<div style="font-size:12px"><b>'+nm+'</b><br/>'
+            +'<span style="color:#9ca3af">vs '+vs+'</span><br/>'
+            +'<span style="color:#ef4444">'+p.dist+'m &middot; RS '+p.rsa+'</span></div>')
+          .addTo(m);
+      } else {m.getCanvas().style.cursor='';popup.remove();}
+    });
+    m.on('click',e=>{const nr=findNearDupe(e.point);if(nr)highlightDupe(nr.i);});
+  });
+  renderPanel3();
+}
+
+function highlightDupe(i){
+  _sel3=i;
+  const m=MAPS['map-3']&&MAPS['map-3'].map;
+  const p=DUPE_PAIRS[i];
+  if(m)m.flyTo({center:[(p.loa+p.lob)/2,(p.la+p.lb)/2],zoom:18,duration:700});
+  if(MAPS['map-3']&&MAPS['map-3']._draw)MAPS['map-3']._draw();
+  document.querySelectorAll('.dupe-item').forEach((el,j)=>{
+    el.style.background=j===i?'#fff7ed':'';
+  });
+}
+
+function renderPanel3(){
+  document.getElementById('p3-kpis').innerHTML=
+    '<div class="kpi"><div class="kv">'+fN(DUPE_STATS.total)+'</div><div class="kl">Confirmed Pairs</div></div>'
+   +'<div class="kpi"><div class="kv">'+DUPE_STATS.rs_aff+'</div><div class="kl">RS Affected</div></div>'
+   +'<div class="kpi"><div class="kv">'+fN(DUPE_STATS.total)+'</div><div class="kl">Outlets to Remove</div></div>'
+   +'<div class="kpi" title="'+DUPE_STATS.total+' outlets removed ÷ ~220 avg outlets/salesman"><div class="kv">~'+DUPE_STATS.saved+'</div><div class="kl">Salesmen (est.)</div></div>';
+  document.getElementById('p3-list').innerHTML=DUPE_PAIRS.map((p,i)=>{
+    const distTag='<span class="dupe-dist">'+p.dist+'m</span>';
+    return'<div class="dupe-item" onclick="highlightDupe('+i+')">'
+     +'<div class="d-na">'+p.na+distTag+'</div>'
+     +'<div class="d-nb">vs '+p.nb+'</div>'
+     +'<div class="d-meta">RS '+p.rsa+(p.rsb&&p.rsb!==p.rsa?' → '+p.rsb:'')+'</div>'
+     +'</div>';
+  }).join('');
+}
+
+function downloadDupes(){
+  const hdr=['Name A','Name B','RS Code A','RS Code B','Distance (m)','AI Reason','Lat A','Lon A','Lat B','Lon B','Code A','Code B'];
+  const rows=[hdr,...DUPE_PAIRS.map(p=>[p.na,p.nb,p.rsa,p.rsb,p.dist,p.reason,p.la,p.loa,p.lb,p.lob,p.ca,p.cb])];
+  const csv=rows.map(r=>r.map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')).join('\\r\\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='hul_kolkata_duplicate_outlets.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+// ── SLIDE 4 · HIGH DENSITY CLUSTERS ──────────────────────────────────────────
+let curDensity=5, selCluster=-1;
+
+function clusterColor(n){
+  if(n>=60)return'#7f1d1d';
+  if(n>=35)return'#dc2626';
+  if(n>=20)return'#f97316';
+  if(n>=10)return'#fb923c';
+  return'#fde68a';
+}
+
+function downloadClusters(){
+  const filtered=CLUSTERS.filter(c=>c.n>=curDensity).sort((a,b)=>b.n-a.n);
+  const hdr=['Cluster','Latitude','Longitude','Outlets'];
+  const rows=[hdr,...filtered.map((c,i)=>[i+1,c.lat,c.lon,c.n])];
+  const csv=rows.map(r=>r.join(',')).join('\\r\\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='hul_kolkata_clusters.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+function initSlide4(){
+  if(MAPS['map-4'])return;
+  makeMap('map-4',m=>{
+    const popup=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:10,maxWidth:'200px'});
+    const {canvas:bgOc,ctx:bgCtx}=_makeOutletCanvas(m,_DPR);
+
+    function draw4(){
+      bgCtx.clearRect(0,0,bgOc.width,bgOc.height);
+      const z=m.getZoom();
+      const dpr=_DPR;
+      const r=Math.max(3,3+(z-10)/(15-10)*7)*dpr;
+      const b=m.getBounds();
+      const pad=0.03;
+      const sl=b.getSouth()-pad,nl=b.getNorth()+pad,wl=b.getWest()-pad,el=b.getEast()+pad;
+      // Group outlets by color (cluster-colored vs grey)
+      const byCol={};
+      OUTLETS.forEach((o,i)=>{
+        if(o[0]<sl||o[0]>nl||o[1]<wl||o[1]>el)return;
+        const cl=_OL_CL[i];
+        const active=cl&&cl.n>=curDensity;
+        const col=active?clusterColor(cl.n):'#94a3b8';
+        const alpha=active?0.82:0.13;
+        const key=col+'|'+alpha;
+        if(!byCol[key])byCol[key]={col,alpha,pts:[]};
+        byCol[key].pts.push(o);
+      });
+      Object.values(byCol).forEach(g=>{
+        bgCtx.fillStyle=g.col;bgCtx.globalAlpha=g.alpha;bgCtx.beginPath();
+        g.pts.forEach(o=>{
+          const pt=m.project([o[1],o[0]]);
+          bgCtx.moveTo(pt.x*dpr+r,pt.y*dpr);bgCtx.arc(pt.x*dpr,pt.y*dpr,r,0,Math.PI*2);
+        });
+        bgCtx.fill();
+      });
+      bgCtx.globalAlpha=1;
+    }
+    MAPS['map-4']._draw=draw4;
+    m.on('render',draw4);
+
+    // Find nearest clustered outlet for hover/click
+    function findNearCl(px){
+      let best=null,bestD=20*20;
+      const b=m.getBounds();const pad=0.02;
+      const sl=b.getSouth()-pad,nl=b.getNorth()+pad,wl=b.getWest()-pad,el=b.getEast()+pad;
+      OUTLETS.forEach((o,i)=>{
+        const cl=_OL_CL[i];if(!cl||cl.n<curDensity)return;
+        if(o[0]<sl||o[0]>nl||o[1]<wl||o[1]>el)return;
+        const pt=m.project([o[1],o[0]]);
+        const d=(pt.x-px.x)**2+(pt.y-px.y)**2;
+        if(d<bestD){bestD=d;best={cl,lat:o[0],lon:o[1],name:o[4]};}
+      });
+      return best;
+    }
+    m.on('mousemove',e=>{
+      const c=findNearCl(e.point);
+      if(c){
+        m.getCanvas().style.cursor='pointer';
+        popup.setLngLat([c.lon,c.lat])
+          .setHTML('<div style="font-size:12px"><b>'+c.name+'</b><br/>'
+            +'<span style="color:#6b7280;font-size:11px">Cluster: '+c.cl.n+' outlets &middot; ~20m cell</span></div>').addTo(m);
+      } else {m.getCanvas().style.cursor='';popup.remove();}
+    });
+    m.on('click',e=>{
+      const c=findNearCl(e.point);
+      if(c)selectCluster(c.cl.i);
+    });
+  });
+  renderPanel4();
+}
+
+function setDensity(v){
+  curDensity=v;
+  document.getElementById('density-val').textContent=v;
+  selCluster=-1;
+  if(MAPS['map-4']&&MAPS['map-4']._draw)MAPS['map-4']._draw();
+  renderPanel4();
+}
+
+function selectCluster(i){
+  selCluster=i;
+  const c=CLUSTERS.find(x=>x.i===i);
+  if(!c)return;
+  const m=MAPS['map-4']&&MAPS['map-4'].map;
+  if(m)m.flyTo({center:[c.lon,c.lat],zoom:17,duration:700});
+  if(MAPS['map-4']&&MAPS['map-4']._draw)MAPS['map-4']._draw();
+  document.querySelectorAll('.cl-item').forEach(el=>{
+    el.classList.toggle('sel',+el.dataset.idx===i);
+  });
+  const sel=document.querySelector('.cl-item[data-idx="'+i+'"]');
+  if(sel)sel.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+function renderPanel4(){
+  const filtered=CLUSTERS.filter(c=>c.n>=curDensity);
+  const totalOutlets=filtered.reduce((s,c)=>s+c.n,0);
+  document.getElementById('p4-kpis').innerHTML=
+    '<div class="kpi"><div class="kv">'+fN(filtered.length)+'</div><div class="kl">Dense Areas</div></div>'
+   +'<div class="kpi"><div class="kv">'+fN(totalOutlets)+'</div><div class="kl">Outlets</div></div>';
+  document.getElementById('p4-meta').textContent=
+    filtered.length+' clusters with '+curDensity+'+ outlets · '
+    +fN(totalOutlets)+' outlets shown';
+  const top=filtered.slice(0,80);
+  const maxN=filtered.length>0?filtered[0].n:1;
+  document.getElementById('p4-list').innerHTML=top.map((c,idx)=>{
+    const pct=Math.round(c.n/maxN*100);
+    const col=clusterColor(c.n);
+    return'<div class="cl-item" data-idx="'+c.i+'" onclick="selectCluster('+c.i+')">'
+     +'<div style="display:flex;justify-content:space-between;align-items:center">'
+     +'<span style="font-size:12px;font-weight:700;color:#111827">#'+(idx+1)+
+       ' <span style="color:'+col+'">&#9679;</span> '+c.n+' outlets</span>'
+     +'<span style="font-size:10px;color:#9ca3af">'+c.lat.toFixed(3)+', '+c.lon.toFixed(3)+'</span>'
+     +'</div>'
+     +'<div style="height:3px;background:#f3f4f6;border-radius:2px;margin-top:5px">'
+     +'<div style="height:3px;width:'+pct+'%;background:'+col+';border-radius:2px"></div>'
+     +'</div>'
+     +'</div>';
+  }).join('')
+  +(filtered.length>80?'<div style="padding:8px;font-size:11px;color:#9ca3af;text-align:center">Showing top 80 of '+fN(filtered.length)+'</div>':'');
+}
+
+// ── SLIDE 5 · BEATS ──────────────────────────────────────────────────────────
+let curBeatsRS='218390', curBeatsView='proposed', curBeatPLG='ALL', curBeatDay='ALL', curBeatDSE='ALL';
+
+function _getBeats5(){
+  if(curBeatsRS==='218390')return curBeatsView==='proposed'?BEATS_390:EX_BEATS_390;
+  return curBeatsView==='proposed'?BEATS_391:EX_BEATS_391;
+}
+function _getBgBeats5(){
+  return curBeatsRS==='218390'?BEATS_391:BEATS_390;
+}
+function _getDseInfo5(){
+  return(curBeatsRS==='218391'&&curBeatsView==='existing')?DSE_INFO_391:DSE_INFO;
+}
+function _hasDay5(){return curBeatsRS==='218390'||(curBeatsRS==='218391'&&curBeatsView==='existing');}
+
+function setBeatsRS(rs){
+  curBeatsRS=rs;curBeatPLG='ALL';curBeatDay='ALL';curBeatDSE='ALL';
+  document.getElementById('p5-rs390').classList.toggle('active',rs==='218390');
+  document.getElementById('p5-rs391').classList.toggle('active',rs==='218391');
+  buildBeatChips();
+  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
+  renderPanel5();
+}
+function setBeatsView(v){
+  curBeatsView=v;curBeatDSE='ALL';curBeatDay='ALL';
+  document.getElementById('p5-vproposed').classList.toggle('active',v==='proposed');
+  document.getElementById('p5-vexisting').classList.toggle('active',v==='existing');
+  buildBeatChips();
+  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
+  renderPanel5();
+}
+
+function initSlide5(){
+  if(MAPS['map-5'])return;
+  makeMap('map-5',m=>{
+    _addRSMarkers(m,
+      new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:8,maxWidth:'220px'}),
+      ['218390','218391']
+    );
+    const {canvas:oc5,ctx:ctx5}=_makeOutletCanvas(m,_DPR);
+    function draw5(){
+      ctx5.clearRect(0,0,oc5.width,oc5.height);
+      const z=m.getZoom();const dpr=_DPR;
+      const rBg=Math.max(1,1+(z-9)/(14-9)*3.5)*dpr;
+      const rFg=Math.max(2,2+(z-9)/(14-9)*5)*dpr;
+      const b=m.getBounds();const pad=0.03;
+      const sl=b.getSouth()-pad,nl=b.getNorth()+pad,wl=b.getWest()-pad,el=b.getEast()+pad;
+      // Background (other RS) in grey
+      ctx5.fillStyle='#94a3b8';ctx5.globalAlpha=0.35;ctx5.beginPath();
+      _getBgBeats5().forEach(pt=>{
+        if(pt[0]<sl||pt[0]>nl||pt[1]<wl||pt[1]>el)return;
+        const p=m.project([pt[1],pt[0]]);
+        ctx5.moveTo(p.x*dpr+rBg,p.y*dpr);ctx5.arc(p.x*dpr,p.y*dpr,rBg,0,Math.PI*2);
+      });
+      ctx5.fill();
+      // Foreground (selected RS+view) — apply filters
+      const hasDay=_hasDay5();
+      const dayF=(!hasDay||curBeatDay==='ALL')?null:parseInt(curBeatDay);
+      const dseInfo=_getDseInfo5();
+      const dseF=(!hasDay||curBeatDSE==='ALL')?null:dseInfo.findIndex(d=>d.name===curBeatDSE);
+      const plgF=curBeatPLG==='ALL'?null:PLG_INFO.findIndex(p=>p.name===curBeatPLG);
+      const rows=_getBeats5().filter(bt=>{
+        if(plgF!==null&&bt[2]!==plgF)return false;
+        if(dayF!==null&&bt[3]!==dayF)return false;
+        if(dseF!==null&&bt[4]!==dseF)return false;
+        return true;
+      });
+      const byCol={};
+      rows.forEach(bt=>{
+        const pi=PLG_INFO[bt[2]];
+        const col=(curBeatPLG!=='ALL'&&hasDay&&bt[3]>=0)?MKT_COLORS[bt[3]]:(pi?pi.color:'#6b7280');
+        if(!byCol[col])byCol[col]=[];byCol[col].push(bt);
+      });
+      ctx5.globalAlpha=0.85;
+      Object.entries(byCol).forEach(([col,pts])=>{
+        ctx5.fillStyle=col;ctx5.beginPath();
+        pts.forEach(bt=>{
+          if(bt[0]<sl||bt[0]>nl||bt[1]<wl||bt[1]>el)return;
+          const p=m.project([bt[1],bt[0]]);
+          ctx5.moveTo(p.x*dpr+rFg,p.y*dpr);ctx5.arc(p.x*dpr,p.y*dpr,rFg,0,Math.PI*2);
+        });
+        ctx5.fill();
+      });
+      ctx5.globalAlpha=1;
+    }
+    MAPS['map-5']._draw=draw5;
+    m.on('render',draw5);
+  },[88.25,22.50],11);
+  buildBeatChips();
+  renderPanel5();
+}
+
+function _activateChip(selector,key,val,color){
+  document.querySelectorAll(selector).forEach(b=>{
+    const isA=b.dataset[key]===val;
+    b.classList.toggle('active',isA);
+    b.style.background=isA?(color||'#1565C0'):'';
+    b.style.color=isA?'white':'';
+    b.style.borderColor=isA?(color||'#1565C0'):'';
+  });
+}
+function setBeatPLG(plg){
+  curBeatPLG=plg;
+  const pi=PLG_INFO.find(p=>p.name===plg);
+  _activateChip('[data-plg]','plg',plg,pi?pi.color:null);
+  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
+  renderPanel5();
+}
+function setBeatDay(day){
+  curBeatDay=day;
+  _activateChip('[data-day]','day',day,null);
+  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
+}
+function setBeatDSE(dse){
+  curBeatDSE=dse;
+  _activateChip('[data-dse]','dse',dse,null);
+  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
+}
+
+function renderPanel5(){
+  const beats=_getBeats5();
+  const rsLabel=curBeatsRS+' '+(curBeatsView==='proposed'?'Proposed':'Existing');
+  document.getElementById('p5-kpis').innerHTML=
+    '<div class="kpi"><div class="kv">'+fN(beats.length)+'</div><div class="kl">'+rsLabel+'</div></div>'
+   +'<div class="kpi"><div class="kv">'+PLG_INFO.length+'</div><div class="kl">PLGs</div></div>';
+  const hasDay=_hasDay5();
+  const legendHTML=(curBeatPLG==='ALL'||!hasDay)
+    ?PLG_INFO.map(p=>'<div class="rs-item"><div class="rs-dot" style="background:'+p.color+'"></div>'
+      +'<span class="rs-name">'+p.name+'</span></div>').join('')
+    :MKT_COLORS.map((c,i)=>'<div class="rs-item"><div class="rs-dot" style="background:'+c+'"></div>'
+      +'<span class="rs-name">Market '+(i+1)+' &mdash; '+MKT_DAYS[i]+'</span></div>').join('');
+  document.getElementById('p5-legend').innerHTML=legendHTML;
+  document.getElementById('p5-day-section').style.display=hasDay?'':'none';
+  document.getElementById('p5-dse-section').style.display=hasDay?'':'none';
+}
+
+function buildBeatChips(){
+  // PLG chips
+  const plgChips=[{name:'ALL',color:'#1565C0'},...PLG_INFO];
+  document.getElementById('p5-chips').innerHTML=plgChips.map(p=>{
+    const isAll=p.name==='ALL';
+    return'<button class="beat-chip'+(isAll?' active':'')+'" data-plg="'+p.name+'" '
+      +'style="'+(isAll?'background:#1565C0;color:white;border-color:#1565C0;':'border-color:'+(p.color||'#e5e7eb')+';color:'+(p.color||'#374151'))+';" '
+      +`onclick="setBeatPLG('${p.name}')">`+p.name+'</button>';
+  }).join('');
+  // Day chips
+  const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dayChips=[{val:'ALL',label:'All'},...dayNames.map((d,i)=>({val:String(i),label:d}))];
+  document.getElementById('p5-day-chips').innerHTML=dayChips.map(d=>{
+    const isAll=d.val==='ALL';
+    return'<button class="beat-chip'+(isAll?' active':'')+'" data-day="'+d.val+'" '
+      +'style="'+(isAll?'background:#1565C0;color:white;border-color:#1565C0;':'')+';" '
+      +`onclick="setBeatDay('${d.val}')">`+d.label+'</button>';
+  }).join('');
+  // DSE chips
+  const dseInfo=_getDseInfo5();
+  const dseChips=[{name:'ALL'},...dseInfo];
+  document.getElementById('p5-dse-chips').innerHTML=dseChips.map(d=>{
+    const isAll=d.name==='ALL';
+    return'<button class="beat-chip'+(isAll?' active':'')+'" data-dse="'+d.name+'" '
+      +'style="font-size:10px;padding:3px 8px;'+(isAll?'background:#1565C0;color:white;border-color:#1565C0;':'')+';" '
+      +`onclick="setBeatDSE('${d.name}')">`+(isAll?'All':d.name)+'</button>';
+  }).join('');
+}
+buildBeatChips();
+
+// ── SLIDE 6 · DELIVERY BEATS ──────────────────────────────────────────────────
+const D6_DESIGN_KEYS=Object.keys(DELIVERY_DATA);
+const D6_SCEN_KEYS=D6_DESIGN_KEYS.length?Object.keys(DELIVERY_DATA[D6_DESIGN_KEYS[0]]):[];
+const D6_TRUCK_COLORS={"3 Wheeler":"#2196F3","Tata Ace":"#4CAF50","407":"#FF5722"};
+const D6_DEF="#607D8B";
+const D6={map:null,LG:{hull:null,pts:null,cent:null},
+  curDesign:D6_DESIGN_KEYS[0]||'',curScen:D6_SCEN_KEYS[0]||'',
+  curDay:1,showHull:true,showPts:true,showCent:true,selIdx:null,hiddenSet:new Set()};
+
+function d6GetBeats(){return((DELIVERY_DATA[D6.curDesign]||{})[D6.curScen]||{})[D6.curDay]||[];}
+function d6ActiveTrucks(){return new Set([...document.querySelectorAll('#d6-truck-filters input:checked')].map(x=>x.dataset.truck));}
+
+function d6BuildSelects(){
+  const ds=document.getElementById('d6-design-sel');
+  D6_DESIGN_KEYS.forEach(d=>{const o=document.createElement('option');o.value=o.textContent=d;ds.appendChild(o);});
+  ds.value=D6.curDesign;
+  ds.onchange=()=>{D6.curDesign=ds.value;D6.hiddenSet.clear();d6Render();};
+  const ss=document.getElementById('d6-scen-sel');
+  D6_SCEN_KEYS.forEach(s=>{const o=document.createElement('option');o.value=o.textContent=s;ss.appendChild(o);});
+  ss.value=D6.curScen;
+  ss.onchange=()=>{D6.curScen=ss.value;D6.hiddenSet.clear();d6Render();};
+}
+
+function d6BuildDayBtns(){
+  const c=document.getElementById('d6-day-btns');
+  const days=[...new Set(
+    Object.values(DELIVERY_DATA).flatMap(d=>Object.values(d).flatMap(s=>Object.keys(s).map(Number).filter(n=>!isNaN(n))))
+  )].sort((a,b)=>a-b);
+  const dayNames=['','Mon','Tue','Wed','Thu','Fri','Sat'];
+  days.forEach(d=>{
+    const b=document.createElement('button');
+    const isActive=d===D6.curDay;
+    b.className='beat-chip'+(isActive?' active':'');
+    b.style.cssText=isActive?'background:#1565C0;color:#fff;border-color:#1565C0':'';
+    b.textContent=dayNames[d]||('D'+d); b.dataset.day=d;
+    b.onclick=()=>{
+      D6.curDay=d; D6.hiddenSet.clear();
+      c.querySelectorAll('.beat-chip').forEach(x=>{
+        const on=+x.dataset.day===d;
+        x.classList.toggle('active',on);
+        x.style.cssText=on?'background:#1565C0;color:#fff;border-color:#1565C0':'';
+      });
+      d6Render();
+    };
+    c.appendChild(b);
+  });
+}
+
+function d6BuildTruckFilters(){
+  const c=document.getElementById('d6-truck-filters');
+  Object.entries(D6_TRUCK_COLORS).forEach(([t,color])=>{
+    const lbl=document.createElement('label');
+    lbl.className='d6tck';
+    lbl.innerHTML=`<input type="checkbox" checked data-truck="${t}"><span class="d6tsw" style="background:${color}"></span>${t}`;
+    lbl.querySelector('input').onchange=d6Render;
+    c.appendChild(lbl);
+  });
+}
+
+function d6tgl(k){
+  if(k==='hull')D6.showHull=!D6.showHull;
+  if(k==='pts') D6.showPts =!D6.showPts;
+  if(k==='cent')D6.showCent=!D6.showCent;
+  const on=k==='hull'?D6.showHull:k==='pts'?D6.showPts:D6.showCent;
+  const btn=document.getElementById('d6-tg-'+k);
+  btn.classList.toggle('active',on);
+  btn.style.cssText=on?'background:#1565C0;color:#fff;border-color:#1565C0':'';
+  d6Render();
+}
+
+function d6showAll(){D6.hiddenSet.clear();d6Render();}
+function d6hideAll(){
+  const beats=d6GetBeats(),active=d6ActiveTrucks();
+  beats.forEach((b,i)=>{if(active.has(b.truck))D6.hiddenSet.add(i);});
+  d6Render();
+}
+
+function d6Render(){
+  if(!D6.map)return;
+  D6.LG.hull.clearLayers();D6.LG.pts.clearLayers();D6.LG.cent.clearLayers();
+  const beats=d6GetBeats(),active=d6ActiveTrucks();
+  let tCost=0,tTrucks=0,tRT=0,nVis=0,nShown=0;
+  beats.forEach((b,idx)=>{
+    if(!active.has(b.truck))return;
+    nVis++;
+    const hidden=D6.hiddenSet.has(idx);
+    if(hidden)return;
+    nShown++;
+    const color=b.truck_color||D6_DEF;
+    const isSel=idx===D6.selIdx;
+    tCost+=b.cost; tTrucks+=1; tRT+=b.round_trip;
+    if(D6.showHull&&b.is_first&&b.hull&&b.hull.length>=3){
+      const poly=L.polygon(b.hull,{color,weight:isSel?2.5:1.5,fillColor:color,fillOpacity:isSel?.22:.1}).addTo(D6.LG.hull);
+      poly.on('click',()=>d6selectBeat(idx));
+    }
+    if(D6.showPts&&b.is_first&&b.seller_pts){
+      b.seller_pts.forEach(sp=>{
+        sp.pts.forEach(pt=>{
+          L.circleMarker(pt,{radius:3,color:sp.color,weight:.6,fillColor:sp.color,fillOpacity:.75}).addTo(D6.LG.pts);
+        });
+      });
+    }
+    if(D6.showCent&&b.centroid){
+      const label=b.sub_id!=null?`${b.id}${b.sub_id}`:`${b.id}`;
+      const sz=label.length>2?26:22;
+      const icon=L.divIcon({html:`<div style="background:${color};color:#fff;border-radius:50%;width:${sz}px;height:${sz}px;display:flex;align-items:center;justify-content:center;font-size:${sz>22?9:10}px;font-weight:700;border:2px solid rgba(255,255,255,.9);box-shadow:0 1px 4px rgba(0,0,0,.4)">${label}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],className:''});
+      L.marker(b.centroid,{icon}).bindPopup(d6buildPopup(b),{maxWidth:280}).on('click',()=>d6selectBeat(idx)).addTo(D6.LG.cent);
+    }
+  });
+  let totalVal=0;const valSeen=new Set();
+  beats.forEach((b,idx)=>{if(!active.has(b.truck)||D6.hiddenSet.has(idx))return;if(!valSeen.has(b.id)){valSeen.add(b.id);totalVal+=b.value;}});
+  document.getElementById('d6-s-beats').textContent=nShown+'/'+nVis;
+  document.getElementById('d6-s-trucks').textContent=tTrucks;
+  document.getElementById('d6-s-cost').textContent=tCost.toFixed(1);
+  document.getElementById('d6-s-val').textContent=totalVal.toFixed(2);
+  document.getElementById('d6-s-rt').textContent=tRT.toFixed(0);
+  d6buildBeatList(beats,active);
+}
+
+function d6buildPopup(b){
+  const label=b.sub_id!=null?`${b.id}${b.sub_id}`:`${b.id}`;
+  const sellerRows=b.is_first
+    ?(b.seller_pts||[]).map(sp=>`<div style="display:flex;align-items:center;gap:4px;margin-top:2px;font-size:11px"><span class="d6dot8" style="background:${sp.color}"></span><span>${sp.bid} (${sp.pts.length} outlets)</span></div>`).join('')
+    :`<div style="font-size:11px;color:#888;margin-top:4px">See Beat ${b.id}a for details</div>`;
+  return `<div class="d6-bp"><h3>Beat ${label}</h3><table>
+    <tr><td>Truck</td><td style="color:${b.truck_color};font-weight:700">${b.truck}</td></tr>
+    <tr><td>Truck load</td><td>${b.truck_val.toFixed(3)} L</td></tr>
+    ${b.sub_id!=null?`<tr><td>Beat total</td><td>${b.value.toFixed(3)} L</td></tr>`:''}
+    <tr><td>Outlets</td><td>${b.outlets}</td></tr>
+    <tr><td>Sellers</td><td>${b.sellers} · ${b.plgs}</td></tr>
+    <tr><td>Round trip</td><td>${b.round_trip} km</td></tr>
+    <tr><td>Rel cost</td><td>${b.cost}</td></tr>
+    </table>${b.is_first?'<div style="margin-top:6px;font-size:11px;font-weight:600;color:#333">Sellers:</div>'+sellerRows:sellerRows}</div>`;
+}
+
+function d6selectBeat(idx){
+  D6.selIdx=idx;d6Render();
+  const card=document.querySelector('#d6-beat-list .d6bc[data-idx="'+idx+'"]');
+  if(card)card.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function d6buildBeatList(beats,active){
+  const c=document.getElementById('d6-beat-list');c.innerHTML='';
+  let n=0;
+  beats.forEach((b,idx)=>{
+    if(!active.has(b.truck))return; n++;
+    const hidden=D6.hiddenSet.has(idx);
+    const color=b.truck_color||D6_DEF;
+    const label=b.sub_id!=null?`${b.id}${b.sub_id}`:`${b.id}`;
+    const valLine=b.sub_id!=null?`${b.truck_val.toFixed(3)}L (of ${b.value.toFixed(3)}L total)`:`${b.value.toFixed(3)}L`;
+    const strip=b.is_first?(b.seller_pts||[]).map(sp=>`<span class="d6sdot"><span class="d6dot8" style="background:${sp.color}"></span>${sp.bid.split('|')[0]}</span>`).join(''):'';
+    const card=document.createElement('div');
+    card.className='d6bc'+(idx===D6.selIdx?' sel':'')+(hidden?' hid':'');
+    card.dataset.idx=idx;
+    card.innerHTML=`<div class="d6bc-dot" style="background:${color}"></div>
+      <div class="d6bc-info">
+        <div class="d6bc-title"><span>Beat ${label}</span>
+          <span style="background:${color}22;color:${color};border:1px solid ${color}55;padding:1px 6px;border-radius:9px;font-size:10px;font-weight:600">${b.truck}</span>
+        </div>
+        <div class="d6bc-meta">${b.outlets} outlets · ${valLine} · ${b.round_trip}km RT</div>
+        <div class="d6bc-tags"><span class="d6tag d6t-plg">${b.plgs}</span><span class="d6tag d6t-val">${b.sellers} seller(s)</span></div>
+        ${strip?`<div class="d6strip">${strip}</div>`:''}
+      </div>
+      <button class="d6eye" data-idx="${idx}" title="${hidden?'Show':'Hide'}">${hidden?'🚫':'👁'}</button>`;
+    card.querySelector('.d6eye').onclick=e=>{
+      e.stopPropagation();
+      if(D6.hiddenSet.has(idx))D6.hiddenSet.delete(idx);else D6.hiddenSet.add(idx);
+      d6Render();
+    };
+    card.onclick=e=>{
+      if(e.target.classList.contains('d6eye'))return;
+      D6.selIdx=idx;if(b.centroid)D6.map.panTo(b.centroid);d6Render();
+    };
+    c.appendChild(card);
+  });
+  document.getElementById('d6-beat-list-count').textContent=n+' truck(s)';
+}
+
+function initSlide6(){
+  if(D6.map)return;
+  D6.map=L.map('d6-map',{zoomControl:true,preferCanvas:true}).setView([22.52,88.34],13);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    {attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19,opacity:.9}).addTo(D6.map);
+  D6.LG.hull=L.layerGroup().addTo(D6.map);
+  D6.LG.pts =L.layerGroup().addTo(D6.map);
+  D6.LG.cent=L.layerGroup().addTo(D6.map);
+  d6BuildSelects();d6BuildDayBtns();d6BuildTruckFilters();d6Render();
+  setTimeout(()=>D6.map.invalidateSize(),150);
+}
+
+// ── NAVIGATION ─────────────────────────────────────────────────────────────────
+const slidesEl=document.getElementById('slides');
+const navDots=document.querySelectorAll('.dot');
+const navEl=document.getElementById('nav-dots');
+const TOTAL_SLIDES=7;
+const DARK_SLIDES=new Set([0]);
+
+function goTo(n){slidesEl.scrollTo({top:n*window.innerHeight,behavior:'smooth'});}
+
+slidesEl.addEventListener('scroll',()=>{
+  const idx=Math.round(slidesEl.scrollTop/window.innerHeight);
+  navDots.forEach((d,i)=>d.classList.toggle('active',i===idx));
+  navEl.classList.toggle('dark-mode',DARK_SLIDES.has(idx));
+});
+
+let lastWheelTime=0,gestureCount=0,lastGestureTs=0,gestureSnapped=false;
+slidesEl.addEventListener('wheel',e=>{
+  if(e.ctrlKey||e.metaKey)return;
+  if(e.target.closest('.panel'))return; // let panels scroll independently
+  const now=Date.now();
+  const isNewGesture=(now-lastWheelTime)>100;
+  lastWheelTime=now;
+  if(isNewGesture){
+    gestureSnapped=false;
+    gestureCount=(now-lastGestureTs<700)?gestureCount+1:1;
+    lastGestureTs=now;
+  }
+  if(gestureCount>=3)return;
+  e.preventDefault();
+  if(!gestureSnapped){
+    gestureSnapped=true;
+    const cur=Math.round(slidesEl.scrollTop/window.innerHeight);
+    const nxt=Math.max(0,Math.min(TOTAL_SLIDES-1,cur+(e.deltaY>0?1:-1)));
+    if(nxt!==cur)goTo(nxt);
+  }
+},{passive:false});
+
+document.body.setAttribute('tabindex','0');
+document.body.focus();
+document.body.addEventListener('mouseenter',()=>document.body.focus(),{passive:true});
+document.addEventListener('keydown',e=>{
+  const idx=Math.round(slidesEl.scrollTop/window.innerHeight);
+  if(e.key==='ArrowDown'||e.key==='PageDown'){e.preventDefault();goTo(Math.min(TOTAL_SLIDES-1,idx+1));}
+  if(e.key==='ArrowUp'  ||e.key==='PageUp'  ){e.preventDefault();goTo(Math.max(0,idx-1));}
+});
+
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(!e.isIntersecting)return;
+    if(e.target.id==='slide-1'){initSlide1();setTimeout(()=>resizeMap('map-1'),100);}
+    if(e.target.id==='slide-2'){initSlide2();setTimeout(()=>resizeMap('map-2'),100);}
+    if(e.target.id==='slide-3'){initSlide3();setTimeout(()=>resizeMap('map-3'),100);}
+    if(e.target.id==='slide-4'){initSlide4();setTimeout(()=>resizeMap('map-4'),100);}
+    if(e.target.id==='slide-5'){initSlide5();setTimeout(()=>resizeMap('map-5'),100);}
+    if(e.target.id==='slide-6'){initSlide6();}
+  });
+},{threshold:0.25,root:slidesEl});
+document.querySelectorAll('.slide').forEach(s=>obs.observe(s));
+setTimeout(initSlide1,400);
+navEl.classList.add('dark-mode');
+</script>
+</body>
+</html>"""
+
+HTML = HTML_TEMPLATE.replace("__DATA_BLOCK__", DATA_BLOCK)
+components.html(HTML, height=800, scrolling=False)
