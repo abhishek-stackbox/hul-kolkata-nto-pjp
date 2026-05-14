@@ -336,11 +336,12 @@ def load_clusters():
 
 @st.cache_data
 def load_beats():
-    cache_keys = ["beats_390","beats_391","ex_beats_390","ex_beats_391",
+    data_keys  = ["beats_390","beats_391","ex_beats_390","ex_beats_391",
                   "plg_info","dse_info","beat_stats"]
+    cache_keys = data_keys + ["beats_v2"]
     if all(_cache_valid(k) for k in cache_keys):
         try:
-            return tuple(_load_json(k) for k in cache_keys)
+            return tuple(_load_json(k) for k in data_keys)
         except Exception:
             pass
 
@@ -373,7 +374,8 @@ def load_beats():
     beats_390 = [
         [round(float(r.lat),5), round(float(r.lon),5),
          plg_idx390p.get(r.PLG, 0), int(r.Market)-1,
-         dse_idx390p.get(str(r.DSE), 0)]
+         dse_idx390p.get(str(r.DSE), 0),
+         int(float(str(r.Beat))) if str(r.Beat) not in ('','nan','None') else -1]
         for r in df390p.itertuples()
     ]
 
@@ -389,7 +391,8 @@ def load_beats():
     ex_beats_390 = [
         [round(float(r.lat),5), round(float(r.lon),5),
          plg_idx390e.get(r.PLG, 0), int(r.Market)-1,
-         dse_idx390e.get(str(r.DSE), 0)]
+         dse_idx390e.get(str(r.DSE), 0),
+         int(float(str(r.Beat))) if str(r.Beat) not in ('','nan','None') else -1]
         for r in df390e.itertuples()
     ]
 
@@ -442,9 +445,8 @@ def load_beats():
     plg_idx  = {p: i for i, p in enumerate(plgs)}
 
     def _remap_plg(beats, old_idx):
-        """Remap plg indices from a local plg_idx to the unified plg_idx."""
         inv = {v: k for k, v in old_idx.items()}
-        return [[b[0],b[1], plg_idx.get(inv.get(b[2],""), b[2]), b[3], b[4]] for b in beats]
+        return [[b[0],b[1], plg_idx.get(inv.get(b[2],""), b[2]), b[3], b[4]] + list(b[5:]) for b in beats]
 
     beats_390    = _remap_plg(beats_390,    plg_idx390p)
     ex_beats_390 = _remap_plg(ex_beats_390, plg_idx390e)
@@ -458,7 +460,7 @@ def load_beats():
 
     def _remap_dse(beats, old_idx):
         inv = {v: k for k, v in old_idx.items()}
-        return [[b[0],b[1],b[2],b[3], dse_idx_all.get(inv.get(b[4],""), b[4])] for b in beats]
+        return [[b[0],b[1],b[2],b[3], dse_idx_all.get(inv.get(b[4],""), b[4])] + list(b[5:]) for b in beats]
 
     beats_390    = _remap_dse(beats_390,    dse_idx390p)
     ex_beats_390 = _remap_dse(ex_beats_390, dse_idx390e)
@@ -478,10 +480,148 @@ def load_beats():
 
     for name, data in [("beats_390",beats_390),("beats_391",beats_391),
                        ("ex_beats_390",ex_beats_390),("ex_beats_391",ex_beats_391),
-                       ("plg_info",plg_info),("dse_info",dse_info),("beat_stats",beat_stats)]:
+                       ("plg_info",plg_info),("dse_info",dse_info),("beat_stats",beat_stats),
+                       ("beats_v2",{"version":2})]:
         _save_json(name, data)
 
     return beats_390, beats_391, ex_beats_390, ex_beats_391, plg_info, dse_info, beat_stats
+
+
+@st.cache_data
+def load_benefits():
+    from scipy.spatial import ConvexHull
+
+    cache_keys = ["benefit_stats","dse_balance_390",
+                  "conflicts_ex_390","conflicts_v3_390",
+                  "hull_v3_390","hull_ex_390"]
+
+    def _bv(name):
+        j = _json_path(name)
+        if not os.path.exists(j): return False
+        try:   bm = os.path.getmtime(BEATS_390_FILE)
+        except: return True
+        return os.path.getmtime(j) > bm
+
+    if all(_bv(k) for k in cache_keys):
+        try:
+            return tuple(_load_json(k) for k in cache_keys)
+        except Exception:
+            pass
+
+    df_v3 = pd.read_excel(BEATS_390_FILE, sheet_name="V3 Beats", dtype=str)
+    df_v3["Market"] = pd.to_numeric(df_v3["Market"], errors="coerce")
+    df_v3["lat"]    = pd.to_numeric(df_v3["Latitude"], errors="coerce")
+    df_v3["lon"]    = pd.to_numeric(df_v3["Longitude"], errors="coerce")
+    df_v3["Beat"]   = pd.to_numeric(df_v3["Beat"],     errors="coerce")
+    df_v3 = df_v3.dropna(subset=["lat","lon","Market","Code","DSE","Beat"]).copy()
+
+    df_ex = pd.read_excel(BEATS_390_FILE, sheet_name="Existing Beats", dtype=str)
+    df_ex["Market"] = pd.to_numeric(df_ex["Market"], errors="coerce")
+    df_ex["lat"]    = pd.to_numeric(df_ex["Latitude"], errors="coerce")
+    df_ex["lon"]    = pd.to_numeric(df_ex["Longitude"], errors="coerce")
+    df_ex["Beat"]   = pd.to_numeric(df_ex["Beat"],     errors="coerce")
+    df_ex = df_ex.dropna(subset=["lat","lon","Market","Code","DSE","Beat"]).copy()
+
+    def _conflicts(df):
+        grp = df.groupby(["Code","Market"]).agg(
+            dse_count=("DSE","nunique"), lat=("lat","first"), lon=("lon","first")
+        ).reset_index()
+        c = grp[grp["dse_count"] > 1]
+        return [[round(float(r.lat),5), round(float(r.lon),5),
+                 int(r.Market)-1, int(r.dse_count)]
+                for r in c.itertuples()]
+
+    conflicts_v3 = _conflicts(df_v3)
+    conflicts_ex = _conflicts(df_ex)
+
+    def _hulls(df):
+        import numpy as np
+        result = []
+        for (plg, dse, beat), sub in df.groupby(["PLG","DSE","Beat"]):
+            pts = sub[["lat","lon"]].values
+            if len(pts) < 3:
+                continue
+            try:
+                h = ConvexHull(pts)
+                verts = pts[h.vertices].tolist()
+                verts.append(verts[0])
+                result.append({"plg":str(plg),"dse":str(dse),"beat":int(beat),"n":len(pts),
+                                "hull":[[round(p[0],5),round(p[1],5)] for p in verts]})
+            except Exception:
+                pass
+        return result
+
+    hull_v3 = _hulls(df_v3)
+    hull_ex  = _hulls(df_ex)
+
+    try:
+        df_dse = pd.read_excel(BEATS_390_FILE, sheet_name="V3 DSE Summary")
+        df_dse.columns = ["dse","sub_plg","outlets","beats","avg_dist","avg_area","jaccard","moc"]
+        dse_balance = []
+        for _, row in df_dse.dropna(subset=["dse"]).iterrows():
+            dse_balance.append({
+                "dse":   str(row.dse),
+                "plg":   str(row.sub_plg),
+                "n":     int(row.outlets)  if pd.notna(row.outlets)  else 0,
+                "beats": int(row.beats)    if pd.notna(row.beats)    else 0,
+                "dist":  round(float(row.avg_dist),2) if pd.notna(row.avg_dist) else 0,
+                "area":  round(float(row.avg_area),2) if pd.notna(row.avg_area) else 0,
+                "moc":   round(float(row.moc),2)      if pd.notna(row.moc)      else 0,
+            })
+    except Exception:
+        dse_balance = []
+
+    benefit_stats = {
+        "same_day": {"ex_outlets":5436,"ex_occ":8171,"v3_outlets":651,"v3_occ":890},
+        "plg_purity": {
+            "ex_total_dse":107,"ex_impure":57,"ex_pure":50,
+            "v3_total_dse":107,"v3_impure":0,"v3_pure":107,
+            "impure_examples":[
+                {"dse":"SMN00119","plgs":"PP, PP-A, PP-B","n":3},
+                {"dse":"SMN00016","plgs":"PP, PP-A, PP-B","n":3},
+                {"dse":"SMN00036","plgs":"D+F+NUTS, DETS, HUL+NUTS","n":3},
+                {"dse":"SMN00056","plgs":"PP, PP-A, PP-B","n":3},
+                {"dse":"SMN00060","plgs":"PP, PP-A, PP-B","n":3},
+                {"dse":"SMN00134","plgs":"PP, PP-A, PP-B","n":3},
+                {"dse":"SMN00129","plgs":"PP, PP-A, PP-B","n":3},
+                {"dse":"SMN00049","plgs":"PP, PP-A, PP-B","n":3},
+            ],
+        },
+        "balance": {
+            "ex_cv":24.9,"v3_cv":12.9,"ex_avg":28,"v3_avg":28,
+            "by_plg":[
+                {"ex_plg":"DETS",    "v3_plg":"D",    "ex_avg":29.6,"ex_cv":22.5,"v3_avg":23.3,"v3_cv":4.9},
+                {"ex_plg":"FNB",     "v3_plg":"F",    "ex_avg":24.5,"ex_cv":33.0,"v3_avg":28.7,"v3_cv":9.2},
+                {"ex_plg":"NUTS",    "v3_plg":"N",    "ex_avg":24.8,"ex_cv":32.9,"v3_avg":29.0,"v3_cv":11.5},
+                {"ex_plg":"FNB+NUTS","v3_plg":"F+N",  "ex_avg":27.6,"ex_cv":27.4,"v3_avg":29.5,"v3_cv":15.1},
+                {"ex_plg":"D+F+NUTS","v3_plg":"D+F+N","ex_avg":27.2,"ex_cv":21.7,"v3_avg":28.4,"v3_cv":10.9},
+                {"ex_plg":"HUL+NUTS","v3_plg":"D+F+N","ex_avg":26.0,"ex_cv":21.6,"v3_avg":28.4,"v3_cv":10.9},
+                {"ex_plg":"PP",      "v3_plg":"PP",   "ex_avg":29.4,"ex_cv":21.2,"v3_avg":28.7,"v3_cv":12.6},
+                {"ex_plg":"PP-A",    "v3_plg":"PP-A", "ex_avg":25.0,"ex_cv":26.8,"v3_avg":25.1,"v3_cv":6.5},
+                {"ex_plg":"PP-B",    "v3_plg":"PP-B", "ex_avg":25.2,"ex_cv":26.1,"v3_avg":25.1,"v3_cv":6.5},
+            ],
+        },
+        "jaccard": {
+            "by_plg":[
+                {"ex_plg":"DETS",    "v3_plg":"D",    "ex_beats":150,"ex_jac":0.0021,"v3_beats":51, "v3_jac":0.0},
+                {"ex_plg":"FNB",     "v3_plg":"F",    "ex_beats":12, "ex_jac":0.0062,"v3_beats":9,  "v3_jac":0.0},
+                {"ex_plg":"NUTS",    "v3_plg":"N",    "ex_beats":12, "ex_jac":0.0026,"v3_beats":21, "v3_jac":0.0},
+                {"ex_plg":"FNB+NUTS","v3_plg":"F+N",  "ex_beats":152,"ex_jac":0.0029,"v3_beats":33, "v3_jac":0.0},
+                {"ex_plg":"D+F+NUTS","v3_plg":"D+F+N","ex_beats":39, "ex_jac":0.0057,"v3_beats":198,"v3_jac":0.0},
+                {"ex_plg":"HUL+NUTS","v3_plg":"D+F+N","ex_beats":43, "ex_jac":0.0026,"v3_beats":198,"v3_jac":0.0},
+                {"ex_plg":"PP",      "v3_plg":"PP",   "ex_beats":134,"ex_jac":0.0028,"v3_beats":198,"v3_jac":0.0},
+                {"ex_plg":"PP-A",    "v3_plg":"PP-A", "ex_beats":50, "ex_jac":0.0059,"v3_beats":48, "v3_jac":0.0},
+                {"ex_plg":"PP-B",    "v3_plg":"PP-B", "ex_beats":50, "ex_jac":0.0059,"v3_beats":48, "v3_jac":0.0},
+            ],
+        },
+    }
+
+    for k, v in [("benefit_stats",benefit_stats),("dse_balance_390",dse_balance),
+                  ("conflicts_ex_390",conflicts_ex),("conflicts_v3_390",conflicts_v3),
+                  ("hull_v3_390",hull_v3),("hull_ex_390",hull_ex)]:
+        _save_json(k, v)
+
+    return benefit_stats, dse_balance, conflicts_ex, conflicts_v3, hull_v3, hull_ex
 
 
 outlets, rs_info, boundaries, stats, excl_outlets = load()
@@ -489,6 +629,7 @@ dupe_pairs, dupe_stats                            = load_dupes()
 clusters, cluster_stats                           = load_clusters()
 beats_390, beats_391, ex_beats_390, ex_beats_391, plg_info, dse_info, beat_stats = load_beats()
 dse_info_391 = _load_json("dse_info_391") if os.path.exists(_json_path("dse_info_391")) else []
+benefit_stats, dse_balance_390, conflicts_ex_390, conflicts_v3_390, hull_v3_390, hull_ex_390 = load_benefits()
 
 _delivery_data = {}
 _delivery_json = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "delivery_data.json")
@@ -516,7 +657,13 @@ DATA_BLOCK = (
     "const DSE_INFO_391 = " + json.dumps(dse_info_391)  + ";\n"
     "const BEAT_STATS   = " + json.dumps(beat_stats)    + ";\n"
     "const EXCL_OUTLETS = " + json.dumps(excl_outlets)  + ";\n"
-    "const DELIVERY_DATA= " + json.dumps(_delivery_data).replace("</", r"<\/") + ";\n"
+    "const DELIVERY_DATA    = " + json.dumps(_delivery_data).replace("</", r"<\/") + ";\n"
+    "const BENEFIT_STATS    = " + json.dumps(benefit_stats)    + ";\n"
+    "const DSE_BALANCE_390  = " + json.dumps(dse_balance_390)  + ";\n"
+    "const CONFLICTS_EX_390 = " + json.dumps(conflicts_ex_390) + ";\n"
+    "const CONFLICTS_V3_390 = " + json.dumps(conflicts_v3_390) + ";\n"
+    "const HULL_V3_390      = " + json.dumps(hull_v3_390)      + ";\n"
+    "const HULL_EX_390      = " + json.dumps(hull_ex_390)      + ";\n"
 )
 
 # ── HTML ───────────────────────────────────────────────────────────────────────
@@ -681,6 +828,23 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
 /* ── Slide 6 delivery map ── */
 #d6-map .leaflet-control-attribution{font-size:9px;opacity:.5;}
+
+/* ── Benefit info slides (8, 10) ── */
+.info-slide{overflow-y:auto;}
+.info-slide .page-lbl{background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.7);}
+.bs-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:28px;}
+.bs-card{border-radius:12px;padding:22px;text-align:center;}
+.bs-card .bs-v{font-size:40px;font-weight:800;margin-bottom:6px;}
+.bs-card .bs-l{font-size:11px;text-transform:uppercase;letter-spacing:.6px;line-height:1.4;}
+.bal-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f3f4f6;}
+.bal-row:last-child{border-bottom:none;}
+.bal-lbl{font-size:12px;font-weight:600;color:#374151;min-width:72px;}
+.bar-wrap{flex:1;display:flex;flex-direction:column;gap:3px;}
+.bar-ex{height:12px;border-radius:3px;background:#fca5a5;position:relative;}
+.bar-v3{height:12px;border-radius:3px;background:#86efac;position:relative;}
+.bar-pct{position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:9px;font-weight:700;color:#374151;}
+/* ── Slide 9 Leaflet map ── */
+#l9-map .leaflet-control-attribution{font-size:9px;opacity:.5;}
 #d6-beat-list .d6bc{padding:8px 12px;border-bottom:1px solid #f0f2f5;display:flex;
   align-items:flex-start;gap:7px;cursor:pointer;transition:background .1s;}
 #d6-beat-list .d6bc:hover{background:#f5f8ff;}
@@ -741,7 +905,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 1 · OUTLETS & DISTRIBUTORS -->
 <div class="slide" id="slide-1">
   <div class="map-wrap" id="map-1"></div>
-  <div class="page-lbl">1 / 7 &middot; Outlets &amp; Distributors</div>
+  <div class="page-lbl">1 / 11 &middot; Outlets &amp; Distributors</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Outlets &amp; Distributors</h2>
@@ -777,7 +941,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 2 · TERRITORY OVERLAPS -->
 <div class="slide" id="slide-2">
   <div class="map-wrap" id="map-2"></div>
-  <div class="page-lbl">2 / 7 &middot; Territory Overlaps</div>
+  <div class="page-lbl">2 / 11 &middot; Territory Overlaps</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Territory Overlaps</h2>
@@ -806,7 +970,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 3 · DUPLICATE OUTLETS -->
 <div class="slide" id="slide-3">
   <div class="map-wrap" id="map-3"></div>
-  <div class="page-lbl">3 / 7 &middot; Duplicate Outlets</div>
+  <div class="page-lbl">3 / 11 &middot; Duplicate Outlets</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;">
     <h2>Duplicate Outlets</h2>
@@ -822,7 +986,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 4 · HIGH DENSITY CLUSTERS -->
 <div class="slide" id="slide-4">
   <div class="map-wrap" id="map-4"></div>
-  <div class="page-lbl">4 / 7 &middot; High Density Clusters</div>
+  <div class="page-lbl">4 / 11 &middot; High Density Clusters</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>High Density Clusters</h2>
@@ -847,7 +1011,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 5 · BEATS -->
 <div class="slide" id="slide-5">
   <div class="map-wrap" id="map-5"></div>
-  <div class="page-lbl">5 / 7 &middot; Beats &middot; RS 218390 &amp; 218391</div>
+  <div class="page-lbl">5 / 11 &middot; Beats &middot; RS 218390 &amp; 218391</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;">
     <div style="padding:16px 18px 10px;flex-shrink:0;border-bottom:1px solid #e5e7eb;overflow-y:auto;max-height:70vh">
@@ -883,7 +1047,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 6 · DELIVERY BEATS -->
 <div class="slide" id="slide-6">
   <div class="map-wrap" id="d6-map"></div>
-  <div class="page-lbl">6 / 7 &middot; Delivery Beats &middot; RS 218390</div>
+  <div class="page-lbl">6 / 11 &middot; Delivery Beats &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;">
     <div style="padding:16px 18px 10px;flex-shrink:0;border-bottom:1px solid #e5e7eb;overflow-y:auto;max-height:55vh;">
@@ -923,6 +1087,136 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   </div>
 </div>
 
+<!-- SLIDE 7 · SAME-DAY CONFLICTS -->
+<div class="slide" id="slide-7">
+  <div class="map-wrap" id="map-7"></div>
+  <div class="page-lbl">7 / 11 &middot; Same-Day Conflicts &middot; RS 218390</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel">
+    <h2>Same-Day Multi-Salesman Visits</h2>
+    <p class="p-sub">Outlets visited by 2+ salesmen on the same market day</p>
+    <div class="toggle-row" style="margin-bottom:10px">
+      <button class="t-btn" id="s7-vex" onclick="setS7View('existing')">Existing</button>
+      <button class="t-btn active" id="s7-vv3" onclick="setS7View('v3')">V3 Proposed</button>
+    </div>
+    <div class="kpi-r">
+      <div class="kpi" style="border:1.5px solid #fee2e2">
+        <div class="kv" style="color:#dc2626">5,436</div>
+        <div class="kl">Existing conflict outlets</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px">8,171 occurrences across 6 days</div>
+      </div>
+      <div class="kpi" style="border:1.5px solid #dcfce7">
+        <div class="kv" style="color:#16a34a">651</div>
+        <div class="kl">V3 conflict outlets</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px">890 occurrences across 6 days</div>
+      </div>
+    </div>
+    <div style="text-align:center;padding:10px;background:#f0fdf4;border-radius:8px;margin-bottom:12px">
+      <div style="font-size:26px;font-weight:800;color:#16a34a">&#9660; 88%</div>
+      <div style="font-size:11px;color:#6b7280">Reduction in conflict outlets</div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Legend (Market Day)</div>
+    <div id="p7-legend"></div>
+    <div style="font-size:11px;color:#9ca3af;margin-top:8px;line-height:1.5">Each dot = one outlet-day pair where 2+ salesmen visit on the same day. Color = visit day.</div>
+  </div>
+</div>
+
+<!-- SLIDE 8 · PLG PURITY -->
+<div class="slide info-slide" id="slide-8" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%)">
+  <div class="page-lbl">8 / 11 &middot; PLG Purity &middot; RS 218390</div>
+  <div style="max-width:860px;margin:0 auto;padding:44px 28px;color:white">
+    <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:12px">Benefit 2 &middot; RS 218390</div>
+    <h2 style="font-size:32px;font-weight:800;margin-bottom:8px;color:white">PLG Purity</h2>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:24px;max-width:580px;line-height:1.6">In V3 every salesman specialises in exactly one product category. Previously 57 of 107 salesmen carried mixed portfolios across 2&ndash;3 PLG types.</p>
+    <div class="bs-grid">
+      <div class="bs-card" style="background:rgba(248,113,113,0.15);border:1px solid rgba(248,113,113,0.35)">
+        <div class="bs-v" style="color:#f87171">57</div>
+        <div class="bs-l" style="color:#94a3b8">Impure DSEs<br/>Existing design</div>
+      </div>
+      <div class="bs-card" style="background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.35)">
+        <div class="bs-v" style="color:#4ade80">0</div>
+        <div class="bs-l" style="color:#94a3b8">Impure DSEs<br/>V3 design</div>
+      </div>
+      <div class="bs-card" style="background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.35)">
+        <div class="bs-v" style="color:#60a5fa">100%</div>
+        <div class="bs-l" style="color:#94a3b8">Pure specialist<br/>coverage in V3</div>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:#60a5fa;letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Mixed-portfolio salesmen in existing design (sample of 57)</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.15)">
+          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Salesman</th>
+          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">PLG Types Assigned</th>
+          <th style="padding:7px 6px;text-align:right;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">PLG Count</th>
+        </tr>
+      </thead>
+      <tbody id="p8-impure-tbl"></tbody>
+    </table>
+    <div style="margin-top:18px;padding:13px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:12px;color:#94a3b8;line-height:1.6">
+      <strong style="color:#e2e8f0">Why it matters:</strong> Mixed-portfolio salesmen divide attention across categories, reducing depth per PLG. V3 assigns each DSE exactly one Sub-PLG &mdash; specialist knowledge, dedicated targets, higher hit rate.
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 9 · JACCARD TERRITORIES -->
+<div class="slide" id="slide-9">
+  <div class="map-wrap" id="l9-map"></div>
+  <div class="page-lbl">9 / 11 &middot; Beat Territories &middot; RS 218390</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
+    <div style="padding:16px 18px 10px;flex-shrink:0;border-bottom:1px solid #e5e7eb;overflow-y:auto;max-height:75vh">
+      <h2 style="margin-bottom:4px">Beat Territories &amp; Jaccard</h2>
+      <p class="p-sub" style="margin-bottom:8px">Convex hull per salesman territory &middot; lower Jaccard = less overlap</p>
+      <div class="toggle-row" style="margin-bottom:10px">
+        <button class="t-btn active" id="j9-vv3" onclick="setJ9View('v3')">V3 &mdash; 114 territories</button>
+        <button class="t-btn"        id="j9-vex" onclick="setJ9View('existing')">Existing &mdash; 642 beats</button>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by PLG</div>
+      <div class="filter-row" id="p9-plg-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
+      <div class="kpi-r" id="p9-kpis"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Jaccard by PLG (lower = less overlap)</div>
+      <table class="dt-tbl">
+        <thead><tr>
+          <th style="text-align:left">Ex PLG &rarr; V3</th>
+          <th>Ex Jac</th><th>V3 Jac</th>
+        </tr></thead>
+        <tbody id="p9-jac-body"></tbody>
+      </table>
+    </div>
+    <div style="flex:1;min-height:0"></div>
+  </div>
+</div>
+
+<!-- SLIDE 10 · BEAT BALANCE -->
+<div class="slide info-slide" id="slide-10" style="background:#f8fafc">
+  <div class="page-lbl">10 / 11 &middot; Beat Balance &middot; RS 218390</div>
+  <div style="max-width:860px;margin:0 auto;padding:36px 28px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#1565C0;text-transform:uppercase;margin-bottom:10px">Benefit 4 &middot; RS 218390</div>
+    <h2 style="font-size:28px;font-weight:800;color:#111827;margin-bottom:6px">Beat Balance &mdash; Workload CV</h2>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:20px;max-width:600px;line-height:1.6">CV = std &divide; mean &times; 100%. Lower CV = more balanced outlet load across salesmen. Target: CV &lt; 20%.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px">
+      <div class="kpi" style="border:1.5px solid #fee2e2">
+        <div class="kv" style="color:#dc2626">24.9%</div>
+        <div class="kl">Overall CV &mdash; Existing</div>
+      </div>
+      <div class="kpi" style="border:1.5px solid #dcfce7">
+        <div class="kv" style="color:#16a34a">12.9%</div>
+        <div class="kl">Overall CV &mdash; V3</div>
+      </div>
+      <div class="kpi" style="border:1.5px solid #dbeafe">
+        <div class="kv" style="color:#2563eb">&#9660; 48%</div>
+        <div class="kl">Improvement in CV</div>
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">CV% per PLG &mdash; <span style="color:#dc2626">&#9632; Existing</span> &nbsp; <span style="color:#16a34a">&#9632; V3</span></div>
+    <div id="p10-chart"></div>
+    <div style="margin-top:18px;padding:13px;background:#eff6ff;border-radius:8px;font-size:12px;color:#374151;line-height:1.6">
+      <strong style="color:#1565C0">Why it matters:</strong> High CV means some salesmen are overloaded while others are underutilised. V3 balances outlets per beat within each PLG, ensuring fair and predictable workloads for all salesmen.
+    </div>
+  </div>
+</div>
+
 </div><!-- /#slides -->
 
 <div id="nav-dots">
@@ -933,6 +1227,10 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   <div class="dot" onclick="goTo(4)"></div>
   <div class="dot" onclick="goTo(5)"></div>
   <div class="dot" onclick="goTo(6)"></div>
+  <div class="dot" onclick="goTo(7)"></div>
+  <div class="dot" onclick="goTo(8)"></div>
+  <div class="dot" onclick="goTo(9)"></div>
+  <div class="dot" onclick="goTo(10)"></div>
 </div>
 
 <script>
@@ -2314,12 +2612,175 @@ function initSlide6(){
   setTimeout(()=>D6.map.invalidateSize(),150);
 }
 
+// ── SLIDE 7 · SAME-DAY CONFLICTS ─────────────────────────────────────────────
+let curS7View='v3';
+
+function initSlide7(){
+  if(MAPS['map-7'])return;
+  makeMap('map-7',m=>{
+    const {canvas:oc7,ctx:ctx7}=_makeOutletCanvas(m,_DPR);
+    function draw7(){
+      ctx7.clearRect(0,0,oc7.width,oc7.height);
+      const conflicts=curS7View==='v3'?CONFLICTS_V3_390:CONFLICTS_EX_390;
+      const z=m.getZoom();const dpr=_DPR;
+      const r=Math.max(3,3+(z-9)/(14-9)*6)*dpr;
+      const b=m.getBounds();const pad=0.03;
+      const sl=b.getSouth()-pad,nl=b.getNorth()+pad,wl=b.getWest()-pad,el=b.getEast()+pad;
+      const byDay={};
+      conflicts.forEach(c=>{
+        if(c[0]<sl||c[0]>nl||c[1]<wl||c[1]>el)return;
+        const d=c[2];
+        if(!byDay[d])byDay[d]=[];byDay[d].push(c);
+      });
+      Object.entries(byDay).forEach(([day,pts])=>{
+        const color=MKT_COLORS[+day]||'#9ca3af';
+        ctx7.fillStyle=color;ctx7.globalAlpha=0.85;ctx7.beginPath();
+        pts.forEach(c=>{
+          const pt=m.project([c[1],c[0]]);
+          ctx7.moveTo(pt.x*dpr+r,pt.y*dpr);ctx7.arc(pt.x*dpr,pt.y*dpr,r,0,Math.PI*2);
+        });
+        ctx7.fill();
+      });
+      ctx7.globalAlpha=1;
+    }
+    MAPS['map-7']._draw=draw7;
+    m.on('render',draw7);
+  },[88.36,22.52],12);
+  renderPanel7();
+}
+
+function setS7View(v){
+  curS7View=v;
+  document.getElementById('s7-vex').classList.toggle('active',v==='existing');
+  document.getElementById('s7-vv3').classList.toggle('active',v==='v3');
+  if(MAPS['map-7']&&MAPS['map-7']._draw)MAPS['map-7']._draw();
+  renderPanel7();
+}
+
+function renderPanel7(){
+  document.getElementById('p7-legend').innerHTML=
+    MKT_COLORS.map((c,i)=>'<div class="rs-item" style="padding:4px 6px">'
+      +'<div class="rs-dot" style="background:'+c+'"></div>'
+      +'<span class="rs-name" style="font-size:11px">Market '+(i+1)+' &mdash; '+MKT_DAYS[i]+'</span>'
+      +'</div>').join('');
+}
+
+// ── SLIDE 8 · PLG PURITY ─────────────────────────────────────────────────────
+let _s8init=false;
+function renderPanel8(){
+  if(_s8init)return;_s8init=true;
+  const examples=BENEFIT_STATS.plg_purity.impure_examples||[];
+  document.getElementById('p8-impure-tbl').innerHTML=examples.map(r=>'<tr style="border-bottom:1px solid rgba(255,255,255,0.08)"><td style="padding:7px 6px;color:#e2e8f0;font-weight:600">'+r.dse+'</td><td style="padding:7px 6px;color:#fbbf24">'+r.plgs+'</td><td style="padding:7px 6px;text-align:right;color:#f87171;font-weight:700">'+r.n+'</td></tr>').join('');
+}
+
+// ── SLIDE 9 · JACCARD TERRITORIES ─────────────────────────────────────────────
+let curJ9View='v3',curJ9PLG='ALL';
+const HULL_PALETTE=['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00',
+  '#a65628','#f781bf','#888888','#1b9e77','#d95f02','#7570b3','#e7298a',
+  '#66a61e','#e6ab02','#a6761d'];
+const _DSE_COLOR_MAP={};let _dseColorCtr=0;
+function _getDseColor(dse){
+  if(!_DSE_COLOR_MAP[dse])_DSE_COLOR_MAP[dse]=HULL_PALETTE[_dseColorCtr++%HULL_PALETTE.length];
+  return _DSE_COLOR_MAP[dse];
+}
+
+function initSlide9(){
+  if(MAPS['leaf-9'])return;
+  const mapEl=document.getElementById('l9-map');
+  const lmap=L.map(mapEl,{zoomControl:true,preferCanvas:true}).setView([22.52,88.36],12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    {attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19,opacity:.9}).addTo(lmap);
+  lmap.on('wheel',e=>{
+    if(e.originalEvent&&(e.originalEvent.ctrlKey||e.originalEvent.metaKey)){
+      e.originalEvent.preventDefault();
+    }
+  });
+  MAPS['leaf-9']={map:lmap,lg:L.layerGroup().addTo(lmap)};
+  setTimeout(()=>lmap.invalidateSize(),200);
+  buildJ9Chips();renderJaccard9();
+}
+
+function buildJ9Chips(){
+  const hulls=curJ9View==='v3'?HULL_V3_390:HULL_EX_390;
+  const plgs=[...new Set(hulls.map(h=>h.plg))].sort();
+  const chips=[{name:'ALL'},...plgs.map(p=>({name:p}))];
+  document.getElementById('p9-plg-chips').innerHTML=chips.map(c=>{
+    const isA=c.name===curJ9PLG;
+    const pi=PLG_INFO.find(p=>p.name===c.name);
+    const col=pi?pi.color:'#1565C0';
+    const st=isA?'background:'+col+';color:white;border-color:'+col+';':'border-color:'+col+';color:'+col+';';
+    const ac=isA?' active':'';
+    return `<button class="beat-chip${ac}" style="${st}" onclick="setJ9PLG('${c.name}')">${c.name}</button>`;
+  }).join('');
+}
+
+function setJ9View(v){
+  curJ9View=v;curJ9PLG='ALL';
+  document.getElementById('j9-vv3').classList.toggle('active',v==='v3');
+  document.getElementById('j9-vex').classList.toggle('active',v==='existing');
+  buildJ9Chips();renderJaccard9();
+}
+
+function setJ9PLG(plg){
+  curJ9PLG=plg;
+  buildJ9Chips();renderJaccard9();
+}
+
+function renderJaccard9(){
+  const state=MAPS['leaf-9'];if(!state)return;
+  state.lg.clearLayers();
+  const hulls=curJ9View==='v3'?HULL_V3_390:HULL_EX_390;
+  let drawn=0;
+  hulls.forEach(h=>{
+    if(curJ9PLG!=='ALL'&&h.plg!==curJ9PLG)return;
+    const color=_getDseColor(h.dse);
+    L.polygon(h.hull.map(p=>[p[0],p[1]]),{
+      color,weight:1.5,fillColor:color,fillOpacity:0.18
+    }).bindTooltip(h.dse+' &middot; Beat '+h.beat+' &middot; '+h.n+' outlets',
+      {sticky:true,direction:'top'}).addTo(state.lg);
+    drawn++;
+  });
+  const jacRow=BENEFIT_STATS.jaccard.by_plg||[];
+  const jv3=(curJ9View==='v3');
+  document.getElementById('p9-kpis').innerHTML='<div class="kpi"><div class="kv">'+drawn+'</div><div class="kl">'+(jv3?'V3':'Existing')+' territories shown</div></div>'+'<div class="kpi" style="background:'+(jv3?'#f0fdf4':'#fff7f7')+'"><div class="kv" style="color:'+(jv3?'#16a34a':'#dc2626')+'">'+(jv3?'0.0000':'0.0021&ndash;0.0062')+'</div><div class="kl">Avg Jaccard</div></div>';
+  document.getElementById('p9-jac-body').innerHTML=jacRow.map(r=>'<tr><td style="text-align:left">'+r.ex_plg+' &rarr; <b>'+r.v3_plg+'</b></td>'+'<td style="color:#dc2626;font-weight:700">'+r.ex_jac.toFixed(4)+'</td>'+'<td style="color:#16a34a;font-weight:700">'+r.v3_jac.toFixed(4)+'</td>'+'</tr>').join('');
+}
+
+// ── SLIDE 10 · BEAT BALANCE ───────────────────────────────────────────────────
+let _s10init=false;
+function renderPanel10(){
+  if(_s10init)return;_s10init=true;
+  const byPlg=BENEFIT_STATS.balance.by_plg||[];
+  const maxCV=Math.max(...byPlg.map(r=>Math.max(r.ex_cv,r.v3_cv)));
+  document.getElementById('p10-chart').innerHTML=byPlg.map(r=>{
+    const exW=Math.round(r.ex_cv/maxCV*100);
+    const v3W=Math.round(r.v3_cv/maxCV*100);
+    const target=20;const tW=Math.round(target/maxCV*100);
+    return'<div class="bal-row">'
+      +'<div class="bal-lbl">'+r.ex_plg+'<br/><span style="font-size:10px;color:#9ca3af">&rarr;'+r.v3_plg+'</span></div>'
+      +'<div class="bar-wrap">'
+        +'<div style="position:relative;height:14px;background:#f3f4f6;border-radius:3px;overflow:visible">'
+          +'<div style="height:100%;width:'+exW+'%;background:#fca5a5;border-radius:3px;display:flex;align-items:center;justify-content:flex-end;padding-right:4px">'
+            +'<span style="font-size:9px;font-weight:700;color:#7f1d1d">'+r.ex_cv+'%</span>'
+          +'</div>'
+          +'<div style="position:absolute;top:0;left:'+tW+'%;height:100%;width:2px;background:#f59e0b;z-index:1;border-radius:1px" title="Target 20%"></div>'
+        +'</div>'
+        +'<div style="height:14px;background:#f3f4f6;border-radius:3px;display:flex;align-items:center;margin-top:2px">'
+          +'<div style="height:100%;width:'+v3W+'%;background:#86efac;border-radius:3px;display:flex;align-items:center;justify-content:flex-end;padding-right:4px">'
+            +'<span style="font-size:9px;font-weight:700;color:#14532d">'+r.v3_cv+'%</span>'
+          +'</div>'
+        +'</div>'
+      +'</div>'
+      +'</div>';
+  }).join('')+'<div style="font-size:10px;color:#9ca3af;margin-top:8px">&#9646; Amber line = 20% target</div>';
+}
+
 // ── NAVIGATION ─────────────────────────────────────────────────────────────────
 const slidesEl=document.getElementById('slides');
 const navDots=document.querySelectorAll('.dot');
 const navEl=document.getElementById('nav-dots');
-const TOTAL_SLIDES=7;
-const DARK_SLIDES=new Set([0]);
+const TOTAL_SLIDES=11;
+const DARK_SLIDES=new Set([0,8]);
 
 function goTo(n){slidesEl.scrollTo({top:n*window.innerHeight,behavior:'smooth'});}
 
@@ -2369,6 +2830,10 @@ const obs=new IntersectionObserver(entries=>{
     if(e.target.id==='slide-4'){initSlide4();setTimeout(()=>resizeMap('map-4'),100);}
     if(e.target.id==='slide-5'){initSlide5();setTimeout(()=>resizeMap('map-5'),100);}
     if(e.target.id==='slide-6'){initSlide6();}
+    if(e.target.id==='slide-7'){initSlide7();setTimeout(()=>resizeMap('map-7'),100);}
+    if(e.target.id==='slide-8'){renderPanel8();}
+    if(e.target.id==='slide-9'){initSlide9();}
+    if(e.target.id==='slide-10'){renderPanel10();}
   });
 },{threshold:0.25,root:slidesEl});
 document.querySelectorAll('.slide').forEach(s=>obs.observe(s));
