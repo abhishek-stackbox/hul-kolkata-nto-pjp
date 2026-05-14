@@ -490,23 +490,11 @@ clusters, cluster_stats                           = load_clusters()
 beats_390, beats_391, ex_beats_390, ex_beats_391, plg_info, dse_info, beat_stats = load_beats()
 dse_info_391 = _load_json("dse_info_391") if os.path.exists(_json_path("dse_info_391")) else []
 
-import re as _re
-_delivery_html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                   "..", "hul-kolkata-beats", "delivery_map.html")
 _delivery_data = {}
+_delivery_json = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "delivery_data.json")
 try:
-    with open(_delivery_html_path, encoding="utf-8") as _f:
-        _dhcontent = _f.read()
-    _m = _re.search(r'const DATA\s*=\s*(\{)', _dhcontent)
-    if _m:
-        _s = _m.start(1); _depth = 0
-        for _i, _ch in enumerate(_dhcontent[_s:]):
-            if _ch == '{': _depth += 1
-            elif _ch == '}':
-                _depth -= 1
-                if _depth == 0:
-                    _delivery_data = json.loads(_dhcontent[_s:_s+_i+1])
-                    break
+    with open(_delivery_json, encoding="utf-8") as _f:
+        _delivery_data = json.load(_f)
 except Exception:
     pass
 
