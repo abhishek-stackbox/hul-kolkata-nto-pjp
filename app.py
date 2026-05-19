@@ -1400,70 +1400,62 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
 <!-- SLIDE 11 · PLG RULES -->
 <div class="slide info-slide" id="slide-11" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%);overflow-y:auto">
-  <div class="page-lbl">11 / 13 &middot; PLG Structure &middot; RS 218390</div>
-  <div style="max-width:880px;margin:0 auto;padding:36px 28px;color:white">
-    <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:10px">Reference &middot; RS 218390</div>
-    <h2 style="font-size:28px;font-weight:800;color:white;margin-bottom:6px">New PLG Structure</h2>
-    <p style="font-size:13px;color:#94a3b8;margin-bottom:20px;max-width:620px;line-height:1.6">Each salesman is assigned exactly one Sub-PLG in the V3 design. Regular beats cover standard trade channels; Specialist beats serve OFM (off-modern trade) and Uniglow channels.</p>
-    <div style="font-size:11px;font-weight:700;color:#60a5fa;letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Regular PLGs</div>
-    <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:20px">
+  <div class="page-lbl">11 / 13 &middot; PLG Rules &middot; RS 218390</div>
+  <div style="max-width:980px;margin:0 auto;padding:32px 28px;color:white">
+    <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:8px">Reference &middot; RS 218390</div>
+    <h2 style="font-size:26px;font-weight:800;color:white;margin-bottom:4px">New PLG Assignment Rules</h2>
+    <p style="font-size:12px;color:#94a3b8;margin-bottom:16px;line-height:1.5">How existing visit patterns map to V3 PLG assignments. Each rule specifies the new beat structure for outlets that had a given visit pattern in the existing design.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
       <thead>
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.15)">
-          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">PLG</th>
-          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Category</th>
-          <th style="padding:7px 6px;text-align:right;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Outlets</th>
-          <th style="padding:7px 6px;text-align:right;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">DSEs</th>
-          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Replaces (Ex PLG)</th>
+        <tr style="border-bottom:2px solid rgba(255,255,255,0.2)">
+          <th style="padding:7px 8px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px;width:35%">Existing Pattern</th>
+          <th style="padding:7px 8px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px;width:28%">New PLG Rule</th>
+          <th style="padding:7px 8px;text-align:right;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px;width:9%">Outlets</th>
+          <th style="padding:7px 8px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Notes</th>
         </tr>
       </thead>
-      <tbody id="p11-reg-tbl"></tbody>
+      <tbody id="p11-rules-tbl"></tbody>
     </table>
-    <div style="font-size:11px;font-weight:700;color:#60a5fa;letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Specialist PLGs (New in V3)</div>
-    <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:20px">
-      <thead>
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.15)">
-          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">PLG</th>
-          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Channel</th>
-          <th style="padding:7px 6px;text-align:right;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Outlets</th>
-          <th style="padding:7px 6px;text-align:right;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">DSEs</th>
-          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Note</th>
-        </tr>
-      </thead>
-      <tbody id="p11-spec-tbl"></tbody>
-    </table>
-    <div style="padding:13px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:12px;color:#94a3b8;line-height:1.6">
-      <strong style="color:#e2e8f0">OFM</strong> = Off-Modern Trade (dedicated salesman for large-format modern retail). &nbsp;<strong style="color:#e2e8f0">Uniglow</strong> = Unilever premium brand channel.
+    <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="padding:10px 12px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:11px;color:#94a3b8;line-height:1.6">
+        <strong style="color:#e2e8f0">OFM</strong> = Off-Modern Trade (dedicated salesman for large-format modern retail, 12 stores/day)<br/>
+        <strong style="color:#e2e8f0">Uniglow</strong> = Unilever premium brand channel (30 stores)<br/>
+        <strong style="color:#e2e8f0">Unicare</strong> = Unilever personal care channel (20 stores)
+      </div>
+      <div style="padding:10px 12px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:11px;color:#94a3b8">
+        <div style="font-size:10px;font-weight:700;color:#60a5fa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Channel Program</div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.08)"><span>DC</span><span style="color:#e2e8f0;font-weight:700">100 stores</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.08)"><span>OFM</span><span style="color:#e2e8f0;font-weight:700">100 stores</span><span style="color:#60a5fa;font-size:10px">20 w/ OFM program</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0"><span>HNB</span><span style="color:#e2e8f0;font-weight:700">100 stores</span><span style="color:#60a5fa;font-size:10px">30 Uniglow + 20 Unicare</span></div>
+      </div>
     </div>
   </div>
 </div>
 
 <!-- SLIDE 12 · BEAT AREA PER DAY -->
-<div class="slide info-slide" id="slide-12" style="background:#f8fafc;overflow-y:auto">
+<div class="slide" id="slide-12">
+  <div class="map-wrap" id="l12-map"></div>
   <div class="page-lbl">12 / 13 &middot; Beat Area per Day &middot; RS 218390</div>
-  <div style="max-width:860px;margin:0 auto;padding:36px 28px">
-    <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#1565C0;text-transform:uppercase;margin-bottom:10px">Benefit 5 &middot; RS 218390</div>
-    <h2 style="font-size:28px;font-weight:800;color:#111827;margin-bottom:6px">Beat Area Coverage &mdash; By Day</h2>
-    <p style="font-size:13px;color:#6b7280;margin-bottom:20px;max-width:600px;line-height:1.6">Total beat territory (km&sup2;) per market day. Smaller area per day means salesmen travel less and cover denser routes. V3 reduces Monday and Saturday &mdash; historically the largest coverage days.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px">
-      <div class="kpi" style="border:1.5px solid #fee2e2">
-        <div class="kv" id="p12-ex-total" style="color:#dc2626">&mdash;</div>
-        <div class="kl">Total Area &mdash; Existing</div>
+  <div class="zoom-hint">Ctrl+Scroll to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
+    <div style="padding:16px 18px 12px;flex-shrink:0;overflow-y:auto;max-height:100vh">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#1565C0;text-transform:uppercase;margin-bottom:6px">Benefit 5 &middot; RS 218390</div>
+      <h2 style="margin-bottom:3px">Beat Area &mdash; By Day</h2>
+      <p class="p-sub" style="margin-bottom:10px">Total beat territory km&sup2; per market day. Map colored by day.</p>
+      <div class="toggle-row" style="margin-bottom:10px">
+        <button class="t-btn active" id="a12-vv3" onclick="setA12View('v3')">Proposed</button>
+        <button class="t-btn" id="a12-vex" onclick="setA12View('existing')">Existing</button>
       </div>
-      <div class="kpi" style="border:1.5px solid #dcfce7">
-        <div class="kv" id="p12-v3-total" style="color:#16a34a">&mdash;</div>
-        <div class="kl">Total Area &mdash; Proposed</div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by day</div>
+      <div class="filter-row" id="a12-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:10px"></div>
+      <div class="kpi-r" style="grid-template-columns:1fr 1fr;margin-bottom:10px" id="p12-kpis"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
+        km&sup2; per day &mdash; <span style="color:#dc2626">Ex</span> &nbsp; <span style="color:#16a34a">Prop</span>
       </div>
-      <div class="kpi" style="border:1.5px solid #dbeafe">
-        <div class="kv" id="p12-reduction" style="color:#2563eb">&mdash;</div>
-        <div class="kl">Area Reduction</div>
+      <div id="p12-chart"></div>
+      <div style="margin-top:12px;padding:10px 12px;background:#eff6ff;border-radius:8px;font-size:11px;color:#374151;line-height:1.5">
+        <strong style="color:#1565C0">Why it matters:</strong> Smaller daily area = tighter routes, less travel, more visits per hour.
       </div>
-    </div>
-    <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
-      km&sup2; per day &mdash; <span style="color:#dc2626">&#9632; Existing</span> &nbsp; <span style="color:#16a34a">&#9632; Proposed (regular)</span> &nbsp; <span style="color:#60a5fa">&#9632; Specialist</span>
-    </div>
-    <div id="p12-chart"></div>
-    <div style="margin-top:18px;padding:13px;background:#eff6ff;border-radius:8px;font-size:12px;color:#374151;line-height:1.6">
-      <strong style="color:#1565C0">Why it matters:</strong> Smaller daily coverage means tighter routes, lower travel time, and more outlet visits per hour. V3 concentrates beats geographically so each salesman covers a compact area every visit day.
     </div>
   </div>
 </div>
@@ -3062,18 +3054,21 @@ function renderJaccard9(){
   const state=MAPS['leaf-9'];if(!state)return;
   state.lg.clearLayers();
   const hulls=curJ9View==='v3'?HULL_V3_390:HULL_EX_390;
-  let drawn=0;
+  let drawn=0;const bnds=[];
   hulls.forEach(h=>{
     if(curJ9Market!==0&&h.market!==curJ9Market)return;
     if(curJ9PLG!=='ALL'&&h.plg!==curJ9PLG)return;
     if(curJ9PLG!=='ALL'&&curJ9DSE==='ALL'&&_SPEC_PLG_NAMES.has(h.plg))return;
     if(curJ9DSE!=='ALL'&&h.plg!==curJ9DSE)return;
-    L.polygon(h.hull.map(p=>[p[0],p[1]]),{
+    const pts=h.hull.map(p=>[p[0],p[1]]);
+    L.polygon(pts,{
       color:'#374151',weight:1.5,fillColor:'#374151',fillOpacity:0.06
-    }).bindTooltip((h.plg?h.plg+' &middot; ':'')+h.dse+' &middot; '+_J9_DAYS[h.market]+' &middot; '+h.n+' outlets',
+    }).bindTooltip((h.plg?h.plg+' - ':'')+h.dse+' - '+_J9_DAYS[h.market]+' - '+h.n+' outlets',
       {sticky:true,direction:'top'}).addTo(state.lg);
+    bnds.push(...pts);
     drawn++;
   });
+  if(bnds.length>0)state.map.fitBounds(bnds,{padding:[20,20],maxZoom:14});
   const jacRow=BENEFIT_STATS.jaccard.by_plg||[];
   const jv3=(curJ9View==='v3');
   document.getElementById('p9-kpis').innerHTML='<div class="kpi"><div class="kv">'+drawn+'</div><div class="kl">'+(jv3?'Proposed':'Existing')+' beats shown</div></div>'
@@ -3164,109 +3159,143 @@ function renderPanel10(){
   }).join('')+'<div style="font-size:10px;color:#9ca3af;margin-top:8px">&#9646; Amber line = 20% target</div>';
 }
 
-// ── SLIDE 11 · PLG STRUCTURE ─────────────────────────────────────────────────
-const _PLG11_REG=[
-  {plg:'D',   cat:'Detergents',               ex:'DETS'},
-  {plg:'F',   cat:'Food &amp; Beverages',     ex:'FNB'},
-  {plg:'N',   cat:'Nutrition',                ex:'NUTS'},
-  {plg:'F+N', cat:'Food + Nutrition',         ex:'FNB+NUTS'},
-  {plg:'D+F', cat:'Detergents + Food',        ex:'(New)'},
-  {plg:'D+F+N',cat:'Det + Food + Nutrition',  ex:'D+F+NUTS / HUL+NUTS'},
-  {plg:'PP',  cat:'Personal Products',        ex:'PP'},
-  {plg:'PP-A',cat:'Personal Products A (Prestige)',ex:'PP-A'},
-  {plg:'PP-B',cat:'Personal Products B (Mass)',    ex:'PP-B'},
-];
-const _PLG11_SPEC=[
-  {plg:'D-OFM',       cat:'Detergents',         ch:'OFM'},
-  {plg:'F-OFM',       cat:'Food &amp; Bev',     ch:'OFM'},
-  {plg:'N_OFM',       cat:'Nutrition',           ch:'OFM'},
-  {plg:'D+F_UNIGLOW', cat:'Det + Food',          ch:'Uniglow'},
-  {plg:'PP-A_OFM',    cat:'Personal A',          ch:'OFM'},
-  {plg:'PP-A_UNIGLOW',cat:'Personal A',          ch:'Uniglow'},
-  {plg:'PP-B_OFM',    cat:'Personal B',          ch:'OFM'},
-  {plg:'PP-B_UNIGLOW',cat:'Personal B',          ch:'Uniglow'},
+// ── SLIDE 11 · PLG RULES ─────────────────────────────────────────────────────
+// PLG Rules data from PLG Rules.xlsx (Rules sheet)
+const _PLG11_RULES=[
+  {ex:'OFM Store (any visits)',    nr:'5 Visits (D, F, N, PP-A, PP-B)', n:46,   note:'12 stores/day, exclusive salesman'},
+  {ex:'1 Visit',                  nr:'2 Visits (D+F+N, PP)',           n:1953,  note:''},
+  {ex:'2 Visits (PP-A + PP-B)',   nr:'2 Visits (PP-A, PP-B)',          n:96,    note:''},
+  {ex:'2 Visits (PP + DETS)',     nr:'2 Visits (D+F+N, PP)',           n:147,   note:''},
+  {ex:'2 Visits (PP + D+F+N)',    nr:'2 Visits (D+F+N, PP)',           n:936,   note:''},
+  {ex:'2 Visits (PP + FNB+NUTS)', nr:'2 Visits (D+F+N, PP)',           n:12,    note:''},
+  {ex:'2 Visits (DETS + FNB+NUTS / NUTS / FNB)', nr:'2 Visits (D+F, N)', n:327, note:''},
+  {ex:'2 Visits (FNB + NUTS)',    nr:'2 Visits (F, N)',                n:43,    note:''},
+  {ex:'3 Visits (PP-A + PP-B + anything)', nr:'4 Visits (D, F+N, PP-A, PP-B)', n:162, note:'Channel program stores served separately'},
+  {ex:'3 Visits (Non-Food)',      nr:'2 Visits (D+F+N, PP)',           n:2574,  note:''},
+  {ex:'3 Visits (Food)',          nr:'2 Visits (D+F, N)',              n:25,    note:''},
+  {ex:'4 Visits (PP-A + PP-B + anything)', nr:'4 Visits (D, F+N, PP-A, PP-B)', n:856, note:''},
+  {ex:'4 Visits (non PP-A/PP-B)', nr:'4 Visits (D, F, N, PP)',        n:62,    note:''},
+  {ex:'5 Visits',                 nr:'5 Visits (D, F, N, PP-A, PP-B)',n:144,   note:''},
+  {ex:'Uniglow',                  nr:'3 Visits (D+F, PP-A, PP-B)',    n:null,  note:'15-24 outlets/day; fill with HNB stores'},
+  {ex:'Unicare',                  nr:'2 Visits (D+F+N, PP)',          n:null,  note:''},
 ];
 
 let _s11init=false;
 function renderSlide11(){
   if(_s11init)return;_s11init=true;
-  const summary=BEAT_AREA.plg_summary||[];
-  const byPlg=Object.fromEntries(summary.map(r=>[r.plg,r]));
-  const rowStyle='border-bottom:1px solid rgba(255,255,255,0.08)';
-  const tdS='padding:7px 6px;color:#e2e8f0;font-size:12.5px;';
-  const tdR=tdS+'text-align:right;';
-  const fN=v=>(v||0).toLocaleString();
-  document.getElementById('p11-reg-tbl').innerHTML=_PLG11_REG.map(r=>{
-    const d=byPlg[r.plg]||{};
-    const c=PLG_INFO.find(p=>p.name===r.plg)?.color||'#6b7280';
-    return '<tr style="'+rowStyle+'">'
-      +'<td style="'+tdS+'"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+c+';margin-right:6px;vertical-align:middle"></span><b>'+r.plg+'</b></td>'
-      +'<td style="'+tdS+'">'+r.cat+'</td>'
-      +'<td style="'+tdR+'">'+fN(d.outlets)+'</td>'
-      +'<td style="'+tdR+'">'+fN(d.dses)+'</td>'
-      +'<td style="'+tdS+';color:#94a3b8">'+r.ex+'</td>'
-      +'</tr>';
-  }).join('');
-  document.getElementById('p11-spec-tbl').innerHTML=_PLG11_SPEC.map(r=>{
-    const d=byPlg[r.plg]||{};
-    const c=PLG_INFO.find(p=>p.name===r.plg)?.color||'#6b7280';
-    const chBg=r.ch==='OFM'?'rgba(124,58,237,0.25)':'rgba(3,105,161,0.25)';
-    const chCol=r.ch==='OFM'?'#c4b5fd':'#7dd3fc';
-    return '<tr style="'+rowStyle+'">'
-      +'<td style="'+tdS+'"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+c+';margin-right:6px;vertical-align:middle"></span><b>'+r.plg+'</b></td>'
-      +'<td style="'+tdS+'">'+r.cat+'</td>'
-      +'<td style="'+tdR+'">'+fN(d.outlets)+'</td>'
-      +'<td style="'+tdR+'">'+fN(d.dses)+'</td>'
-      +'<td style="'+tdS+'"><span style="background:'+chBg+';color:'+chCol+';padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700">'+r.ch+'</span></td>'
+  const rs='border-bottom:1px solid rgba(255,255,255,0.08)';
+  const td='padding:6px 8px;color:#e2e8f0;font-size:12px;';
+  const tdR=td+'text-align:right;';
+  document.getElementById('p11-rules-tbl').innerHTML=_PLG11_RULES.map((r,i)=>{
+    const bg=i%2===0?'':'background:rgba(255,255,255,0.03);';
+    const nrParts=r.nr.match(/\(([^)]+)\)/g)||[];
+    const plgBadges=nrParts.map(p=>{
+      const names=p.slice(1,-1).split(',').map(s=>s.trim());
+      return names.map(n=>{
+        const c=PLG_INFO.find(x=>x.name===n)?.color||'#60a5fa';
+        return '<span style="display:inline-block;background:'+c+'22;color:'+c+';border:1px solid '+c+'55;padding:1px 5px;border-radius:8px;font-size:10px;font-weight:700;margin:1px">'+n+'</span>';
+      }).join('');
+    }).join('');
+    const nrText=r.nr.replace(/\([^)]+\)/g,'').trim();
+    return '<tr style="'+rs+bg+'">'
+      +'<td style="'+td+'">'+r.ex+'</td>'
+      +'<td style="'+td+'">'+nrText+' '+plgBadges+'</td>'
+      +'<td style="'+tdR+'">'+(r.n!=null?r.n.toLocaleString():'&mdash;')+'</td>'
+      +'<td style="'+td+';color:#94a3b8;font-size:11px">'+r.note+'</td>'
       +'</tr>';
   }).join('');
 }
 
 // ── SLIDE 12 · BEAT AREA PER DAY ─────────────────────────────────────────────
-const _DAY12=['Mon','Tue','Wed','Thu','Fri','Sat'];
+const _A12_DAYS=['All','Mon','Tue','Wed','Thu','Fri','Sat'];
+const _A12_DCOLORS=['#6b7280','#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#a855f7'];
+let curA12View='v3',curA12Market=0;
 
-let _s12init=false;
-function renderSlide12(){
-  if(_s12init)return;_s12init=true;
-  const reg=BEAT_AREA.v3_regular||{};
-  const spec=BEAT_AREA.v3_specialist||{};
-  const ex=BEAT_AREA.ex||{};
-  const sum=o=>Object.values(o).reduce((a,b)=>a+b,0);
-  const exTot=Math.round(sum(ex)*10)/10;
-  const v3Reg=Math.round(sum(reg)*10)/10;
-  const v3Spec=Math.round(sum(spec)*10)/10;
+function initSlide12(){
+  if(MAPS['leaf-12'])return;
+  const mapEl=document.getElementById('l12-map');
+  const lmap=L.map(mapEl,{zoomControl:true,preferCanvas:true}).setView([22.52,88.36],12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    {attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19,opacity:.9}).addTo(lmap);
+  lmap.on('wheel',e=>{if(e.originalEvent&&(e.originalEvent.ctrlKey||e.originalEvent.metaKey))e.originalEvent.preventDefault();});
+  MAPS['leaf-12']={map:lmap,lg:L.layerGroup().addTo(lmap)};
+  setTimeout(()=>lmap.invalidateSize(),200);
+  document.getElementById('a12-day-chips').innerHTML=_A12_DAYS.map((d,i)=>{
+    const a=i===0;
+    const st=a?'background:#374151;color:white;border-color:#374151;':'';
+    return `<button class="beat-chip${a?' active':''}" style="${st}" onclick="setA12Market(${i})">${d}</button>`;
+  }).join('');
+  renderArea12();
+}
+
+function setA12View(v){
+  curA12View=v;
+  document.getElementById('a12-vv3').classList.toggle('active',v==='v3');
+  document.getElementById('a12-vex').classList.toggle('active',v==='existing');
+  renderArea12();
+}
+
+function setA12Market(m){
+  curA12Market=m;
+  document.querySelectorAll('#a12-day-chips .beat-chip').forEach((el,i)=>{
+    const a=i===m;el.classList.toggle('active',a);
+    el.style.background=a?'#374151':'';el.style.color=a?'white':'';el.style.borderColor=a?'#374151':'';
+  });
+  renderArea12();
+}
+
+function renderArea12(){
+  const state=MAPS['leaf-12'];if(!state)return;
+  state.lg.clearLayers();
+  const hulls=curA12View==='v3'?HULL_V3_390:HULL_EX_390;
+  const bnds=[];
+  hulls.forEach(h=>{
+    if(curA12Market!==0&&h.market!==curA12Market)return;
+    const col=_A12_DCOLORS[h.market]||'#6b7280';
+    const pts=h.hull.map(p=>[p[0],p[1]]);
+    L.polygon(pts,{color:col,weight:1,fillColor:col,fillOpacity:0.2})
+      .bindTooltip(h.plg+' - '+_A12_DAYS[h.market],{sticky:true,direction:'top'}).addTo(state.lg);
+    bnds.push(...pts);
+  });
+  if(bnds.length>0)state.map.fitBounds(bnds,{padding:[20,20],maxZoom:14});
+  const reg=BEAT_AREA.v3_regular||{},spec=BEAT_AREA.v3_specialist||{},ex=BEAT_AREA.ex||{};
+  const mF=curA12Market===0?null:String(curA12Market);
+  const sumF=o=>mF?o[mF]||0:Object.values(o).reduce((a,b)=>a+b,0);
+  const exTot=Math.round(sumF(ex)*10)/10;
+  const v3Reg=Math.round(sumF(reg)*10)/10;
+  const v3Spec=Math.round(sumF(spec)*10)/10;
   const v3Tot=Math.round((v3Reg+v3Spec)*10)/10;
-  const pct=Math.round((1-v3Reg/exTot)*100);
-  document.getElementById('p12-ex-total').textContent=exTot+' km²';
-  document.getElementById('p12-v3-total').textContent=v3Tot+' km²';
-  document.getElementById('p12-reduction').textContent='▼ '+pct+'% (regular)';
-  const allVals=[...Object.values(ex),...Object.values(reg),...Object.values(spec)];
-  const maxV=Math.max(...allVals,1);
-  const barH=110;
-  document.getElementById('p12-chart').innerHTML='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;align-items:end">'
-    +_DAY12.map((day,i)=>{
-      const m=String(i+1);
-      const eV=ex[m]||0,rV=reg[m]||0,sV=spec[m]||0;
-      const eH=Math.max(4,Math.round(eV/maxV*barH));
-      const rH=Math.max(2,Math.round(rV/maxV*barH));
-      const sH=Math.max(2,Math.round(sV/maxV*barH));
-      return '<div style="text-align:center">'
-        +'<div style="font-size:10px;font-weight:700;color:#374151;margin-bottom:4px">'+eV.toFixed(1)+'</div>'
-        +'<div style="display:flex;gap:4px;align-items:flex-end;justify-content:center;height:'+barH+'px">'
-          +'<div style="width:22px;height:'+eH+'px;background:#fca5a5;border-radius:3px 3px 0 0" title="Existing: '+eV+' km²"></div>'
-          +'<div style="display:flex;flex-direction:column;gap:1px;justify-content:flex-end">'
-            +'<div style="width:22px;height:'+sH+'px;background:#93c5fd;border-radius:3px 3px 0 0" title="Specialist: '+sV+' km²"></div>'
-            +'<div style="width:22px;height:'+rH+'px;background:#86efac;border-radius:0" title="Regular: '+rV+' km²"></div>'
+  const pct=exTot>0?Math.round((1-(curA12View==='v3'?v3Reg:exTot)/exTot)*100):0;
+  const kpiEl=document.getElementById('p12-kpis');
+  kpiEl.innerHTML='<div class="kpi" style="border:1.5px solid #fee2e2"><div class="kv" style="color:#dc2626">'+exTot+' km&sup2;</div><div class="kl">Existing</div></div>'
+    +'<div class="kpi" style="border:1.5px solid #dcfce7"><div class="kv" style="color:#16a34a">'+v3Tot+' km&sup2;</div><div class="kl">Proposed</div></div>';
+  if(mF===null){
+    const allVals=[...Object.values(ex),...Object.values(reg),...Object.values(spec)];
+    const maxV=Math.max(...allVals,1);const barH=70;
+    document.getElementById('p12-chart').innerHTML='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;align-items:end">'
+      +['Mon','Tue','Wed','Thu','Fri','Sat'].map((day,i)=>{
+        const m=String(i+1),col=_A12_DCOLORS[i+1];
+        const eV=ex[m]||0,rV=reg[m]||0,sV=spec[m]||0;
+        const eH=Math.max(3,Math.round(eV/maxV*barH));
+        const rH=Math.max(2,Math.round(rV/maxV*barH));
+        const sH=Math.max(2,Math.round(sV/maxV*barH));
+        return '<div style="text-align:center">'
+          +'<div style="font-size:9px;font-weight:700;color:#6b7280;margin-bottom:2px">'+eV.toFixed(1)+'</div>'
+          +'<div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:'+barH+'px">'
+            +'<div style="width:16px;height:'+eH+'px;background:#fca5a5;border-radius:2px 2px 0 0"></div>'
+            +'<div style="display:flex;flex-direction:column;gap:1px;justify-content:flex-end">'
+              +'<div style="width:16px;height:'+sH+'px;background:'+col+';opacity:.45;border-radius:2px 2px 0 0"></div>'
+              +'<div style="width:16px;height:'+rH+'px;background:'+col+';border-radius:0"></div>'
+            +'</div>'
           +'</div>'
-        +'</div>'
-        +'<div style="font-size:10px;font-weight:700;color:#374151;margin-top:4px">'+(rV+sV).toFixed(1)+'</div>'
-        +'<div style="font-size:11px;font-weight:700;color:#6b7280;margin-top:2px">'+day+'</div>'
-        +'</div>';
-    }).join('')
-    +'</div>'
-    +'<div style="font-size:10px;color:#9ca3af;margin-top:14px;line-height:1.7">'
-    +'Top number = Existing km² &nbsp;|&nbsp; Bottom number = Proposed km² (regular + specialist stacked)'
-    +'</div>';
+          +'<div style="font-size:9px;font-weight:700;color:#374151;margin-top:2px">'+(rV+sV).toFixed(1)+'</div>'
+          +'<div style="font-size:10px;color:#6b7280;margin-top:1px">'+day+'</div>'
+          +'</div>';
+      }).join('')+'</div>'
+      +'<div style="font-size:10px;color:#9ca3af;margin-top:8px">&#9632; Ex (red) &nbsp;&#9632; Proposed (day color: regular+specialist stacked)</div>';
+  } else {
+    document.getElementById('p12-chart').innerHTML='';
+  }
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────────────────────────
@@ -3329,7 +3358,7 @@ const obs=new IntersectionObserver(entries=>{
     if(e.target.id==='slide-9'){initSlide9();}
     if(e.target.id==='slide-10'){renderPanel10();}
     if(e.target.id==='slide-11'){renderSlide11();}
-    if(e.target.id==='slide-12'){renderSlide12();}
+    if(e.target.id==='slide-12'){initSlide12();}
   });
 },{threshold:0.25,root:slidesEl});
 document.querySelectorAll('.slide').forEach(s=>obs.observe(s));
