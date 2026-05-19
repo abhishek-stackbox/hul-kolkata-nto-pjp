@@ -745,6 +745,49 @@ def load_beat_distances():
     return result
 
 
+@st.cache_data
+def load_beat_areas():
+    if os.path.exists(_json_path("beat_areas")):
+        try:
+            return _load_json("beat_areas")
+        except Exception:
+            pass
+
+    df_v3 = pd.read_excel(BEATS_390_FILE, sheet_name="V3 Beats", dtype=str)
+    df_ex = pd.read_excel(BEATS_390_FILE, sheet_name="Existing Beats", dtype=str)
+    df_v3["Market"] = pd.to_numeric(df_v3["Market"], errors="coerce")
+    df_v3["area"]   = pd.to_numeric(df_v3["Beat Area km²"], errors="coerce")
+    df_v3["PLG"]    = df_v3["Sub PLG"].where(df_v3["Sub PLG"].notna(), df_v3["PLG"])
+    df_ex["Market"] = pd.to_numeric(df_ex["Market"], errors="coerce")
+    df_ex["area"]   = pd.to_numeric(df_ex["Beat Area km²"], errors="coerce")
+
+    SPEC = {"D-OFM","F-OFM","N_OFM","D+F_UNIGLOW","PP-A_OFM","PP-A_UNIGLOW","PP-B_OFM","PP-B_UNIGLOW"}
+    df_v3_u = df_v3.dropna(subset=["Market","area","PLG"]).drop_duplicates(subset=["PLG","DSE","Market"])
+    df_ex_u = df_ex.dropna(subset=["Market","area","PLG"]).drop_duplicates(subset=["PLG","DSE","Market"])
+    df_reg  = df_v3_u[~df_v3_u["PLG"].isin(SPEC)]
+    df_spec = df_v3_u[df_v3_u["PLG"].isin(SPEC)]
+
+    def _by_market(df):
+        return {str(int(m)): round(float(a), 1)
+                for m, a in df.groupby("Market")["area"].sum().items()}
+
+    df_v3_raw = df_v3.dropna(subset=["PLG"])
+    plg_counts = (df_v3_raw.groupby("PLG")
+                  .agg(outlets=("Code","count"), dses=("DSE","nunique"))
+                  .reset_index())
+    plg_summary = [{"plg": str(r.PLG), "outlets": int(r.outlets), "dses": int(r.dses)}
+                   for r in plg_counts.itertuples()]
+
+    result = {
+        "v3_regular":    _by_market(df_reg),
+        "v3_specialist": _by_market(df_spec),
+        "ex":            _by_market(df_ex_u),
+        "plg_summary":   plg_summary,
+    }
+    _save_json("beat_areas", result)
+    return result
+
+
 outlets, rs_info, boundaries, stats, excl_outlets = load()
 dupe_pairs, dupe_stats                            = load_dupes()
 clusters, cluster_stats                           = load_clusters()
@@ -753,6 +796,7 @@ dse_info_391 = _load_json("dse_info_391") if os.path.exists(_json_path("dse_info
 benefit_stats, dse_balance_390, conflicts_ex_390, conflicts_v3_390, hull_v3_390, hull_ex_390 = load_benefits()
 hull_rs_ex, hull_rs_prop, rs_dist_stats = load_rs_hulls()
 beat_distances = load_beat_distances()
+beat_areas     = load_beat_areas()
 
 _delivery_data = {}
 _delivery_json = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "delivery_data.json")
@@ -791,6 +835,7 @@ DATA_BLOCK = (
     "const HULL_RS_PROP     = " + json.dumps(hull_rs_prop)     + ";\n"
     "const RS_DIST_STATS    = " + json.dumps(rs_dist_stats)    + ";\n"
     "const BEAT_DIST        = " + json.dumps(beat_distances)   + ";\n"
+    "const BEAT_AREA        = " + json.dumps(beat_areas)       + ";\n"
 )
 
 # ── HTML ───────────────────────────────────────────────────────────────────────
@@ -1033,7 +1078,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 1 · OUTLETS & DISTRIBUTORS -->
 <div class="slide" id="slide-1">
   <div class="map-wrap" id="map-1"></div>
-  <div class="page-lbl">1 / 11 &middot; Outlets &amp; Distributors</div>
+  <div class="page-lbl">1 / 13 &middot; Outlets &amp; Distributors</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Outlets &amp; Distributors</h2>
@@ -1069,7 +1114,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 2 · TERRITORY OVERLAPS -->
 <div class="slide" id="slide-2">
   <div class="map-wrap" id="map-2"></div>
-  <div class="page-lbl">2 / 11 &middot; Territory Overlaps</div>
+  <div class="page-lbl">2 / 13 &middot; Territory Overlaps</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Territory Overlaps</h2>
@@ -1103,7 +1148,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 3 · DUPLICATE OUTLETS -->
 <div class="slide" id="slide-3">
   <div class="map-wrap" id="map-3"></div>
-  <div class="page-lbl">3 / 11 &middot; Duplicate Outlets</div>
+  <div class="page-lbl">3 / 13 &middot; Duplicate Outlets</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;">
     <h2>Duplicate Outlets</h2>
@@ -1119,7 +1164,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 4 · HIGH DENSITY CLUSTERS -->
 <div class="slide" id="slide-4">
   <div class="map-wrap" id="map-4"></div>
-  <div class="page-lbl">4 / 11 &middot; High Density Clusters</div>
+  <div class="page-lbl">4 / 13 &middot; High Density Clusters</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>High Density Clusters</h2>
@@ -1144,7 +1189,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 5 · BEATS -->
 <div class="slide" id="slide-5">
   <div class="map-wrap" id="map-5"></div>
-  <div class="page-lbl">5 / 11 &middot; Beats &middot; RS 218390 &amp; 218391</div>
+  <div class="page-lbl">5 / 13 &middot; Beats &middot; RS 218390 &amp; 218391</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;">
     <div style="padding:16px 18px 10px;flex-shrink:0;border-bottom:1px solid #e5e7eb;overflow-y:auto;max-height:70vh">
@@ -1180,7 +1225,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 9 · JACCARD TERRITORIES (moved to position 6) -->
 <div class="slide" id="slide-9">
   <div class="map-wrap" id="l9-map"></div>
-  <div class="page-lbl">6 / 11 &middot; Beat Territories &middot; RS 218390</div>
+  <div class="page-lbl">6 / 13 &middot; Beat Territories &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
     <div style="padding:16px 18px 10px;flex-shrink:0;border-bottom:1px solid #e5e7eb;overflow-y:auto;max-height:75vh">
@@ -1212,7 +1257,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 6 · DELIVERY BEATS -->
 <div class="slide" id="slide-6">
   <div class="map-wrap" id="d6-map"></div>
-  <div class="page-lbl">7 / 11 &middot; Delivery Beats &middot; RS 218390</div>
+  <div class="page-lbl">7 / 13 &middot; Delivery Beats &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;">
     <div style="padding:16px 18px 10px;flex-shrink:0;border-bottom:1px solid #e5e7eb;overflow-y:auto;max-height:55vh;">
@@ -1255,7 +1300,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 7 · SAME-DAY CONFLICTS -->
 <div class="slide" id="slide-7">
   <div class="map-wrap" id="map-7"></div>
-  <div class="page-lbl">8 / 11 &middot; Same-Day Conflicts &middot; RS 218390</div>
+  <div class="page-lbl">8 / 13 &middot; Same-Day Conflicts &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Same-Day Multi-Salesman Visits</h2>
@@ -1288,7 +1333,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
 <!-- SLIDE 8 · PLG PURITY -->
 <div class="slide info-slide" id="slide-8" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%)">
-  <div class="page-lbl">9 / 11 &middot; PLG Purity &middot; RS 218390</div>
+  <div class="page-lbl">9 / 13 &middot; PLG Purity &middot; RS 218390</div>
   <div style="max-width:860px;margin:0 auto;padding:44px 28px;color:white">
     <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:12px">Benefit 2 &middot; RS 218390</div>
     <h2 style="font-size:32px;font-weight:800;margin-bottom:8px;color:white">PLG Purity</h2>
@@ -1326,7 +1371,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
 <!-- SLIDE 10 · BEAT BALANCE -->
 <div class="slide info-slide" id="slide-10" style="background:#f8fafc">
-  <div class="page-lbl">10 / 11 &middot; Beat Balance &middot; RS 218390</div>
+  <div class="page-lbl">10 / 13 &middot; Beat Balance &middot; RS 218390</div>
   <div style="max-width:860px;margin:0 auto;padding:36px 28px">
     <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#1565C0;text-transform:uppercase;margin-bottom:10px">Benefit 4 &middot; RS 218390</div>
     <h2 style="font-size:28px;font-weight:800;color:#111827;margin-bottom:6px">Beat Balance &mdash; Workload CV</h2>
@@ -1353,6 +1398,76 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   </div>
 </div>
 
+<!-- SLIDE 11 · PLG RULES -->
+<div class="slide info-slide" id="slide-11" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%);overflow-y:auto">
+  <div class="page-lbl">11 / 13 &middot; PLG Structure &middot; RS 218390</div>
+  <div style="max-width:880px;margin:0 auto;padding:36px 28px;color:white">
+    <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:10px">Reference &middot; RS 218390</div>
+    <h2 style="font-size:28px;font-weight:800;color:white;margin-bottom:6px">New PLG Structure</h2>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:20px;max-width:620px;line-height:1.6">Each salesman is assigned exactly one Sub-PLG in the V3 design. Regular beats cover standard trade channels; Specialist beats serve OFM (off-modern trade) and Uniglow channels.</p>
+    <div style="font-size:11px;font-weight:700;color:#60a5fa;letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Regular PLGs</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:20px">
+      <thead>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.15)">
+          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">PLG</th>
+          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Category</th>
+          <th style="padding:7px 6px;text-align:right;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Outlets</th>
+          <th style="padding:7px 6px;text-align:right;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">DSEs</th>
+          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Replaces (Ex PLG)</th>
+        </tr>
+      </thead>
+      <tbody id="p11-reg-tbl"></tbody>
+    </table>
+    <div style="font-size:11px;font-weight:700;color:#60a5fa;letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Specialist PLGs (New in V3)</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:20px">
+      <thead>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.15)">
+          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">PLG</th>
+          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Channel</th>
+          <th style="padding:7px 6px;text-align:right;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Outlets</th>
+          <th style="padding:7px 6px;text-align:right;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">DSEs</th>
+          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Note</th>
+        </tr>
+      </thead>
+      <tbody id="p11-spec-tbl"></tbody>
+    </table>
+    <div style="padding:13px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:12px;color:#94a3b8;line-height:1.6">
+      <strong style="color:#e2e8f0">OFM</strong> = Off-Modern Trade (dedicated salesman for large-format modern retail). &nbsp;<strong style="color:#e2e8f0">Uniglow</strong> = Unilever premium brand channel.
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 12 · BEAT AREA PER DAY -->
+<div class="slide info-slide" id="slide-12" style="background:#f8fafc;overflow-y:auto">
+  <div class="page-lbl">12 / 13 &middot; Beat Area per Day &middot; RS 218390</div>
+  <div style="max-width:860px;margin:0 auto;padding:36px 28px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#1565C0;text-transform:uppercase;margin-bottom:10px">Benefit 5 &middot; RS 218390</div>
+    <h2 style="font-size:28px;font-weight:800;color:#111827;margin-bottom:6px">Beat Area Coverage &mdash; By Day</h2>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:20px;max-width:600px;line-height:1.6">Total beat territory (km&sup2;) per market day. Smaller area per day means salesmen travel less and cover denser routes. V3 reduces Monday and Saturday &mdash; historically the largest coverage days.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px">
+      <div class="kpi" style="border:1.5px solid #fee2e2">
+        <div class="kv" id="p12-ex-total" style="color:#dc2626">&mdash;</div>
+        <div class="kl">Total Area &mdash; Existing</div>
+      </div>
+      <div class="kpi" style="border:1.5px solid #dcfce7">
+        <div class="kv" id="p12-v3-total" style="color:#16a34a">&mdash;</div>
+        <div class="kl">Total Area &mdash; Proposed</div>
+      </div>
+      <div class="kpi" style="border:1.5px solid #dbeafe">
+        <div class="kv" id="p12-reduction" style="color:#2563eb">&mdash;</div>
+        <div class="kl">Area Reduction</div>
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
+      km&sup2; per day &mdash; <span style="color:#dc2626">&#9632; Existing</span> &nbsp; <span style="color:#16a34a">&#9632; Proposed (regular)</span> &nbsp; <span style="color:#60a5fa">&#9632; Specialist</span>
+    </div>
+    <div id="p12-chart"></div>
+    <div style="margin-top:18px;padding:13px;background:#eff6ff;border-radius:8px;font-size:12px;color:#374151;line-height:1.6">
+      <strong style="color:#1565C0">Why it matters:</strong> Smaller daily coverage means tighter routes, lower travel time, and more outlet visits per hour. V3 concentrates beats geographically so each salesman covers a compact area every visit day.
+    </div>
+  </div>
+</div>
+
 </div><!-- /#slides -->
 
 <div id="nav-dots">
@@ -1367,6 +1482,8 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   <div class="dot" onclick="goTo(8)"></div>
   <div class="dot" onclick="goTo(9)"></div>
   <div class="dot" onclick="goTo(10)"></div>
+  <div class="dot" onclick="goTo(11)"></div>
+  <div class="dot" onclick="goTo(12)"></div>
 </div>
 
 <script>
@@ -3047,12 +3164,117 @@ function renderPanel10(){
   }).join('')+'<div style="font-size:10px;color:#9ca3af;margin-top:8px">&#9646; Amber line = 20% target</div>';
 }
 
+// ── SLIDE 11 · PLG STRUCTURE ─────────────────────────────────────────────────
+const _PLG11_REG=[
+  {plg:'D',   cat:'Detergents',               ex:'DETS'},
+  {plg:'F',   cat:'Food &amp; Beverages',     ex:'FNB'},
+  {plg:'N',   cat:'Nutrition',                ex:'NUTS'},
+  {plg:'F+N', cat:'Food + Nutrition',         ex:'FNB+NUTS'},
+  {plg:'D+F', cat:'Detergents + Food',        ex:'(New)'},
+  {plg:'D+F+N',cat:'Det + Food + Nutrition',  ex:'D+F+NUTS / HUL+NUTS'},
+  {plg:'PP',  cat:'Personal Products',        ex:'PP'},
+  {plg:'PP-A',cat:'Personal Products A (Prestige)',ex:'PP-A'},
+  {plg:'PP-B',cat:'Personal Products B (Mass)',    ex:'PP-B'},
+];
+const _PLG11_SPEC=[
+  {plg:'D-OFM',       cat:'Detergents',         ch:'OFM'},
+  {plg:'F-OFM',       cat:'Food &amp; Bev',     ch:'OFM'},
+  {plg:'N_OFM',       cat:'Nutrition',           ch:'OFM'},
+  {plg:'D+F_UNIGLOW', cat:'Det + Food',          ch:'Uniglow'},
+  {plg:'PP-A_OFM',    cat:'Personal A',          ch:'OFM'},
+  {plg:'PP-A_UNIGLOW',cat:'Personal A',          ch:'Uniglow'},
+  {plg:'PP-B_OFM',    cat:'Personal B',          ch:'OFM'},
+  {plg:'PP-B_UNIGLOW',cat:'Personal B',          ch:'Uniglow'},
+];
+
+let _s11init=false;
+function renderSlide11(){
+  if(_s11init)return;_s11init=true;
+  const summary=BEAT_AREA.plg_summary||[];
+  const byPlg=Object.fromEntries(summary.map(r=>[r.plg,r]));
+  const rowStyle='border-bottom:1px solid rgba(255,255,255,0.08)';
+  const tdS='padding:7px 6px;color:#e2e8f0;font-size:12.5px;';
+  const tdR=tdS+'text-align:right;';
+  const fN=v=>(v||0).toLocaleString();
+  document.getElementById('p11-reg-tbl').innerHTML=_PLG11_REG.map(r=>{
+    const d=byPlg[r.plg]||{};
+    const c=PLG_INFO.find(p=>p.name===r.plg)?.color||'#6b7280';
+    return '<tr style="'+rowStyle+'">'
+      +'<td style="'+tdS+'"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+c+';margin-right:6px;vertical-align:middle"></span><b>'+r.plg+'</b></td>'
+      +'<td style="'+tdS+'">'+r.cat+'</td>'
+      +'<td style="'+tdR+'">'+fN(d.outlets)+'</td>'
+      +'<td style="'+tdR+'">'+fN(d.dses)+'</td>'
+      +'<td style="'+tdS+';color:#94a3b8">'+r.ex+'</td>'
+      +'</tr>';
+  }).join('');
+  document.getElementById('p11-spec-tbl').innerHTML=_PLG11_SPEC.map(r=>{
+    const d=byPlg[r.plg]||{};
+    const c=PLG_INFO.find(p=>p.name===r.plg)?.color||'#6b7280';
+    const chBg=r.ch==='OFM'?'rgba(124,58,237,0.25)':'rgba(3,105,161,0.25)';
+    const chCol=r.ch==='OFM'?'#c4b5fd':'#7dd3fc';
+    return '<tr style="'+rowStyle+'">'
+      +'<td style="'+tdS+'"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+c+';margin-right:6px;vertical-align:middle"></span><b>'+r.plg+'</b></td>'
+      +'<td style="'+tdS+'">'+r.cat+'</td>'
+      +'<td style="'+tdR+'">'+fN(d.outlets)+'</td>'
+      +'<td style="'+tdR+'">'+fN(d.dses)+'</td>'
+      +'<td style="'+tdS+'"><span style="background:'+chBg+';color:'+chCol+';padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700">'+r.ch+'</span></td>'
+      +'</tr>';
+  }).join('');
+}
+
+// ── SLIDE 12 · BEAT AREA PER DAY ─────────────────────────────────────────────
+const _DAY12=['Mon','Tue','Wed','Thu','Fri','Sat'];
+
+let _s12init=false;
+function renderSlide12(){
+  if(_s12init)return;_s12init=true;
+  const reg=BEAT_AREA.v3_regular||{};
+  const spec=BEAT_AREA.v3_specialist||{};
+  const ex=BEAT_AREA.ex||{};
+  const sum=o=>Object.values(o).reduce((a,b)=>a+b,0);
+  const exTot=Math.round(sum(ex)*10)/10;
+  const v3Reg=Math.round(sum(reg)*10)/10;
+  const v3Spec=Math.round(sum(spec)*10)/10;
+  const v3Tot=Math.round((v3Reg+v3Spec)*10)/10;
+  const pct=Math.round((1-v3Reg/exTot)*100);
+  document.getElementById('p12-ex-total').textContent=exTot+' km²';
+  document.getElementById('p12-v3-total').textContent=v3Tot+' km²';
+  document.getElementById('p12-reduction').textContent='▼ '+pct+'% (regular)';
+  const allVals=[...Object.values(ex),...Object.values(reg),...Object.values(spec)];
+  const maxV=Math.max(...allVals,1);
+  const barH=110;
+  document.getElementById('p12-chart').innerHTML='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;align-items:end">'
+    +_DAY12.map((day,i)=>{
+      const m=String(i+1);
+      const eV=ex[m]||0,rV=reg[m]||0,sV=spec[m]||0;
+      const eH=Math.max(4,Math.round(eV/maxV*barH));
+      const rH=Math.max(2,Math.round(rV/maxV*barH));
+      const sH=Math.max(2,Math.round(sV/maxV*barH));
+      return '<div style="text-align:center">'
+        +'<div style="font-size:10px;font-weight:700;color:#374151;margin-bottom:4px">'+eV.toFixed(1)+'</div>'
+        +'<div style="display:flex;gap:4px;align-items:flex-end;justify-content:center;height:'+barH+'px">'
+          +'<div style="width:22px;height:'+eH+'px;background:#fca5a5;border-radius:3px 3px 0 0" title="Existing: '+eV+' km²"></div>'
+          +'<div style="display:flex;flex-direction:column;gap:1px;justify-content:flex-end">'
+            +'<div style="width:22px;height:'+sH+'px;background:#93c5fd;border-radius:3px 3px 0 0" title="Specialist: '+sV+' km²"></div>'
+            +'<div style="width:22px;height:'+rH+'px;background:#86efac;border-radius:0" title="Regular: '+rV+' km²"></div>'
+          +'</div>'
+        +'</div>'
+        +'<div style="font-size:10px;font-weight:700;color:#374151;margin-top:4px">'+(rV+sV).toFixed(1)+'</div>'
+        +'<div style="font-size:11px;font-weight:700;color:#6b7280;margin-top:2px">'+day+'</div>'
+        +'</div>';
+    }).join('')
+    +'</div>'
+    +'<div style="font-size:10px;color:#9ca3af;margin-top:14px;line-height:1.7">'
+    +'Top number = Existing km² &nbsp;|&nbsp; Bottom number = Proposed km² (regular + specialist stacked)'
+    +'</div>';
+}
+
 // ── NAVIGATION ─────────────────────────────────────────────────────────────────
 const slidesEl=document.getElementById('slides');
 const navDots=document.querySelectorAll('.dot');
 const navEl=document.getElementById('nav-dots');
-const TOTAL_SLIDES=11;
-const DARK_SLIDES=new Set([0,8]);
+const TOTAL_SLIDES=13;
+const DARK_SLIDES=new Set([0,8,11]);
 
 function goTo(n){slidesEl.scrollTo({top:n*window.innerHeight,behavior:'smooth'});}
 
@@ -3106,6 +3328,8 @@ const obs=new IntersectionObserver(entries=>{
     if(e.target.id==='slide-8'){renderPanel8();}
     if(e.target.id==='slide-9'){initSlide9();}
     if(e.target.id==='slide-10'){renderPanel10();}
+    if(e.target.id==='slide-11'){renderSlide11();}
+    if(e.target.id==='slide-12'){renderSlide12();}
   });
 },{threshold:0.25,root:slidesEl});
 document.querySelectorAll('.slide').forEach(s=>obs.observe(s));
