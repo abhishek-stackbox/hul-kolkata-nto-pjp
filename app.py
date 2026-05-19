@@ -71,6 +71,18 @@ def _rgb(h):
     h = h.lstrip("#")
     return [int(h[0:2],16), int(h[2:4],16), int(h[4:6],16)]
 
+# Outlets with bad coordinates in the Existing Beats sheet; corrected from V3 Beats
+_EX_COORD_FIXES = {
+    "HUL-218390P98619": (22.536544, 88.326435),
+}
+
+def _fix_ex_coords(df, code_col="Code"):
+    for code, (lat, lon) in _EX_COORD_FIXES.items():
+        mask = df[code_col] == code
+        if mask.any():
+            df.loc[mask, "lat"] = lat
+            df.loc[mask, "lon"] = lon
+
 
 def _load_json(name):
     with open(_json_path(name)) as f:
@@ -395,6 +407,7 @@ def load_beats():
     df390e["lat"] = pd.to_numeric(df390e["Latitude"], errors="coerce")
     df390e["lon"] = pd.to_numeric(df390e["Longitude"], errors="coerce")
     df390e["Market"] = pd.to_numeric(df390e["Market"], errors="coerce")
+    _fix_ex_coords(df390e)
     df390e = df390e.dropna(subset=["lat","lon","PLG","Market"]).copy()
     plg_idx390e, _ = _make_plg_idx(df390e["PLG"])
     dse_vals390e   = sorted(df390e["DSE"].dropna().unique().tolist())
@@ -532,6 +545,7 @@ def load_benefits():
     df_ex["lat"]    = pd.to_numeric(df_ex["Latitude"], errors="coerce")
     df_ex["lon"]    = pd.to_numeric(df_ex["Longitude"], errors="coerce")
     df_ex["Beat"]   = pd.to_numeric(df_ex["Beat"],     errors="coerce")
+    _fix_ex_coords(df_ex)
     df_ex = df_ex.dropna(subset=["lat","lon","Market","Code","DSE","Beat"]).copy()
 
     def _conflicts(df):
