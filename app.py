@@ -2974,38 +2974,46 @@ function renderBeatDists9(){
   const v3=BEAT_DIST.v3||[],ex=BEAT_DIST.ex||[];
   const mktF=curJ9Market===0?null:curJ9Market;
   const dseF=curJ9DSE==='ALL'?null:curJ9DSE;
-  const plgFv3=curJ9PLG==='ALL'||curJ9View!=='v3'?null:curJ9PLG;
-  const plgFex=curJ9PLG==='ALL'||curJ9View!=='existing'?null:curJ9PLG;
-  const _specExclude=d=>curJ9PLG!=='ALL'&&curJ9DSE==='ALL'&&_SPEC_PLG_NAMES.has(d.plg);
-  const filtV3=v3.filter(d=>(plgFv3?d.plg===plgFv3:true)&&(mktF?d.market===mktF:true)&&(dseF?d.plg===dseF:true)&&!_specExclude(d));
-  const filtEx=ex.filter(d=>(plgFex?d.plg===plgFex:true)&&(mktF?d.market===mktF:true)&&!_specExclude(d));
+  const plgF=curJ9PLG==='ALL'?null:curJ9PLG;
   const avg=(arr,k)=>{const v=arr.filter(d=>d[k]!=null).map(d=>d[k]);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
-  const fmt=(v)=>v==null?'&mdash;':v.toFixed(1)+' km';
-  const eC=avg(filtEx,'chain_km'),dC=avg(filtV3,'chain_km');
-  const dChain=dC!=null&&eC!=null?dC-eC:null;
-  const colC=dChain==null?'#6b7280':dChain<0?'#16a34a':'#dc2626';
-  // Merged PLG table: all unique PLGs from both datasets
-  const allPlgs=[...new Set([...filtV3.map(d=>d.plg),...filtEx.map(d=>d.plg)])].sort();
-  const plgRows=allPlgs.map(plg=>{
-    const pv3=filtV3.filter(d=>d.plg===plg);
-    const pex=filtEx.filter(d=>d.plg===plg);
-    const vc=avg(pv3,'chain_km'),ec=avg(pex,'chain_km');
+  const fmt=v=>v==null?'&mdash;':v.toFixed(1)+' km';
+  // Specialist selected: show only that specialist's proposed distances
+  if(dseF){
+    const specD=v3.filter(d=>d.plg===dseF&&(mktF?d.market===mktF:true));
+    const vc=avg(specD,'chain_km');
+    el.innerHTML='<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px">In Beat Distance</div>'
+      +'<table class="dt-tbl" style="width:100%"><thead><tr><th style="text-align:left">Specialist</th><th>Proposed</th></tr></thead>'
+      +'<tbody><tr><td style="text-align:left">'+dseF+'</td><td>'+fmt(vc)+'</td></tr></tbody></table>';
+    return;
+  }
+  // Use Jaccard PLG mapping: ex_plg → v3_plg
+  const jacMap=BENEFIT_STATS.jaccard.by_plg||[];
+  const showJac=plgF?jacMap.filter(r=>(curJ9View==='v3'?r.v3_plg:r.ex_plg)===plgF):jacMap;
+  const plgRows=showJac.map(r=>{
+    const exD=ex.filter(d=>d.plg===r.ex_plg&&(mktF?d.market===mktF:true));
+    const v3D=v3.filter(d=>d.plg===r.v3_plg&&(mktF?d.market===mktF:true));
+    const ec=avg(exD,'chain_km'),vc=avg(v3D,'chain_km');
     const dc=vc!=null&&ec!=null?vc-ec:null;
-    const cc=dc==null?'#6b7280':dc<0?'#16a34a':'#dc2626';
-    const src=pv3.length&&pex.length?'':'<span style="font-size:9px;color:#9ca3af">'+(pv3.length?'prop':'ex')+'</span>';
-    return'<tr><td style="text-align:left">'+plg+' '+src+'</td>'
+    const col=dc==null?'#6b7280':dc<0?'#16a34a':'#dc2626';
+    return'<tr><td style="text-align:left">'+r.ex_plg+' &rarr; <b>'+r.v3_plg+'</b></td>'
       +'<td>'+fmt(ec)+'</td><td>'+fmt(vc)+'</td>'
-      +'<td style="color:'+cc+'">'+(dc==null?'&mdash;':(dc<0?'':'+')+dc.toFixed(1))+'</td>'
+      +'<td style="color:'+col+'">'+(dc==null?'&mdash;':(dc<0?'':'+')+dc.toFixed(1))+'</td>'
       +'</tr>';
   }).join('');
+  // Overall averages (exclude specialists from v3)
+  const allV3=v3.filter(d=>!_SPEC_PLG_NAMES.has(d.plg)&&(mktF?d.market===mktF:true));
+  const allEx=ex.filter(d=>(mktF?d.market===mktF:true));
+  const eC=avg(allEx,'chain_km'),dC=avg(allV3,'chain_km');
+  const dChain=dC!=null&&eC!=null?dC-eC:null;
+  const colC=dChain==null?'#6b7280':dChain<0?'#16a34a':'#dc2626';
   el.innerHTML='<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px">In Beat Distance Comparison (km)</div>'
     +'<table class="dt-tbl" style="width:100%"><thead><tr>'
-    +'<th style="text-align:left">PLG</th><th>Existing</th><th>Proposed</th><th>&Delta;</th>'
+    +'<th style="text-align:left">Ex PLG &rarr; Prop</th><th>Existing</th><th>Proposed</th><th>&Delta;</th>'
     +'</tr></thead><tbody>'
-    +'<tr style="font-weight:700;background:#f9fafb"><td style="text-align:left">All</td>'
-    +'<td>'+fmt(eC)+'</td><td>'+fmt(dC)+'</td>'
-    +'<td style="color:'+colC+'">'+(dChain==null?'&mdash;':(dChain<0?'':'+')+dChain.toFixed(1))+'</td>'
-    +'</tr>'
+    +(plgF?'':'<tr style="font-weight:700;background:#f9fafb"><td style="text-align:left">All</td>'
+      +'<td>'+fmt(eC)+'</td><td>'+fmt(dC)+'</td>'
+      +'<td style="color:'+colC+'">'+(dChain==null?'&mdash;':(dChain<0?'':'+')+dChain.toFixed(1))+'</td>'
+      +'</tr>')
     +plgRows
     +'</tbody></table>';
 }
