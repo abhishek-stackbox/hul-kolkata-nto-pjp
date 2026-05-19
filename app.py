@@ -345,11 +345,20 @@ def load_beats():
         except Exception:
             pass
 
-    PLG_ORDER  = ["D","D+F","D+F+N","F","F+N","N","PP","PP-A","PP-B"]
+    PLG_ORDER  = [
+        "D","D+F","D+F+N","F","F+N","N","PP","PP-A","PP-B",
+        # Specialist Sub PLGs (V3 only)
+        "D-OFM","F-OFM","N_OFM","D+F_UNIGLOW",
+        "PP-A_OFM","PP-A_UNIGLOW","PP-B_OFM","PP-B_UNIGLOW",
+    ]
     PLG_COLORS = {
         "D":"#2563eb","D+F":"#0891b2","D+F+N":"#0d9488",
         "F":"#16a34a","F+N":"#65a30d","N":"#ca8a04",
         "PP":"#dc2626","PP-A":"#ea580c","PP-B":"#9333ea",
+        # Specialist Sub PLGs
+        "D-OFM":"#7c3aed","F-OFM":"#059669","N_OFM":"#b45309",
+        "D+F_UNIGLOW":"#0369a1","PP-A_OFM":"#be185d","PP-A_UNIGLOW":"#9333ea",
+        "PP-B_OFM":"#c2410c","PP-B_UNIGLOW":"#7c3aed",
         # Existing beat PLG names
         "D+F+NUTS":"#0891b2","DETS":"#2563eb","FNB":"#16a34a",
         "FNB+NUTS":"#65a30d","HUL+NUTS":"#0d9488","NUTS":"#ca8a04",
@@ -367,13 +376,15 @@ def load_beats():
     df390p["lat"] = pd.to_numeric(df390p["Latitude"], errors="coerce")
     df390p["lon"] = pd.to_numeric(df390p["Longitude"], errors="coerce")
     df390p["Market"] = pd.to_numeric(df390p["Market"], errors="coerce")
-    df390p = df390p.dropna(subset=["lat","lon","PLG","Market"]).copy()
-    plg_idx390p, _ = _make_plg_idx(df390p["PLG"])
+    # Use Sub PLG (not PLG) — correctly routes specialist DSE beats to specialist or regular PLG
+    df390p["PLG_use"] = df390p["Sub PLG"].where(df390p["Sub PLG"].notna(), df390p["PLG"])
+    df390p = df390p.dropna(subset=["lat","lon","PLG_use","Market"]).copy()
+    plg_idx390p, _ = _make_plg_idx(df390p["PLG_use"])
     dse_vals390p   = sorted(df390p["DSE"].dropna().unique().tolist())
     dse_idx390p    = {d: i for i, d in enumerate(dse_vals390p)}
     beats_390 = [
         [round(float(r.lat),5), round(float(r.lon),5),
-         plg_idx390p.get(r.PLG, 0), int(r.Market)-1,
+         plg_idx390p.get(r.PLG_use, 0), int(r.Market)-1,
          dse_idx390p.get(str(r.DSE), 0),
          int(float(str(r.Beat))) if str(r.Beat) not in ('','nan','None') else -1]
         for r in df390p.itertuples()
@@ -513,6 +524,7 @@ def load_benefits():
     df_v3["lat"]    = pd.to_numeric(df_v3["Latitude"], errors="coerce")
     df_v3["lon"]    = pd.to_numeric(df_v3["Longitude"], errors="coerce")
     df_v3["Beat"]   = pd.to_numeric(df_v3["Beat"],     errors="coerce")
+    df_v3["PLG"]    = df_v3["Sub PLG"].where(df_v3["Sub PLG"].notna(), df_v3["PLG"])
     df_v3 = df_v3.dropna(subset=["lat","lon","Market","Code","DSE","Beat"]).copy()
 
     df_ex = pd.read_excel(BEATS_390_FILE, sheet_name="Existing Beats", dtype=str)
@@ -537,7 +549,7 @@ def load_benefits():
     def _hulls(df):
         import numpy as np
         result = []
-        for (plg, dse, beat), sub in df.groupby(["PLG","DSE","Beat"]):
+        for (plg, dse, market), sub in df.groupby(["PLG","DSE","Market"]):
             pts = sub[["lat","lon"]].values
             if len(pts) < 3:
                 continue
@@ -545,7 +557,7 @@ def load_benefits():
                 h = ConvexHull(pts)
                 verts = pts[h.vertices].tolist()
                 verts.append(verts[0])
-                result.append({"plg":str(plg),"dse":str(dse),"beat":int(beat),"n":len(pts),
+                result.append({"plg":str(plg),"dse":str(dse),"market":int(market),"n":len(pts),
                                 "hull":[[round(p[0],5),round(p[1],5)] for p in verts]})
             except Exception:
                 pass
@@ -624,12 +636,123 @@ def load_benefits():
     return benefit_stats, dse_balance, conflicts_ex, conflicts_v3, hull_v3, hull_ex
 
 
+@st.cache_data
+def load_rs_hulls():
+    from scipy.spatial import ConvexHull
+    import numpy as np
+    from math import radians, sin, cos, sqrt, atan2
+
+    cache_keys = ["hull_rs_ex", "hull_rs_prop", "rs_dist_stats"]
+    if all(os.path.exists(_json_path(k)) for k in cache_keys):
+        try:
+            return tuple(_load_json(k) for k in cache_keys)
+        except Exception:
+            pass
+
+    outlets_data  = _load_json("outlets")
+    rs_info_data  = _load_json("rs_info")
+    SAFOAN_IDX    = next((r["idx"] for r in rs_info_data if "safoan" in r["name"].lower()), -1)
+
+    def hav(la1, lo1, la2, lo2):
+        R = 6371.0
+        dlat = radians(la2 - la1); dlon = radians(lo2 - lo1)
+        a = sin(dlat/2)**2 + cos(radians(la1)) * cos(radians(la2)) * sin(dlon/2)**2
+        return R * 2 * atan2(sqrt(a), sqrt(1 - a))
+
+    ex_coords, prop_coords = {}, {}
+    ex_dists,  prop_dists  = {}, {}
+
+    for o in outlets_data:
+        lat, lon, ex_idx, prop_idx = o[0], o[1], o[2], o[3]
+        ex_coords.setdefault(ex_idx, []).append([lat, lon])
+        prop_coords.setdefault(prop_idx, []).append([lat, lon])
+        rs_e = rs_info_data[ex_idx]   if 0 <= ex_idx   < len(rs_info_data) else None
+        rs_p = rs_info_data[prop_idx] if 0 <= prop_idx < len(rs_info_data) else None
+        if rs_e and rs_e["lat"] and rs_e["lon"]:
+            ex_dists.setdefault(ex_idx, []).append(hav(lat, lon, rs_e["lat"], rs_e["lon"]))
+        if rs_p and rs_p["lat"] and rs_p["lon"] and ex_idx != SAFOAN_IDX:
+            prop_dists.setdefault(prop_idx, []).append(hav(lat, lon, rs_p["lat"], rs_p["lon"]))
+
+    def _hulls(coords_dict):
+        out = []
+        for rs_idx, pts in coords_dict.items():
+            if len(pts) < 3:
+                continue
+            arr = np.array(pts)
+            try:
+                h = ConvexHull(arr)
+                verts = arr[h.vertices].tolist()
+                verts.append(verts[0])
+                out.append({"rs_idx": rs_idx,
+                             "points": [[round(p[0], 5), round(p[1], 5)] for p in verts]})
+            except Exception:
+                pass
+        return out
+
+    hull_rs_ex   = _hulls(ex_coords)
+    hull_rs_prop = _hulls(prop_coords)
+
+    rs_dist_stats = {}
+    for rs in rs_info_data:
+        idx = rs["idx"]
+        if idx == SAFOAN_IDX:
+            continue
+        ed = ex_dists.get(idx, [])
+        pd_ = prop_dists.get(idx, [])
+        rs_dist_stats[str(idx)] = {
+            "ex":   round(sum(ed)  / len(ed),  2) if ed  else None,
+            "prop": round(sum(pd_) / len(pd_), 2) if pd_ else None,
+        }
+
+    for k, v in [("hull_rs_ex", hull_rs_ex), ("hull_rs_prop", hull_rs_prop),
+                 ("rs_dist_stats", rs_dist_stats)]:
+        _save_json(k, v)
+
+    return hull_rs_ex, hull_rs_prop, rs_dist_stats
+
+
+@st.cache_data
+def load_beat_distances():
+    cache_key = "beat_distances"
+    if os.path.exists(_json_path(cache_key)):
+        try:
+            return _load_json(cache_key)
+        except Exception:
+            pass
+
+    df_v3 = pd.read_excel(BEATS_390_FILE, sheet_name="V3 Beats", dtype=str)
+    df_ex = pd.read_excel(BEATS_390_FILE, sheet_name="Existing Beats", dtype=str)
+    for df in [df_v3, df_ex]:
+        df["Market"]        = pd.to_numeric(df["Market"],         errors="coerce")
+        df["Road Dist (km)"]= pd.to_numeric(df["Road Dist (km)"],errors="coerce")
+    # V3: use Sub PLG so specialist beats group separately from regular PLG beats
+    df_v3["PLG"] = df_v3["Sub PLG"].where(df_v3["Sub PLG"].notna(), df_v3["PLG"])
+    df_v3 = df_v3.dropna(subset=["Market","PLG","DSE"]).copy()
+    df_ex = df_ex.dropna(subset=["Market","PLG","DSE"]).copy()
+
+    def _all(df):
+        out = []
+        for (plg, dse, market), sub in df.groupby(["PLG","DSE","Market"]):
+            # Road Dist (km) is per-beat (same value for all outlets); take first non-null
+            rd = sub["Road Dist (km)"].dropna()
+            chain = round(float(rd.iloc[0]), 2) if len(rd) else None
+            out.append({"plg":str(plg),"dse":str(dse),"market":int(market),
+                        "n":len(sub),"chain_km":chain,"route_km":None})
+        return out
+
+    result = {"v3": _all(df_v3), "ex": _all(df_ex)}
+    _save_json(cache_key, result)
+    return result
+
+
 outlets, rs_info, boundaries, stats, excl_outlets = load()
 dupe_pairs, dupe_stats                            = load_dupes()
 clusters, cluster_stats                           = load_clusters()
 beats_390, beats_391, ex_beats_390, ex_beats_391, plg_info, dse_info, beat_stats = load_beats()
 dse_info_391 = _load_json("dse_info_391") if os.path.exists(_json_path("dse_info_391")) else []
 benefit_stats, dse_balance_390, conflicts_ex_390, conflicts_v3_390, hull_v3_390, hull_ex_390 = load_benefits()
+hull_rs_ex, hull_rs_prop, rs_dist_stats = load_rs_hulls()
+beat_distances = load_beat_distances()
 
 _delivery_data = {}
 _delivery_json = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "delivery_data.json")
@@ -664,6 +787,10 @@ DATA_BLOCK = (
     "const CONFLICTS_V3_390 = " + json.dumps(conflicts_v3_390) + ";\n"
     "const HULL_V3_390      = " + json.dumps(hull_v3_390)      + ";\n"
     "const HULL_EX_390      = " + json.dumps(hull_ex_390)      + ";\n"
+    "const HULL_RS_EX       = " + json.dumps(hull_rs_ex)       + ";\n"
+    "const HULL_RS_PROP     = " + json.dumps(hull_rs_prop)     + ";\n"
+    "const RS_DIST_STATS    = " + json.dumps(rs_dist_stats)    + ";\n"
+    "const BEAT_DIST        = " + json.dumps(beat_distances)   + ";\n"
 )
 
 # ── HTML ───────────────────────────────────────────────────────────────────────
@@ -731,9 +858,10 @@ html,body{width:100%;height:100%;overflow:hidden;
   color:#9ca3af;padding:5px 4px;border-bottom:1px solid #e5e7eb;text-align:right;}
 .dt-tbl th:first-child,.dt-tbl th:nth-child(2){text-align:left;}
 .dt-tbl td{padding:6px 4px;border-bottom:1px solid #f3f4f6;color:#374151;text-align:right;}
-.dt-tbl td:first-child{text-align:left;max-width:140px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.dt-tbl td:nth-child(2){text-align:left;}
+.dt-tbl td:first-child{text-align:left;}
+.dt-tbl td:nth-child(2){text-align:left;max-width:160px;overflow:hidden;}
+.rs-nm{display:inline-block;max-width:130px;overflow:hidden;white-space:nowrap;
+  text-overflow:ellipsis;vertical-align:bottom;}
 .dt-tbl tr:hover td{background:#f9fafb;cursor:pointer;}
 .dc{width:9px;height:9px;border-radius:2px;display:inline-block;
   margin-right:5px;flex-shrink:0;vertical-align:middle;}
@@ -776,7 +904,7 @@ html,body{width:100%;height:100%;overflow:hidden;
 
 .page-lbl{position:absolute;bottom:16px;left:16px;
   font-size:11px;font-weight:700;letter-spacing:1px;color:#6b7280;
-  text-transform:uppercase;z-index:60;
+  text-transform:uppercase;z-index:500;
   background:rgba(255,255,255,0.9);padding:4px 11px;border-radius:20px;pointer-events:none;}
 .zoom-hint{position:absolute;bottom:16px;
   left:calc((100% - 400px)/2);transform:translateX(-50%);
@@ -953,7 +1081,12 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
       <button class="t-btn active" id="t-existing" onclick="setView('existing')">Existing</button>
       <button class="t-btn"        id="t-proposed" onclick="setView('proposed')">Proposed</button>
     </div>
-    <button class="dl-btn" id="p2-dl-btn" style="display:none;margin-top:8px" onclick="downloadProposed()">
+    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Layers</div>
+    <div class="filter-row" style="gap:4px;margin-bottom:6px">
+      <button class="beat-chip" id="p2-tg-boundary" onclick="s2tgl('boundary')" style="">Boundary</button>
+      <button class="beat-chip active" id="p2-tg-ret" onclick="s2tgl('ret')"    style="background:#1565C0;color:#fff;border-color:#1565C0">Retailers</button>
+    </div>
+    <button class="dl-btn" id="p2-dl-btn" style="display:none;margin-top:4px" onclick="downloadProposed()">
       &#8595; Download Proposed Plan CSV</button>
     <table class="dt-tbl" style="margin-top:8px">
       <thead><tr>
@@ -1044,10 +1177,42 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   </div>
 </div>
 
+<!-- SLIDE 9 · JACCARD TERRITORIES (moved to position 6) -->
+<div class="slide" id="slide-9">
+  <div class="map-wrap" id="l9-map"></div>
+  <div class="page-lbl">6 / 11 &middot; Beat Territories &middot; RS 218390</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
+    <div style="padding:16px 18px 10px;flex-shrink:0;border-bottom:1px solid #e5e7eb;overflow-y:auto;max-height:75vh">
+      <h2 style="margin-bottom:4px">Beat Territories &amp; Jaccard</h2>
+      <p class="p-sub" style="margin-bottom:8px">Convex hull per PLG-salesman-day &middot; overlap visible across PLGs</p>
+      <div class="toggle-row" style="margin-bottom:10px">
+        <button class="t-btn active" id="j9-vv3" onclick="setJ9View('v3')">Proposed beats</button>
+        <button class="t-btn"        id="j9-vex" onclick="setJ9View('existing')">Existing beats</button>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by PLG / Specialist</div>
+      <div class="filter-row" id="p9-plg-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by day</div>
+      <div class="filter-row" id="p9-dse-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
+      <div class="kpi-r" id="p9-kpis"></div>
+      <div id="p9-dist-table"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Jaccard by PLG (lower = less overlap)</div>
+      <table class="dt-tbl">
+        <thead><tr>
+          <th style="text-align:left">Ex PLG &rarr; Prop</th>
+          <th>Ex Jac %</th><th>Prop Jac %</th>
+        </tr></thead>
+        <tbody id="p9-jac-body"></tbody>
+      </table>
+    </div>
+    <div style="flex:1;min-height:0"></div>
+  </div>
+</div>
+
 <!-- SLIDE 6 · DELIVERY BEATS -->
 <div class="slide" id="slide-6">
   <div class="map-wrap" id="d6-map"></div>
-  <div class="page-lbl">6 / 11 &middot; Delivery Beats &middot; RS 218390</div>
+  <div class="page-lbl">7 / 11 &middot; Delivery Beats &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;">
     <div style="padding:16px 18px 10px;flex-shrink:0;border-bottom:1px solid #e5e7eb;overflow-y:auto;max-height:55vh;">
@@ -1090,7 +1255,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 7 · SAME-DAY CONFLICTS -->
 <div class="slide" id="slide-7">
   <div class="map-wrap" id="map-7"></div>
-  <div class="page-lbl">7 / 11 &middot; Same-Day Conflicts &middot; RS 218390</div>
+  <div class="page-lbl">8 / 11 &middot; Same-Day Conflicts &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Same-Day Multi-Salesman Visits</h2>
@@ -1123,7 +1288,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
 <!-- SLIDE 8 · PLG PURITY -->
 <div class="slide info-slide" id="slide-8" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%)">
-  <div class="page-lbl">8 / 11 &middot; PLG Purity &middot; RS 218390</div>
+  <div class="page-lbl">9 / 11 &middot; PLG Purity &middot; RS 218390</div>
   <div style="max-width:860px;margin:0 auto;padding:44px 28px;color:white">
     <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:12px">Benefit 2 &middot; RS 218390</div>
     <h2 style="font-size:32px;font-weight:800;margin-bottom:8px;color:white">PLG Purity</h2>
@@ -1156,35 +1321,6 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
     <div style="margin-top:18px;padding:13px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:12px;color:#94a3b8;line-height:1.6">
       <strong style="color:#e2e8f0">Why it matters:</strong> Mixed-portfolio salesmen divide attention across categories, reducing depth per PLG. V3 assigns each DSE exactly one Sub-PLG &mdash; specialist knowledge, dedicated targets, higher hit rate.
     </div>
-  </div>
-</div>
-
-<!-- SLIDE 9 · JACCARD TERRITORIES -->
-<div class="slide" id="slide-9">
-  <div class="map-wrap" id="l9-map"></div>
-  <div class="page-lbl">9 / 11 &middot; Beat Territories &middot; RS 218390</div>
-  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
-  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
-    <div style="padding:16px 18px 10px;flex-shrink:0;border-bottom:1px solid #e5e7eb;overflow-y:auto;max-height:75vh">
-      <h2 style="margin-bottom:4px">Beat Territories &amp; Jaccard</h2>
-      <p class="p-sub" style="margin-bottom:8px">Convex hull per salesman territory &middot; lower Jaccard = less overlap</p>
-      <div class="toggle-row" style="margin-bottom:10px">
-        <button class="t-btn active" id="j9-vv3" onclick="setJ9View('v3')">V3 &mdash; 114 territories</button>
-        <button class="t-btn"        id="j9-vex" onclick="setJ9View('existing')">Existing &mdash; 642 beats</button>
-      </div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by PLG</div>
-      <div class="filter-row" id="p9-plg-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
-      <div class="kpi-r" id="p9-kpis"></div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Jaccard by PLG (lower = less overlap)</div>
-      <table class="dt-tbl">
-        <thead><tr>
-          <th style="text-align:left">Ex PLG &rarr; V3</th>
-          <th>Ex Jac</th><th>V3 Jac</th>
-        </tr></thead>
-        <tbody id="p9-jac-body"></tbody>
-      </table>
-    </div>
-    <div style="flex:1;min-height:0"></div>
   </div>
 </div>
 
@@ -1496,16 +1632,17 @@ function initSlide1(){
 
     function draw1(){
       if(_showExcl){drawExcl();return;}
-      if(selRS.size===0){
-        const tpF=curFilter==='General'?0:curFilter==='Pharma'?1:curFilter==='WS'?2:null;
+      ctx2.clearRect(0,0,oc.width,oc.height);
+      if(selRS.size===0)return;
+      const tpF=curFilter==='General'?0:curFilter==='Pharma'?1:curFilter==='WS'?2:null;
+      const filt1=curFilter==='ALL'?RS_INFO:RS_INFO.filter(r=>r.type===curFilter);
+      if(filt1.every(r=>selRS.has(r.idx))){
         _drawGroups(m,ctx2,oc,_DPR,_OL_GROUPS,tpF,z=>Math.max(2,2+(z-9)/(14-9)*7));
       } else {
-        ctx2.clearRect(0,0,oc.width,oc.height);
         const z=m.getZoom();const dpr=_DPR;
         const r=Math.max(2,2+(z-9)/(14-9)*7)*dpr;
         const b=m.getBounds();const pad=0.03;
         const sl=b.getSouth()-pad,nl=b.getNorth()+pad,wl=b.getWest()-pad,el=b.getEast()+pad;
-        const tpF=curFilter==='General'?0:curFilter==='Pharma'?1:curFilter==='WS'?2:null;
         const byCol={};
         OUTLETS.forEach(o=>{
           if(!selRS.has(o[2]))return;
@@ -1530,6 +1667,7 @@ function initSlide1(){
     m.on('render',draw1);
 
     MAPS['map-1']._rsMarkers=_addRSMarkers(m,rsPopup);
+    selectAllRS();
 
     // Outlet tooltip — separate popup so it doesn't conflict with RS marker popup
     m.on('mousemove',e=>{
@@ -1541,7 +1679,7 @@ function initSlide1(){
       const tpF=curFilter==='General'?0:curFilter==='Pharma'?1:curFilter==='WS'?2:null;
       let best=null,bestD=18*18;
       OUTLETS.forEach(o=>{
-        if(selRS.size>0&&!selRS.has(o[2]))return;
+        if(selRS.size===0||!selRS.has(o[2]))return;
         if(o[0]<sl||o[0]>nl||o[1]<wl||o[1]>el)return;
         const rs=RS_INFO[o[2]];if(!rs)return;
         if(tpF!==null){const tp=rs.type==='Pharma'?1:rs.type==='WS'?2:0;if(tp!==tpF)return;}
@@ -1635,7 +1773,7 @@ function toggleExcl(){
 }
 
 function setFilter(f){
-  curFilter=f;
+  curFilter=f; selRS.clear();
   document.querySelectorAll('.f-chip').forEach((b,i)=>{
     b.classList.toggle('active',['ALL','General','Pharma','WS'][i]===f);
   });
@@ -1657,8 +1795,7 @@ function setFilter(f){
       el.style.display=(typeOk&&selOk)?'':'none';
     });
   }
-  if(MAPS['map-1']&&MAPS['map-1']._draw)MAPS['map-1']._draw();
-  renderPanel1();
+  selectAllRS();
 }
 
 function toggleRS(idx){
@@ -1701,23 +1838,24 @@ function clearRSSelection(){
 
 function renderPanel1(){
   const filt=curFilter==='ALL'?RS_INFO:RS_INFO.filter(r=>r.type===curFilter);
-  const activeFilt=selRS.size>0?filt.filter(r=>selRS.has(r.idx)):filt;
+  const activeFilt=selRS.size>0?filt.filter(r=>selRS.has(r.idx)):[];
   const totalOut=activeFilt.reduce((s,r)=>s+r.outlet_count,0);
   document.getElementById('p1-kpis').innerHTML=
-    '<div class="kpi"><div class="kv">'+fN(totalOut)+'</div>'
-   +'<div class="kl">'+(selRS.size>0?'Selected Outlets':'Outlets')+'</div></div>'
+    '<div class="kpi"><div class="kv">'+fN(selRS.size>0?totalOut:0)+'</div>'
+   +'<div class="kl">Selected Outlets</div></div>'
    +'<div class="kpi"><div class="kv">'+filt.length+'</div><div class="kl">Distributors</div></div>';
   const sorted=[...filt].sort((a,b)=>b.outlet_count-a.outlet_count);
   const TB={General:'background:#e3f2fd;color:#1565C0',Pharma:'background:#e8f5e9;color:#2e7d32',
              WS:'background:#fff3e0;color:#e65100'};
   document.getElementById('p1-tb').innerHTML=sorted.map(rs=>{
-    const isSel=selRS.size===0||selRS.has(rs.idx);
+    const isSel=selRS.size>0&&selRS.has(rs.idx);
     const chk='<input type="checkbox"'+(isSel?' checked':'')+' style="pointer-events:none;'
       +'accent-color:#1565C0;width:13px;height:13px;vertical-align:middle"/>';
     return'<tr style="cursor:pointer;'+(isSel?'background:#eff6ff;':'')+'" '
      +'onclick="toggleRS('+rs.idx+')">'
      +'<td style="padding:6px 4px 6px 0;text-align:center">'+chk+'</td>'
-     +'<td><span class="dc" style="background:'+rs.color+'"></span>'+rs.name
+     +'<td><span class="dc" style="background:'+rs.color+'"></span>'
+     +'<span class="rs-nm">'+rs.name+'</span>'
      +'<div style="font-size:10px;color:#9ca3af;margin-left:14px">'+rs.code+'</div></td>'
      +'<td><span class="rs-badge" style="'+(TB[rs.type]||'')+'">'+rs.type+'</span></td>'
      +'<td>'+fN(rs.outlet_count)+'</td>'
@@ -1725,7 +1863,7 @@ function renderPanel1(){
   }).join('');
   const chkAll=document.getElementById('p1-sel-all-chk');
   if(chkAll){
-    if(selRS.size===0){chkAll.checked=true;chkAll.indeterminate=false;}
+    if(selRS.size===0){chkAll.checked=false;chkAll.indeterminate=false;}
     else if(filt.every(r=>selRS.has(r.idx))){chkAll.checked=true;chkAll.indeterminate=false;}
     else{chkAll.checked=false;chkAll.indeterminate=true;}
   }
@@ -1733,8 +1871,7 @@ function renderPanel1(){
 
 function toggleSelectAllRS(){
   const filt=curFilter==='ALL'?RS_INFO:RS_INFO.filter(r=>r.type===curFilter);
-  if(selRS.size===0)selectAllRS();
-  else if(filt.every(rs=>selRS.has(rs.idx)))clearRSSelection();
+  if(filt.every(rs=>selRS.has(rs.idx)))clearRSSelection();
   else selectAllRS();
 }
 
@@ -1784,13 +1921,31 @@ function downloadProposed(){
 // ── SLIDE 2 · TERRITORY OVERLAPS ─────────────────────────────────────────────
 let curView='existing', curTerType='General';
 let selRS2=new Set();
+let _s2ShowBoundary=false, _s2ShowRetailers=true;
 
 function _applyTer2Filters(m){
-  const typeF=['==',['get','rs_type'],curTerType];
-  let f=typeF;
-  if(selRS2.size>0)f=['all',typeF,['in',['get','rs_idx'],['literal',[...selRS2]]]];
+  let f;
+  if(selRS2.size===0){f=['literal',false];}
+  else{const typeF=['==',['get','rs_type'],curTerType];
+    f=['all',typeF,['in',['get','rs_idx'],['literal',[...selRS2]]]];}
   if(m.getLayer('ter-fill'))m.setFilter('ter-fill',f);
   if(m.getLayer('ter-line'))m.setFilter('ter-line',f);
+}
+
+function s2tgl(k){
+  function _styleBtn(id,on){
+    const b=document.getElementById(id);if(!b)return;
+    b.style.background=on?'#1565C0':'';b.style.color=on?'#fff':'';b.style.borderColor=on?'#1565C0':'';
+    b.classList.toggle('active',on);}
+  if(k==='boundary'){
+    _s2ShowBoundary=!_s2ShowBoundary;
+    _styleBtn('p2-tg-boundary',_s2ShowBoundary);
+    if(MAPS['map-2']&&MAPS['map-2']._draw)MAPS['map-2']._draw();
+  }else if(k==='ret'){
+    _s2ShowRetailers=!_s2ShowRetailers;
+    _styleBtn('p2-tg-ret',_s2ShowRetailers);
+    if(MAPS['map-2']&&MAPS['map-2']._draw)MAPS['map-2']._draw();
+  }
 }
 
 function initSlide2(){
@@ -1808,14 +1963,34 @@ function initSlide2(){
     const _rsm2=_addRSMarkers(m,new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:8,maxWidth:'220px'}));
     _filterRSMarkers(_rsm2,curTerType);
     MAPS['map-2']._rsMarkers=_rsm2;
+
     const {canvas:oc,ctx:ctx2}=_makeOutletCanvas(m,_DPR);
+    function _drawHulls2(){
+      if(!_s2ShowBoundary||selRS2.size===0)return;
+      const hulls=curView==='existing'?HULL_RS_EX:HULL_RS_PROP;
+      ctx2.save();
+      hulls.forEach(h=>{
+        const rs=RS_INFO[h.rs_idx];
+        if(!rs||rs.type!==curTerType||!selRS2.has(h.rs_idx))return;
+        const pts=h.points.map(p=>m.project([p[1],p[0]]));
+        if(pts.length<3)return;
+        ctx2.beginPath();
+        pts.forEach((pt,i)=>{const x=pt.x*_DPR,y=pt.y*_DPR;i===0?ctx2.moveTo(x,y):ctx2.lineTo(x,y);});
+        ctx2.closePath();
+        ctx2.globalAlpha=0.1;ctx2.fillStyle=rs.color;ctx2.fill();
+        ctx2.globalAlpha=0.95;ctx2.strokeStyle=rs.color;ctx2.lineWidth=2.5*_DPR;ctx2.stroke();
+      });
+      ctx2.globalAlpha=1;ctx2.restore();
+    }
     function draw2(){
+      ctx2.clearRect(0,0,oc.width,oc.height);
+      if(!_s2ShowRetailers||selRS2.size===0){_drawHulls2();return;}
       const tpF=curTerType==='General'?0:1;
-      if(selRS2.size===0){
+      const filt=RS_INFO.filter(r=>r.type===curTerType);
+      if(filt.every(r=>selRS2.has(r.idx))){
         const grps=curView==='proposed'?_OL_NGROUPS:_OL_GROUPS;
         _drawGroups(m,ctx2,oc,_DPR,grps,tpF,z=>Math.max(2,2+(z-9)/(14-9)*7));
       } else {
-        ctx2.clearRect(0,0,oc.width,oc.height);
         const z=m.getZoom();const dpr=_DPR;
         const r=Math.max(2,2+(z-9)/(14-9)*7)*dpr;
         const b=m.getBounds();const pad=0.03;
@@ -1837,6 +2012,7 @@ function initSlide2(){
         });
         ctx2.globalAlpha=1;
       }
+      _drawHulls2();
     }
     MAPS['map-2']._draw=draw2;
     m.on('render',draw2);
@@ -1847,14 +2023,13 @@ function initSlide2(){
       if(e.originalEvent.target.closest('.maplibregl-marker')){olPopup2.remove();m.getCanvas().style.cursor='';return;}
       const b=m.getBounds(),pad=0.005;
       const sl=b.getSouth()-pad,nl=b.getNorth()+pad,wl=b.getWest()-pad,el=b.getEast()+pad;
-      const tpF=curTerType==='General'?0:1;
       let best=null,bestD=18*18;
       OUTLETS.forEach(o=>{
         if(o[0]<sl||o[0]>nl||o[1]<wl||o[1]>el)return;
         const rsIdx=curView==='proposed'?o[3]:o[2];
         const rs=RS_INFO[rsIdx];if(!rs)return;
         if(rs.type!==curTerType)return;
-        if(selRS2.size>0&&!selRS2.has(rsIdx))return;
+        if(selRS2.size===0||!selRS2.has(rsIdx))return;
         const pt=m.project([o[1],o[0]]);
         const d=(pt.x-e.point.x)**2+(pt.y-e.point.y)**2;
         if(d<bestD){bestD=d;best={o,rs};}
@@ -1876,6 +2051,9 @@ function initSlide2(){
           .addTo(m);
       } else {m.getCanvas().style.cursor='';olPopup2.remove();}
     });
+
+    // Initialise with all RS selected so the map is populated
+    selectAllRS2();
   });
   renderPanel2();
 }
@@ -1884,11 +2062,8 @@ function setTerType(t){
   curTerType=t;selRS2.clear();
   document.getElementById('t-gen').classList.toggle('active',t==='General');
   document.getElementById('t-pha').classList.toggle('active',t==='Pharma');
-  const m=MAPS['map-2']&&MAPS['map-2'].map;
-  if(m)_applyTer2Filters(m);
   if(MAPS['map-2']&&MAPS['map-2']._rsMarkers)_filterRSMarkers(MAPS['map-2']._rsMarkers,t);
-  if(MAPS['map-2']&&MAPS['map-2']._draw)MAPS['map-2']._draw();
-  renderPanel2();
+  selectAllRS2();
 }
 
 function setView(v){
@@ -1910,32 +2085,49 @@ function renderPanel2(){
   const filt=RS_INFO.filter(r=>r.type===curTerType);
   const sorted=[...filt].sort((a,b)=>(isProposed?b.proposed_count-a.proposed_count:b.outlet_count-a.outlet_count));
   document.getElementById('p2-tb').innerHTML=sorted.map(rs=>{
-    const isSel=selRS2.size===0||selRS2.has(rs.idx);
+    const isSel=selRS2.size===0?false:selRS2.has(rs.idx);
     const chk='<input type="checkbox"'+(isSel?' checked':'')+' style="pointer-events:none;'
       +'accent-color:#1565C0;width:13px;height:13px;vertical-align:middle"/>';
     let olCell,mocCell;
     if(isProposed){
       const gainN=rs.gained_n>0?'<span style="color:#16a34a;font-size:9px"> +'+fN(rs.gained_n)+'</span>':'';
-      const lossN=rs.lost_n>0?'<span style="color:#dc2626;font-size:9px"> −'+fN(rs.lost_n)+'</span>':'';
+      const lossN=rs.lost_n>0?'<span style="color:#dc2626;font-size:9px"> &minus;'+fN(rs.lost_n)+'</span>':'';
       const gainM=rs.gained_moc>0?'<span style="color:#16a34a;font-size:9px"> +'+rs.gained_moc.toFixed(1)+'</span>':'';
-      const lossM=rs.lost_moc>0?'<span style="color:#dc2626;font-size:9px"> −'+rs.lost_moc.toFixed(1)+'</span>':'';
+      const lossM=rs.lost_moc>0?'<span style="color:#dc2626;font-size:9px"> &minus;'+rs.lost_moc.toFixed(1)+'</span>':'';
       olCell=fN(rs.proposed_count)+gainN+lossN;
       mocCell=rs.proposed_moc.toFixed(1)+gainM+lossM;
     } else {
       olCell=fN(rs.outlet_count);
       mocCell=fN(rs.moc);
     }
+    const ds=RS_DIST_STATS[String(rs.idx)];
+    let distLine='';
+    if(ds){
+      const exV=ds.ex!=null?ds.ex.toFixed(2)+' km':'&mdash;';
+      if(isProposed){
+        const propV=ds.prop!=null?ds.prop.toFixed(2)+' km':'&mdash;';
+        const delta=(ds.ex!=null&&ds.prop!=null)?ds.prop-ds.ex:null;
+        const dStr=delta!=null?(delta>=0?'+':'')+delta.toFixed(2)+' km':'';
+        const dCol=delta!=null?(delta<0?'#16a34a':'#dc2626'):'#9ca3af';
+        distLine='<div style="font-size:9px;color:#9ca3af;margin-left:14px">dist: '+exV+' &rarr; '+propV
+          +(dStr?'<span style="color:'+dCol+'"> ('+dStr+')</span>':'')+'</div>';
+      } else {
+        distLine='<div style="font-size:9px;color:#9ca3af;margin-left:14px">avg dist: '+exV+'</div>';
+      }
+    }
     return'<tr style="cursor:pointer;'+(isSel?'background:#eff6ff;':'')+'" '
      +'onclick="toggleRS2('+rs.idx+')">'
      +'<td style="padding:6px 4px 6px 0;text-align:center">'+chk+'</td>'
-     +'<td><span class="dc" style="background:'+rs.color+'"></span>'+rs.name
-     +'<div style="font-size:10px;color:#9ca3af;margin-left:14px">'+rs.code+'</div></td>'
+     +'<td><span class="dc" style="background:'+rs.color+'"></span>'
+     +'<span class="rs-nm">'+rs.name+'</span>'
+     +'<div style="font-size:10px;color:#9ca3af;margin-left:14px">'+rs.code+'</div>'
+     +distLine+'</td>'
      +'<td>'+olCell+'</td>'
      +'<td>'+mocCell+'</td></tr>';
   }).join('');
   const chkAll=document.getElementById('p2-sel-all-chk');
   if(chkAll){
-    if(selRS2.size===0){chkAll.checked=true;chkAll.indeterminate=false;}
+    if(selRS2.size===0){chkAll.checked=false;chkAll.indeterminate=false;}
     else if(filt.every(r=>selRS2.has(r.idx))){chkAll.checked=true;chkAll.indeterminate=false;}
     else{chkAll.checked=false;chkAll.indeterminate=true;}
   }
@@ -1964,7 +2156,7 @@ function clearRS2Selection(){
   selRS2.clear();
   const m=MAPS['map-2']&&MAPS['map-2'].map;
   if(m)_applyTer2Filters(m);
-  if(MAPS['map-2']&&MAPS['map-2']._rsMarkers)_filterRSMarkers(MAPS['map-2']._rsMarkers,curTerType);
+  _applyRS2Markers();
   if(MAPS['map-2']&&MAPS['map-2']._draw)MAPS['map-2']._draw();
   renderPanel2();
 }
@@ -1980,8 +2172,7 @@ function selectAllRS2(){
 
 function toggleSelectAllRS2(){
   const filt=RS_INFO.filter(r=>r.type===curTerType);
-  if(selRS2.size===0)selectAllRS2();
-  else if(filt.every(rs=>selRS2.has(rs.idx)))clearRS2Selection();
+  if(filt.every(rs=>selRS2.has(rs.idx)))clearRS2Selection();
   else selectAllRS2();
 }
 
@@ -2258,6 +2449,7 @@ function renderPanel4(){
 
 // ── SLIDE 5 · BEATS ──────────────────────────────────────────────────────────
 let curBeatsRS='218390', curBeatsView='proposed', curBeatPLG='ALL', curBeatDay='ALL', curBeatDSE='ALL';
+const _SPEC_PLG_NAMES=new Set(['D-OFM','F-OFM','N_OFM','D+F_UNIGLOW','PP-A_OFM','PP-A_UNIGLOW','PP-B_OFM','PP-B_UNIGLOW']);
 
 function _getBeats5(){
   if(curBeatsRS==='218390')return curBeatsView==='proposed'?BEATS_390:EX_BEATS_390;
@@ -2319,6 +2511,7 @@ function initSlide5(){
       const plgF=curBeatPLG==='ALL'?null:PLG_INFO.findIndex(p=>p.name===curBeatPLG);
       const rows=_getBeats5().filter(bt=>{
         if(plgF!==null&&bt[2]!==plgF)return false;
+        if(plgF!==null&&curBeatDSE==='ALL'&&_SPEC_PLG_NAMES.has(PLG_INFO[bt[2]]?.name))return false;
         if(dayF!==null&&bt[3]!==dayF)return false;
         if(dseF!==null&&bt[4]!==dseF)return false;
         return true;
@@ -2358,9 +2551,8 @@ function _activateChip(selector,key,val,color){
   });
 }
 function setBeatPLG(plg){
-  curBeatPLG=plg;
-  const pi=PLG_INFO.find(p=>p.name===plg);
-  _activateChip('[data-plg]','plg',plg,pi?pi.color:null);
+  curBeatPLG=plg;curBeatDSE='ALL';
+  buildBeatChips();
   if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
   renderPanel5();
 }
@@ -2370,8 +2562,8 @@ function setBeatDay(day){
   if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
 }
 function setBeatDSE(dse){
-  curBeatDSE=dse;
-  _activateChip('[data-dse]','dse',dse,null);
+  curBeatDSE=dse;curBeatPLG='ALL';
+  buildBeatChips();
   if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
 }
 
@@ -2392,15 +2584,26 @@ function renderPanel5(){
   document.getElementById('p5-dse-section').style.display=hasDay?'':'none';
 }
 
+const _P5_SPECIALISTS=[..._SPEC_PLG_NAMES];
 function buildBeatChips(){
-  // PLG chips
+  // PLG chips + specialist chips in same row
+  const dseInfo=_getDseInfo5();
+  const specNames=_P5_SPECIALISTS.filter(s=>dseInfo.some(d=>d.name===s));
   const plgChips=[{name:'ALL',color:'#1565C0'},...PLG_INFO];
-  document.getElementById('p5-chips').innerHTML=plgChips.map(p=>{
+  const plgHtml=plgChips.map(p=>{
     const isAll=p.name==='ALL';
-    return'<button class="beat-chip'+(isAll?' active':'')+'" data-plg="'+p.name+'" '
-      +'style="'+(isAll?'background:#1565C0;color:white;border-color:#1565C0;':'border-color:'+(p.color||'#e5e7eb')+';color:'+(p.color||'#374151'))+';" '
+    const isA=isAll?(curBeatPLG==='ALL'&&curBeatDSE==='ALL'):(curBeatPLG===p.name&&curBeatDSE==='ALL');
+    return'<button class="beat-chip'+(isA?' active':'')+'" data-plg="'+p.name+'" '
+      +'style="'+(isA?'background:#1565C0;color:white;border-color:#1565C0;':'border-color:'+(p.color||'#e5e7eb')+';color:'+(p.color||'#374151'))+';" '
       +`onclick="setBeatPLG('${p.name}')">`+p.name+'</button>';
   }).join('');
+  const specHtml=specNames.map(s=>{
+    const isA=curBeatDSE===s;
+    return'<button class="beat-chip'+(isA?' active':'')+'" data-dse="'+s+'" '
+      +'style="font-size:10px;padding:3px 8px;'+(isA?'background:#1565C0;color:white;border-color:#1565C0;':'')+';" '
+      +`onclick="setBeatDSE('${s}')">`+s+'</button>';
+  }).join('');
+  document.getElementById('p5-chips').innerHTML=plgHtml+'<span style="color:#d1d5db;margin:0 2px">|</span>'+specHtml;
   // Day chips
   const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat'];
   const dayChips=[{val:'ALL',label:'All'},...dayNames.map((d,i)=>({val:String(i),label:d}))];
@@ -2411,7 +2614,6 @@ function buildBeatChips(){
       +`onclick="setBeatDay('${d.val}')">`+d.label+'</button>';
   }).join('');
   // DSE chips
-  const dseInfo=_getDseInfo5();
   const dseChips=[{name:'ALL'},...dseInfo];
   document.getElementById('p5-dse-chips').innerHTML=dseChips.map(d=>{
     const isAll=d.name==='ALL';
@@ -2674,15 +2876,8 @@ function renderPanel8(){
 }
 
 // ── SLIDE 9 · JACCARD TERRITORIES ─────────────────────────────────────────────
-let curJ9View='v3',curJ9PLG='ALL';
-const HULL_PALETTE=['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00',
-  '#a65628','#f781bf','#888888','#1b9e77','#d95f02','#7570b3','#e7298a',
-  '#66a61e','#e6ab02','#a6761d'];
-const _DSE_COLOR_MAP={};let _dseColorCtr=0;
-function _getDseColor(dse){
-  if(!_DSE_COLOR_MAP[dse])_DSE_COLOR_MAP[dse]=HULL_PALETTE[_dseColorCtr++%HULL_PALETTE.length];
-  return _DSE_COLOR_MAP[dse];
-}
+let curJ9View='v3',curJ9Market=0,curJ9PLG='ALL',curJ9DSE='ALL';
+const _J9_SPECIALISTS=[..._SPEC_PLG_NAMES];
 
 function initSlide9(){
   if(MAPS['leaf-9'])return;
@@ -2697,33 +2892,53 @@ function initSlide9(){
   });
   MAPS['leaf-9']={map:lmap,lg:L.layerGroup().addTo(lmap)};
   setTimeout(()=>lmap.invalidateSize(),200);
-  buildJ9Chips();renderJaccard9();
+  document.getElementById('j9-vv3').textContent='Proposed — '+HULL_V3_390.length+' beats';
+  document.getElementById('j9-vex').textContent='Existing — '+HULL_EX_390.length+' beats';
+  buildJ9Filters();renderJaccard9();
 }
 
-function buildJ9Chips(){
+const _J9_DAYS=['All','Mon','Tue','Wed','Thu','Fri','Sat'];
+function buildJ9Filters(){
   const hulls=curJ9View==='v3'?HULL_V3_390:HULL_EX_390;
-  const plgs=[...new Set(hulls.map(h=>h.plg))].sort();
-  const chips=[{name:'ALL'},...plgs.map(p=>({name:p}))];
-  document.getElementById('p9-plg-chips').innerHTML=chips.map(c=>{
-    const isA=c.name===curJ9PLG;
-    const pi=PLG_INFO.find(p=>p.name===c.name);
-    const col=pi?pi.color:'#1565C0';
-    const st=isA?'background:'+col+';color:white;border-color:'+col+';':'border-color:'+col+';color:'+col+';';
-    const ac=isA?' active':'';
-    return `<button class="beat-chip${ac}" style="${st}" onclick="setJ9PLG('${c.name}')">${c.name}</button>`;
+  const plgs=['ALL',...[...new Set(hulls.map(h=>h.plg))].sort()];
+  const plgHtml=plgs.map(p=>{
+    const isA=curJ9PLG===p&&curJ9DSE==='ALL';
+    const st=isA?'background:#374151;color:white;border-color:#374151;':'';
+    return `<button class="beat-chip${isA?' active':''}" style="${st}" onclick="setJ9PLG('${p}')">${p}</button>`;
+  }).join('');
+  const specHtml=_J9_SPECIALISTS.map(s=>{
+    const isA=curJ9DSE===s;
+    const st=isA?'background:#374151;color:white;border-color:#374151;':'';
+    return `<button class="beat-chip${isA?' active':''}" style="font-size:10px;padding:3px 8px;${st}" onclick="setJ9DSE('${s}')">${s}</button>`;
+  }).join('');
+  document.getElementById('p9-plg-chips').innerHTML=plgHtml+'<span style="color:#d1d5db;margin:0 2px">|</span>'+specHtml;
+  document.getElementById('p9-dse-chips').innerHTML=_J9_DAYS.map((d,i)=>{
+    const isA=curJ9Market===i;
+    const st=isA?'background:#374151;color:white;border-color:#374151;':'';
+    return `<button class="beat-chip${isA?' active':''}" style="${st}" onclick="setJ9Market(${i})">${d}</button>`;
   }).join('');
 }
 
 function setJ9View(v){
-  curJ9View=v;curJ9PLG='ALL';
+  curJ9View=v;curJ9Market=0;curJ9PLG='ALL';curJ9DSE='ALL';
   document.getElementById('j9-vv3').classList.toggle('active',v==='v3');
   document.getElementById('j9-vex').classList.toggle('active',v==='existing');
-  buildJ9Chips();renderJaccard9();
+  buildJ9Filters();renderJaccard9();
 }
 
-function setJ9PLG(plg){
-  curJ9PLG=plg;
-  buildJ9Chips();renderJaccard9();
+function setJ9PLG(p){
+  curJ9PLG=p;curJ9DSE='ALL';
+  buildJ9Filters();renderJaccard9();
+}
+
+function setJ9Market(m){
+  curJ9Market=m;
+  buildJ9Filters();renderJaccard9();
+}
+
+function setJ9DSE(d){
+  curJ9DSE=d;curJ9PLG='ALL';
+  buildJ9Filters();renderJaccard9();
 }
 
 function renderJaccard9(){
@@ -2732,18 +2947,67 @@ function renderJaccard9(){
   const hulls=curJ9View==='v3'?HULL_V3_390:HULL_EX_390;
   let drawn=0;
   hulls.forEach(h=>{
+    if(curJ9Market!==0&&h.market!==curJ9Market)return;
     if(curJ9PLG!=='ALL'&&h.plg!==curJ9PLG)return;
-    const color=_getDseColor(h.dse);
+    if(curJ9PLG!=='ALL'&&curJ9DSE==='ALL'&&_SPEC_PLG_NAMES.has(h.plg))return;
+    if(curJ9DSE!=='ALL'&&h.plg!==curJ9DSE)return;
     L.polygon(h.hull.map(p=>[p[0],p[1]]),{
-      color,weight:1.5,fillColor:color,fillOpacity:0.18
-    }).bindTooltip(h.dse+' &middot; Beat '+h.beat+' &middot; '+h.n+' outlets',
+      color:'#374151',weight:1.5,fillColor:'#374151',fillOpacity:0.06
+    }).bindTooltip((h.plg?h.plg+' &middot; ':'')+h.dse+' &middot; '+_J9_DAYS[h.market]+' &middot; '+h.n+' outlets',
       {sticky:true,direction:'top'}).addTo(state.lg);
     drawn++;
   });
   const jacRow=BENEFIT_STATS.jaccard.by_plg||[];
   const jv3=(curJ9View==='v3');
-  document.getElementById('p9-kpis').innerHTML='<div class="kpi"><div class="kv">'+drawn+'</div><div class="kl">'+(jv3?'V3':'Existing')+' territories shown</div></div>'+'<div class="kpi" style="background:'+(jv3?'#f0fdf4':'#fff7f7')+'"><div class="kv" style="color:'+(jv3?'#16a34a':'#dc2626')+'">'+(jv3?'0.0000':'0.0021&ndash;0.0062')+'</div><div class="kl">Avg Jaccard</div></div>';
-  document.getElementById('p9-jac-body').innerHTML=jacRow.map(r=>'<tr><td style="text-align:left">'+r.ex_plg+' &rarr; <b>'+r.v3_plg+'</b></td>'+'<td style="color:#dc2626;font-weight:700">'+r.ex_jac.toFixed(4)+'</td>'+'<td style="color:#16a34a;font-weight:700">'+r.v3_jac.toFixed(4)+'</td>'+'</tr>').join('');
+  document.getElementById('p9-kpis').innerHTML='<div class="kpi"><div class="kv">'+drawn+'</div><div class="kl">'+(jv3?'Proposed':'Existing')+' beats shown</div></div>'
+    +'<div class="kpi" style="background:'+(jv3?'#f0fdf4':'#fff7f7')+'"><div class="kv" style="color:'+(jv3?'#16a34a':'#dc2626')+'">'+(jv3?'0.00%':'0.21%&ndash;0.62%')+'</div><div class="kl">Avg Jaccard</div></div>';
+  document.getElementById('p9-jac-body').innerHTML=jacRow.map(r=>'<tr><td style="text-align:left">'+r.ex_plg+' &rarr; <b>'+r.v3_plg+'</b></td>'
+    +'<td style="color:#dc2626;font-weight:700">'+(r.ex_jac*100).toFixed(2)+'%</td>'
+    +'<td style="color:#16a34a;font-weight:700">'+(r.v3_jac*100).toFixed(2)+'%</td>'
+    +'</tr>').join('');
+  renderBeatDists9();
+}
+
+function renderBeatDists9(){
+  const el=document.getElementById('p9-dist-table');if(!el)return;
+  if(!BEAT_DIST||!BEAT_DIST.v3)return;
+  const v3=BEAT_DIST.v3||[],ex=BEAT_DIST.ex||[];
+  const mktF=curJ9Market===0?null:curJ9Market;
+  const dseF=curJ9DSE==='ALL'?null:curJ9DSE;
+  const plgFv3=curJ9PLG==='ALL'||curJ9View!=='v3'?null:curJ9PLG;
+  const plgFex=curJ9PLG==='ALL'||curJ9View!=='existing'?null:curJ9PLG;
+  const _specExclude=d=>curJ9PLG!=='ALL'&&curJ9DSE==='ALL'&&_SPEC_PLG_NAMES.has(d.plg);
+  const filtV3=v3.filter(d=>(plgFv3?d.plg===plgFv3:true)&&(mktF?d.market===mktF:true)&&(dseF?d.plg===dseF:true)&&!_specExclude(d));
+  const filtEx=ex.filter(d=>(plgFex?d.plg===plgFex:true)&&(mktF?d.market===mktF:true)&&!_specExclude(d));
+  const avg=(arr,k)=>{const v=arr.filter(d=>d[k]!=null).map(d=>d[k]);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
+  const fmt=(v)=>v==null?'&mdash;':v.toFixed(1)+' km';
+  const eC=avg(filtEx,'chain_km'),dC=avg(filtV3,'chain_km');
+  const dChain=dC!=null&&eC!=null?dC-eC:null;
+  const colC=dChain==null?'#6b7280':dChain<0?'#16a34a':'#dc2626';
+  // Merged PLG table: all unique PLGs from both datasets
+  const allPlgs=[...new Set([...filtV3.map(d=>d.plg),...filtEx.map(d=>d.plg)])].sort();
+  const plgRows=allPlgs.map(plg=>{
+    const pv3=filtV3.filter(d=>d.plg===plg);
+    const pex=filtEx.filter(d=>d.plg===plg);
+    const vc=avg(pv3,'chain_km'),ec=avg(pex,'chain_km');
+    const dc=vc!=null&&ec!=null?vc-ec:null;
+    const cc=dc==null?'#6b7280':dc<0?'#16a34a':'#dc2626';
+    const src=pv3.length&&pex.length?'':'<span style="font-size:9px;color:#9ca3af">'+(pv3.length?'prop':'ex')+'</span>';
+    return'<tr><td style="text-align:left">'+plg+' '+src+'</td>'
+      +'<td>'+fmt(ec)+'</td><td>'+fmt(vc)+'</td>'
+      +'<td style="color:'+cc+'">'+(dc==null?'&mdash;':(dc<0?'':'+')+dc.toFixed(1))+'</td>'
+      +'</tr>';
+  }).join('');
+  el.innerHTML='<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px">In Beat Distance Comparison (km)</div>'
+    +'<table class="dt-tbl" style="width:100%"><thead><tr>'
+    +'<th style="text-align:left">PLG</th><th>Existing</th><th>Proposed</th><th>&Delta;</th>'
+    +'</tr></thead><tbody>'
+    +'<tr style="font-weight:700;background:#f9fafb"><td style="text-align:left">All</td>'
+    +'<td>'+fmt(eC)+'</td><td>'+fmt(dC)+'</td>'
+    +'<td style="color:'+colC+'">'+(dChain==null?'&mdash;':(dChain<0?'':'+')+dChain.toFixed(1))+'</td>'
+    +'</tr>'
+    +plgRows
+    +'</tbody></table>';
 }
 
 // ── SLIDE 10 · BEAT BALANCE ───────────────────────────────────────────────────
