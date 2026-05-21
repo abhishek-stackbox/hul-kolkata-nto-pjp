@@ -39,7 +39,8 @@ DATA_ROOT = os.path.expanduser(
 )
 DATA_FILE       = f"{DATA_ROOT}/Active_Outlet_Master_Kolkata.xlsx"
 PROPOSED_PLAN   = os.path.expanduser("~/Downloads/test2_p2_output.xlsx")
-BEATS_390_FILE  = f"{DATA_ROOT}/218390/All_Beat_Designs_218390_V3.xlsx"
+BEATS_390_FILE  = f"{DATA_ROOT}/218390/All_Beat_Designs_218390_V3.xlsx"  # still used for Existing Beats
+BEATS_V4_FILE   = f"{DATA_ROOT}/218390/All_Beat_Designs_218390_V4.xlsx"
 CACHE_DIR  = os.path.join(os.path.dirname(__file__), "data")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
@@ -359,18 +360,22 @@ def load_beats():
 
     PLG_ORDER  = [
         "D","D+F","D+F+N","F","F+N","N","PP","PP-A","PP-B",
-        # Specialist Sub PLGs (V3 only)
+        # Specialist Sub PLGs (V3 naming)
         "D-OFM","F-OFM","N_OFM","D+F_UNIGLOW",
         "PP-A_OFM","PP-A_UNIGLOW","PP-B_OFM","PP-B_UNIGLOW",
+        # Specialist Sub PLGs (V4 naming — underscore separator)
+        "D_OFM","FN_OFM","PP-A_OFM","PP-B_OFM","PP-A_UNIGLOW","PP-B_UNIGLOW","D+F_UNIGLOW",
     ]
     PLG_COLORS = {
         "D":"#2563eb","D+F":"#0891b2","D+F+N":"#0d9488",
         "F":"#16a34a","F+N":"#65a30d","N":"#ca8a04",
         "PP":"#dc2626","PP-A":"#ea580c","PP-B":"#9333ea",
-        # Specialist Sub PLGs
+        # Specialist Sub PLGs (V3)
         "D-OFM":"#7c3aed","F-OFM":"#059669","N_OFM":"#b45309",
         "D+F_UNIGLOW":"#0369a1","PP-A_OFM":"#be185d","PP-A_UNIGLOW":"#9333ea",
         "PP-B_OFM":"#c2410c","PP-B_UNIGLOW":"#7c3aed",
+        # Specialist Sub PLGs (V4)
+        "D_OFM":"#7c3aed","FN_OFM":"#059669",
         # Existing beat PLG names
         "D+F+NUTS":"#0891b2","DETS":"#2563eb","FNB":"#16a34a",
         "FNB+NUTS":"#65a30d","HUL+NUTS":"#0d9488","NUTS":"#ca8a04",
@@ -383,8 +388,12 @@ def load_beats():
 
     ROOT391 = f"{DATA_ROOT}/218391"
 
-    # ── V3 Proposed 218390 (All_Beat_Designs_218390_V3.xlsx · V3 Beats) ───────
-    df390p = pd.read_excel(BEATS_390_FILE, sheet_name="V3 Beats", dtype=str)
+    # ── V4 Proposed 218390 (All_Beat_Designs_218390_V4.xlsx · V4 Beats) ───────
+    df390p = pd.read_excel(BEATS_V4_FILE, sheet_name="V4 Beats", dtype=str)
+    df390p = df390p.rename(columns={
+        "Sub_PLG": "Sub PLG", "Lat": "Latitude", "Lon": "Longitude",
+        "DSE_Global": "DSE", "Market (cal day)": "Market",
+    })
     df390p["lat"] = pd.to_numeric(df390p["Latitude"], errors="coerce")
     df390p["lon"] = pd.to_numeric(df390p["Longitude"], errors="coerce")
     df390p["Market"] = pd.to_numeric(df390p["Market"], errors="coerce")
@@ -522,7 +531,7 @@ def load_benefits():
     def _bv(name):
         j = _json_path(name)
         if not os.path.exists(j): return False
-        try:   bm = os.path.getmtime(BEATS_390_FILE)
+        try:   bm = max(os.path.getmtime(BEATS_390_FILE), os.path.getmtime(BEATS_V4_FILE))
         except: return True
         return os.path.getmtime(j) > bm
 
@@ -532,7 +541,11 @@ def load_benefits():
         except Exception:
             pass
 
-    df_v3 = pd.read_excel(BEATS_390_FILE, sheet_name="V3 Beats", dtype=str)
+    df_v3 = pd.read_excel(BEATS_V4_FILE, sheet_name="V4 Beats", dtype=str)
+    df_v3 = df_v3.rename(columns={
+        "Sub_PLG": "Sub PLG", "Lat": "Latitude", "Lon": "Longitude",
+        "DSE_Global": "DSE", "Market (cal day)": "Market",
+    })
     df_v3["Market"] = pd.to_numeric(df_v3["Market"], errors="coerce")
     df_v3["lat"]    = pd.to_numeric(df_v3["Latitude"], errors="coerce")
     df_v3["lon"]    = pd.to_numeric(df_v3["Longitude"], errors="coerce")
@@ -581,7 +594,7 @@ def load_benefits():
     hull_ex  = _hulls(df_ex)
 
     try:
-        df_dse = pd.read_excel(BEATS_390_FILE, sheet_name="V3 DSE Summary")
+        df_dse = pd.read_excel(BEATS_V4_FILE, sheet_name="V4 DSE Summary")
         df_dse.columns = ["dse","sub_plg","outlets","beats","avg_dist","avg_area","jaccard","moc"]
         dse_balance = []
         for _, row in df_dse.dropna(subset=["dse"]).iterrows():
@@ -598,10 +611,10 @@ def load_benefits():
         dse_balance = []
 
     benefit_stats = {
-        "same_day": {"ex_outlets":5436,"ex_occ":8171,"v3_outlets":651,"v3_occ":890},
+        "same_day": {"ex_outlets":5436,"ex_occ":8171,"v3_outlets":1961,"v3_occ":2192},
         "plg_purity": {
             "ex_total_dse":107,"ex_impure":57,"ex_pure":50,
-            "v3_total_dse":107,"v3_impure":0,"v3_pure":107,
+            "v3_total_dse":108,"v3_impure":0,"v3_pure":108,
             "impure_examples":[
                 {"dse":"SMN00119","plgs":"PP, PP-A, PP-B","n":3},
                 {"dse":"SMN00016","plgs":"PP, PP-A, PP-B","n":3},
@@ -614,24 +627,24 @@ def load_benefits():
             ],
         },
         "balance": {
-            "ex_cv":24.9,"v3_cv":12.9,"ex_avg":28,"v3_avg":28,
+            "ex_cv":24.9,"v3_cv":15.1,"ex_avg":28,"v3_avg":27,
             "by_plg":[
-                {"ex_plg":"DETS",    "v3_plg":"D",    "ex_avg":29.6,"ex_cv":22.5,"v3_avg":23.3,"v3_cv":4.9},
-                {"ex_plg":"FNB",     "v3_plg":"F",    "ex_avg":24.5,"ex_cv":33.0,"v3_avg":28.7,"v3_cv":9.2},
-                {"ex_plg":"NUTS",    "v3_plg":"N",    "ex_avg":24.8,"ex_cv":32.9,"v3_avg":29.0,"v3_cv":11.5},
-                {"ex_plg":"FNB+NUTS","v3_plg":"F+N",  "ex_avg":27.6,"ex_cv":27.4,"v3_avg":29.5,"v3_cv":15.1},
-                {"ex_plg":"D+F+NUTS","v3_plg":"D+F+N","ex_avg":27.2,"ex_cv":21.7,"v3_avg":28.4,"v3_cv":10.9},
-                {"ex_plg":"HUL+NUTS","v3_plg":"D+F+N","ex_avg":26.0,"ex_cv":21.6,"v3_avg":28.4,"v3_cv":10.9},
-                {"ex_plg":"PP",      "v3_plg":"PP",   "ex_avg":29.4,"ex_cv":21.2,"v3_avg":28.7,"v3_cv":12.6},
-                {"ex_plg":"PP-A",    "v3_plg":"PP-A", "ex_avg":25.0,"ex_cv":26.8,"v3_avg":25.1,"v3_cv":6.5},
-                {"ex_plg":"PP-B",    "v3_plg":"PP-B", "ex_avg":25.2,"ex_cv":26.1,"v3_avg":25.1,"v3_cv":6.5},
+                {"ex_plg":"DETS",    "v3_plg":"D",    "ex_avg":29.6,"ex_cv":22.5,"v3_avg":22.2,"v3_cv":20.2},
+                {"ex_plg":"FNB",     "v3_plg":"F",    "ex_avg":24.5,"ex_cv":33.0,"v3_avg":21.0,"v3_cv":33.4},
+                {"ex_plg":"NUTS",    "v3_plg":"N",    "ex_avg":24.8,"ex_cv":32.9,"v3_avg":24.6,"v3_cv":13.0},
+                {"ex_plg":"FNB+NUTS","v3_plg":"F+N",  "ex_avg":27.6,"ex_cv":27.4,"v3_avg":30.0,"v3_cv":15.4},
+                {"ex_plg":"D+F+NUTS","v3_plg":"D+F+N","ex_avg":27.2,"ex_cv":21.7,"v3_avg":28.3,"v3_cv":10.9},
+                {"ex_plg":"HUL+NUTS","v3_plg":"D+F+N","ex_avg":26.0,"ex_cv":21.6,"v3_avg":28.3,"v3_cv":10.9},
+                {"ex_plg":"PP",      "v3_plg":"PP",   "ex_avg":29.4,"ex_cv":21.2,"v3_avg":28.6,"v3_cv":12.6},
+                {"ex_plg":"PP-A",    "v3_plg":"PP-A", "ex_avg":25.0,"ex_cv":26.8,"v3_avg":25.1,"v3_cv":6.7},
+                {"ex_plg":"PP-B",    "v3_plg":"PP-B", "ex_avg":25.2,"ex_cv":26.1,"v3_avg":25.1,"v3_cv":6.7},
             ],
         },
         "jaccard": {
             "by_plg":[
-                {"ex_plg":"DETS",    "v3_plg":"D",    "ex_beats":150,"ex_jac":0.0021,"v3_beats":51, "v3_jac":0.0},
-                {"ex_plg":"FNB",     "v3_plg":"F",    "ex_beats":12, "ex_jac":0.0062,"v3_beats":9,  "v3_jac":0.0},
-                {"ex_plg":"NUTS",    "v3_plg":"N",    "ex_beats":12, "ex_jac":0.0026,"v3_beats":21, "v3_jac":0.0},
+                {"ex_plg":"DETS",    "v3_plg":"D",    "ex_beats":150,"ex_jac":0.0021,"v3_beats":54, "v3_jac":0.0},
+                {"ex_plg":"FNB",     "v3_plg":"F",    "ex_beats":12, "ex_jac":0.0062,"v3_beats":12, "v3_jac":0.0},
+                {"ex_plg":"NUTS",    "v3_plg":"N",    "ex_beats":12, "ex_jac":0.0026,"v3_beats":24, "v3_jac":0.0},
                 {"ex_plg":"FNB+NUTS","v3_plg":"F+N",  "ex_beats":152,"ex_jac":0.0029,"v3_beats":33, "v3_jac":0.0},
                 {"ex_plg":"D+F+NUTS","v3_plg":"D+F+N","ex_beats":39, "ex_jac":0.0057,"v3_beats":198,"v3_jac":0.0},
                 {"ex_plg":"HUL+NUTS","v3_plg":"D+F+N","ex_beats":43, "ex_jac":0.0026,"v3_beats":198,"v3_jac":0.0},
@@ -820,6 +833,14 @@ try:
 except Exception:
     pass
 
+_beats_v4 = {}
+_beats_v4_json = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "beats_v4.json")
+try:
+    with open(_beats_v4_json, encoding="utf-8") as _f:
+        _beats_v4 = json.load(_f)
+except Exception:
+    pass
+
 DATA_BLOCK = (
     "const OUTLETS    = " + json.dumps(outlets)       + ";\n"
     "const RS_INFO    = " + json.dumps(rs_info)       + ";\n"
@@ -850,6 +871,7 @@ DATA_BLOCK = (
     "const RS_DIST_STATS    = " + json.dumps(rs_dist_stats)    + ";\n"
     "const BEAT_DIST        = " + json.dumps(beat_distances)   + ";\n"
     "const BEAT_AREA        = " + json.dumps(beat_areas)       + ";\n"
+    "const BEATS_V4        = " + json.dumps(_beats_v4)         + ";\n"
 )
 
 # ── HTML ───────────────────────────────────────────────────────────────────────
@@ -1231,6 +1253,11 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
       </div>
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Legend</div>
       <div id="p5-legend"></div>
+      <div style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px">
+        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Download</div>
+        <button class="dl-btn" id="p5-v4-dl" onclick="downloadV4Beats()" style="background:#7030A0">
+          &#8595; Download V4 Sales Beat CSV</button>
+      </div>
     </div>
     <div style="flex:1;min-height:0"></div>
   </div>
@@ -1321,7 +1348,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
     <p class="p-sub">Outlets visited by 2+ salesmen on the same market day</p>
     <div class="toggle-row" style="margin-bottom:10px">
       <button class="t-btn" id="s7-vex" onclick="setS7View('existing')">Existing</button>
-      <button class="t-btn active" id="s7-vv3" onclick="setS7View('v3')">V3 Proposed</button>
+      <button class="t-btn active" id="s7-vv3" onclick="setS7View('v3')">V4 Proposed</button>
     </div>
     <div class="kpi-r">
       <div class="kpi" style="border:1.5px solid #fee2e2">
@@ -1330,14 +1357,17 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
         <div style="font-size:10px;color:#9ca3af;margin-top:2px">8,171 occurrences across 6 days</div>
       </div>
       <div class="kpi" style="border:1.5px solid #dcfce7">
-        <div class="kv" style="color:#16a34a">651</div>
-        <div class="kl">V3 conflict outlets</div>
-        <div style="font-size:10px;color:#9ca3af;margin-top:2px">890 occurrences across 6 days</div>
+        <div class="kv" style="color:#16a34a">1,961</div>
+        <div class="kl">V4 conflict outlets</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px">2,192 occurrences &middot; within-group by design</div>
       </div>
     </div>
-    <div style="text-align:center;padding:10px;background:#f0fdf4;border-radius:8px;margin-bottom:12px">
-      <div style="font-size:26px;font-weight:800;color:#16a34a">&#9660; 88%</div>
-      <div style="font-size:11px;color:#6b7280">Reduction in conflict outlets</div>
+    <div style="text-align:center;padding:10px;background:#f0fdf4;border-radius:8px;margin-bottom:8px">
+      <div style="font-size:26px;font-weight:800;color:#16a34a">&#9660; 64%</div>
+      <div style="font-size:11px;color:#6b7280">Reduction in conflict outlets vs Existing</div>
+    </div>
+    <div style="padding:8px;background:#eff6ff;border-radius:6px;font-size:11px;color:#374151;margin-bottom:12px;line-height:1.5">
+      <strong>V4 delivery-bundling:</strong> Group A PLGs (D+F+N, D, D+F, F, PP-A) visit on day <em>b</em>, Group B (PP, F+N, N, PP-B) on day <em>b+1</em>. Delivery truck combines orders on day <em>b+2</em>. Within-group pairs sharing outlets (D+PP-A, F+N+PP-B) are intentionally same-day &mdash; 89.6% of D+F+N/PP pairs are consecutive, PP-A/PP-B 100%.
     </div>
     <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Legend (Market Day)</div>
     <div id="p7-legend"></div>
@@ -1351,7 +1381,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   <div style="max-width:860px;margin:0 auto;padding:44px 28px;color:white">
     <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:12px">Benefit 2 &middot; RS 218390</div>
     <h2 style="font-size:32px;font-weight:800;margin-bottom:8px;color:white">PLG Purity</h2>
-    <p style="font-size:13px;color:#94a3b8;margin-bottom:24px;max-width:580px;line-height:1.6">In V3 every salesman specialises in exactly one product category. Previously 57 of 107 salesmen carried mixed portfolios across 2&ndash;3 PLG types.</p>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:24px;max-width:580px;line-height:1.6">In V4 every salesman specialises in exactly one product category. Previously 57 of 107 salesmen carried mixed portfolios across 2&ndash;3 PLG types.</p>
     <div class="bs-grid">
       <div class="bs-card" style="background:rgba(248,113,113,0.15);border:1px solid rgba(248,113,113,0.35)">
         <div class="bs-v" style="color:#f87171">57</div>
@@ -1359,11 +1389,11 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
       </div>
       <div class="bs-card" style="background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.35)">
         <div class="bs-v" style="color:#4ade80">0</div>
-        <div class="bs-l" style="color:#94a3b8">Impure DSEs<br/>V3 design</div>
+        <div class="bs-l" style="color:#94a3b8">Impure DSEs<br/>V4 design</div>
       </div>
       <div class="bs-card" style="background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.35)">
         <div class="bs-v" style="color:#60a5fa">100%</div>
-        <div class="bs-l" style="color:#94a3b8">Pure specialist<br/>coverage in V3</div>
+        <div class="bs-l" style="color:#94a3b8">Pure specialist<br/>coverage in V4</div>
       </div>
     </div>
     <div style="font-size:11px;font-weight:700;color:#60a5fa;letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Mixed-portfolio salesmen in existing design (sample of 57)</div>
@@ -1396,15 +1426,15 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
         <div class="kl">Overall CV &mdash; Existing</div>
       </div>
       <div class="kpi" style="border:1.5px solid #dcfce7">
-        <div class="kv" style="color:#16a34a">12.9%</div>
-        <div class="kl">Overall CV &mdash; V3</div>
+        <div class="kv" style="color:#16a34a">15.1%</div>
+        <div class="kl">Overall CV &mdash; V4</div>
       </div>
       <div class="kpi" style="border:1.5px solid #dbeafe">
-        <div class="kv" style="color:#2563eb">&#9660; 48%</div>
+        <div class="kv" style="color:#2563eb">&#9660; 39%</div>
         <div class="kl">Improvement in CV</div>
       </div>
     </div>
-    <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">CV% per PLG &mdash; <span style="color:#dc2626">&#9632; Existing</span> &nbsp; <span style="color:#16a34a">&#9632; V3</span></div>
+    <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">CV% per PLG &mdash; <span style="color:#dc2626">&#9632; Existing</span> &nbsp; <span style="color:#16a34a">&#9632; V4</span></div>
     <div id="p10-chart"></div>
     <div style="margin-top:18px;padding:13px;background:#eff6ff;border-radius:8px;font-size:12px;color:#374151;line-height:1.6">
       <strong style="color:#1565C0">Why it matters:</strong> High CV means some salesmen are overloaded while others are underutilised. V3 balances outlets per beat within each PLG, ensuring fair and predictable workloads for all salesmen.
@@ -2021,6 +2051,16 @@ function downloadExcl(){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
   a.download='hul_kolkata_excluded_outlets.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+function downloadV4Beats(){
+  const cols=BEATS_V4.cols;
+  const rows=BEATS_V4.rows;
+  const csv=[cols.join(','),...rows.map(r=>r.map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(','))].join('\\r\\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='hul_kolkata_218390_v4_sales_beat.csv';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 

@@ -5,9 +5,21 @@ Streamlit slide-deck app for HUL Calcutta Metro outlet analysis: NTO (New Territ
 
 Single file: `app.py`. All JS for all slides lives in the `HTML_TEMPLATE` triple-quoted string.
 
-## Run
+## Run (local)
 ```bash
-/Users/abhishek/Library/Python/3.9/bin/streamlit run app.py --server.port 8510
+python3 -m streamlit run app.py --server.port 8510
+```
+
+## Deploy (forge-apps)
+Repo: `~/projects/work/stackbox/forge-apps`, app at `apps/hul-kolkata/`
+Live at: `https://hul-kolkata.stackbox.tech`
+
+To deploy changes: copy updated `app.py` and `data/*.json` to `apps/hul-kolkata/`, commit, PR, squash merge.
+Shortcut — pull latest from this repo's remote and sync:
+```bash
+git pull
+cp app.py ../forge-apps/apps/hul-kolkata/app.py
+cp data/*.json ../forge-apps/apps/hul-kolkata/data/
 ```
 
 ## Source data (Google Drive)
@@ -92,5 +104,5 @@ Join key: `Outlet Code` (active master) = `Outlet HUL Code` (beats sheets)
 Final counts: Active master 50,540 | Beat codes (non-dummy) 49,898 | **Final active 49,424**
 Comparison file: `My Drive/Clients Self/HUL/Sales Route/Kolkata/outlet_comparison_v2.xlsx`
 
-## Streamlit Cloud deploy
-Repo is deployed to Streamlit Cloud. All `data/*.json` files are committed to the repo so the app works without Google Drive access on the cloud.
+## Data files
+All `data/*.json` files are committed to the repo so the app works without Google Drive access (both Streamlit Cloud and forge-apps). Keep them in sync when source data changes.
