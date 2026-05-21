@@ -361,13 +361,19 @@ def load_beats():
             pass
 
     PLG_ORDER  = [
+        # New SBX PLGs
         "D","D+F","D+F+N","F","F+N","N","PP","PP-A","PP-B",
-        # Specialist Sub PLGs (V3 naming)
-        "D-OFM","F-OFM","N_OFM","D+F_UNIGLOW",
-        "PP-A_OFM","PP-A_UNIGLOW","PP-B_OFM","PP-B_UNIGLOW",
-        # Specialist Sub PLGs (V4 naming — underscore separator)
-        "D_OFM","FN_OFM","PP-A_OFM","PP-B_OFM","PP-A_UNIGLOW","PP-B_UNIGLOW","D+F_UNIGLOW",
+        # OFM specialists (V3 then V4 naming; deduped)
+        "D-OFM","D_OFM","F-OFM","FN_OFM","N_OFM",
+        "PP-A_OFM","PP-B_OFM",
+        # UNIGLOW specialists
+        "D+F_UNIGLOW","PP-A_UNIGLOW","PP-B_UNIGLOW",
+        # Old RS (existing) PLG names
+        "DETS","FNB","NUTS","D+F+NUTS","FNB+NUTS","HUL+NUTS",
     ]
+    _OFM_PLGS = {"D-OFM","D_OFM","F-OFM","FN_OFM","N_OFM","PP-A_OFM","PP-B_OFM"}
+    _UNI_PLGS = {"D+F_UNIGLOW","PP-A_UNIGLOW","PP-B_UNIGLOW"}
+    _EX_PLGS  = {"DETS","FNB","NUTS","D+F+NUTS","FNB+NUTS","HUL+NUTS"}
     PLG_COLORS = {
         "D":"#2563eb","D+F":"#0891b2","D+F+N":"#0d9488",
         "F":"#16a34a","F+N":"#65a30d","N":"#ca8a04",
@@ -476,7 +482,12 @@ def load_beats():
     for idx_map in [plg_idx390p, plg_idx390e, plg_idx391p, plg_idx391e]:
         all_plg_names.update(idx_map.keys())
     plgs     = [p for p in PLG_ORDER if p in all_plg_names]
-    plg_info = [{"idx":i,"name":p,"color":PLG_COLORS.get(p,"#6b7280")} for i,p in enumerate(plgs)]
+    def _plg_group(name):
+        if name in _OFM_PLGS: return "ofm"
+        if name in _UNI_PLGS: return "uniglow"
+        if name in _EX_PLGS:  return "existing"
+        return "normal"
+    plg_info = [{"idx":i,"name":p,"color":PLG_COLORS.get(p,"#6b7280"),"group":_plg_group(p)} for i,p in enumerate(plgs)]
     plg_idx  = {p: i for i, p in enumerate(plgs)}
 
     def _remap_plg(beats, old_idx):
@@ -2708,7 +2719,7 @@ function renderPanel4(){
 
 // ── SLIDE 5 · BEATS ──────────────────────────────────────────────────────────
 let curBeatsRS='218390', curBeatsView='proposed', curBeatPLG='ALL', curBeatDay='ALL', curBeatDSE='ALL';
-const _SPEC_PLG_NAMES=new Set(['D-OFM','F-OFM','N_OFM','D+F_UNIGLOW','PP-A_OFM','PP-A_UNIGLOW','PP-B_OFM','PP-B_UNIGLOW']);
+const _SPEC_PLG_NAMES=new Set(['D-OFM','D_OFM','F-OFM','FN_OFM','N_OFM','PP-A_OFM','PP-B_OFM','D+F_UNIGLOW','PP-A_UNIGLOW','PP-B_UNIGLOW']);
 
 function _getBeats5(){
   if(curBeatsRS==='218390')return curBeatsView==='proposed'?BEATS_390:EX_BEATS_390;
@@ -2768,9 +2779,10 @@ function initSlide5(){
       const dseInfo=_getDseInfo5();
       const dseF=(!hasDay||curBeatDSE==='ALL')?null:dseInfo.findIndex(d=>d.name===curBeatDSE);
       const plgF=curBeatPLG==='ALL'?null:PLG_INFO.findIndex(p=>p.name===curBeatPLG);
+      const _selIsSpec=plgF!==null&&_SPEC_PLG_NAMES.has(PLG_INFO[plgF]?.name);
       const rows=_getBeats5().filter(bt=>{
         if(plgF!==null&&bt[2]!==plgF)return false;
-        if(plgF!==null&&curBeatDSE==='ALL'&&_SPEC_PLG_NAMES.has(PLG_INFO[bt[2]]?.name))return false;
+        if(plgF===null&&curBeatDSE==='ALL'&&_SPEC_PLG_NAMES.has(PLG_INFO[bt[2]]?.name))return false;
         if(dayF!==null&&bt[3]!==dayF)return false;
         if(dseF!==null&&bt[4]!==dseF)return false;
         return true;
@@ -2843,41 +2855,58 @@ function renderPanel5(){
   document.getElementById('p5-dse-section').style.display=hasDay?'':'none';
 }
 
-const _P5_SPECIALISTS=[..._SPEC_PLG_NAMES];
 function buildBeatChips(){
-  // PLG chips + specialist chips in same row
+  const beats=_getBeats5();
   const dseInfo=_getDseInfo5();
-  const specNames=_P5_SPECIALISTS.filter(s=>dseInfo.some(d=>d.name===s));
-  const plgChips=[{name:'ALL',color:'#1565C0'},...PLG_INFO];
-  const plgHtml=plgChips.map(p=>{
+  // Only show PLGs that actually have beats in the current view
+  const activePlgIdxSet=new Set(beats.map(bt=>bt[2]));
+  const activePlgs=PLG_INFO.filter(p=>activePlgIdxSet.has(p.idx));
+  const normalPlgs=activePlgs.filter(p=>p.group==='normal'||p.group==='existing');
+  const ofmPlgs=activePlgs.filter(p=>p.group==='ofm');
+  const uniPlgs=activePlgs.filter(p=>p.group==='uniglow');
+  function makeChip(p){
     const isAll=p.name==='ALL';
     const isA=isAll?(curBeatPLG==='ALL'&&curBeatDSE==='ALL'):(curBeatPLG===p.name&&curBeatDSE==='ALL');
+    const col=p.color||'#1565C0';
     return'<button class="beat-chip'+(isA?' active':'')+'" data-plg="'+p.name+'" '
-      +'style="'+(isA?'background:#1565C0;color:white;border-color:#1565C0;':'border-color:'+(p.color||'#e5e7eb')+';color:'+(p.color||'#374151'))+';" '
+      +'style="'+(isA?'background:'+col+';color:white;border-color:'+col+';':'border-color:'+col+';color:'+col+';')+';" '
       +`onclick="setBeatPLG('${p.name}')">`+p.name+'</button>';
-  }).join('');
-  const specHtml=specNames.map(s=>{
-    const isA=curBeatDSE===s;
-    return'<button class="beat-chip'+(isA?' active':'')+'" data-dse="'+s+'" '
-      +'style="font-size:10px;padding:3px 8px;'+(isA?'background:#1565C0;color:white;border-color:#1565C0;':'')+';" '
-      +`onclick="setBeatDSE('${s}')">`+s+'</button>';
-  }).join('');
-  document.getElementById('p5-chips').innerHTML=plgHtml+'<span style="color:#d1d5db;margin:0 2px">|</span>'+specHtml;
+  }
+  let html=makeChip({name:'ALL',color:'#1565C0'});
+  normalPlgs.forEach(p=>html+=makeChip(p));
+  if(ofmPlgs.length){
+    html+='<span style="color:#d1d5db;margin:0 4px;align-self:center">|</span>'
+      +'<span style="font-size:10px;color:#7c3aed;font-weight:600;align-self:center;white-space:nowrap">OFM</span>';
+    ofmPlgs.forEach(p=>html+=makeChip(p));
+  }
+  if(uniPlgs.length){
+    html+='<span style="color:#d1d5db;margin:0 4px;align-self:center">|</span>'
+      +'<span style="font-size:10px;color:#0369a1;font-weight:600;align-self:center;white-space:nowrap">UNI</span>';
+    uniPlgs.forEach(p=>html+=makeChip(p));
+  }
+  document.getElementById('p5-chips').innerHTML=html;
   // Day chips
   const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat'];
   const dayChips=[{val:'ALL',label:'All'},...dayNames.map((d,i)=>({val:String(i),label:d}))];
   document.getElementById('p5-day-chips').innerHTML=dayChips.map(d=>{
-    const isAll=d.val==='ALL';
-    return'<button class="beat-chip'+(isAll?' active':'')+'" data-day="'+d.val+'" '
-      +'style="'+(isAll?'background:#1565C0;color:white;border-color:#1565C0;':'')+';" '
+    const isA=d.val===curBeatDay;
+    return'<button class="beat-chip'+(isA?' active':'')+'" data-day="'+d.val+'" '
+      +'style="'+(isA?'background:#1565C0;color:white;border-color:#1565C0;':'')+';" '
       +`onclick="setBeatDay('${d.val}')">`+d.label+'</button>';
   }).join('');
-  // DSE chips
-  const dseChips=[{name:'ALL'},...dseInfo];
+  // DSE chips — filter to selected PLG's DSEs when a PLG is selected
+  let filtDseInfo=dseInfo;
+  if(curBeatPLG!=='ALL'){
+    const plgIdx=PLG_INFO.findIndex(p=>p.name===curBeatPLG);
+    const dseIdxSet=new Set(beats.filter(bt=>bt[2]===plgIdx).map(bt=>bt[4]));
+    filtDseInfo=dseInfo.filter((_,i)=>dseIdxSet.has(i));
+  }
+  const dseChips=[{name:'ALL'},...filtDseInfo];
   document.getElementById('p5-dse-chips').innerHTML=dseChips.map(d=>{
     const isAll=d.name==='ALL';
-    return'<button class="beat-chip'+(isAll?' active':'')+'" data-dse="'+d.name+'" '
-      +'style="font-size:10px;padding:3px 8px;'+(isAll?'background:#1565C0;color:white;border-color:#1565C0;':'')+';" '
+    const isA=isAll?(curBeatDSE==='ALL'):(curBeatDSE===d.name);
+    return'<button class="beat-chip'+(isA?' active':'')+'" data-dse="'+d.name+'" '
+      +'style="font-size:10px;padding:3px 8px;'+(isA?'background:#1565C0;color:white;border-color:#1565C0;':'')+';" '
       +`onclick="setBeatDSE('${d.name}')">`+(isAll?'All':d.name)+'</button>';
   }).join('');
 }
@@ -3159,18 +3188,30 @@ function initSlide9(){
 const _J9_DAYS=['All','Mon','Tue','Wed','Thu','Fri','Sat'];
 function buildJ9Filters(){
   const hulls=curJ9View==='v3'?HULL_V3_390:HULL_EX_390;
-  const plgs=['ALL',...[...new Set(hulls.map(h=>h.plg))].sort()];
-  const plgHtml=plgs.map(p=>{
-    const isA=curJ9PLG===p&&curJ9DSE==='ALL';
-    const st=isA?'background:#374151;color:white;border-color:#374151;':'';
-    return `<button class="beat-chip${isA?' active':''}" style="${st}" onclick="setJ9PLG('${p}')">${p}</button>`;
-  }).join('');
-  const specHtml=_J9_SPECIALISTS.map(s=>{
-    const isA=curJ9DSE===s;
-    const st=isA?'background:#374151;color:white;border-color:#374151;':'';
-    return `<button class="beat-chip${isA?' active':''}" style="font-size:10px;padding:3px 8px;${st}" onclick="setJ9DSE('${s}')">${s}</button>`;
-  }).join('');
-  document.getElementById('p9-plg-chips').innerHTML=plgHtml+'<span style="color:#d1d5db;margin:0 2px">|</span>'+specHtml;
+  const activePlgNames=new Set(hulls.map(h=>h.plg));
+  const activePlgs=PLG_INFO.filter(p=>activePlgNames.has(p.name));
+  const normalPlgs=activePlgs.filter(p=>p.group==='normal'||p.group==='existing');
+  const ofmPlgs=activePlgs.filter(p=>p.group==='ofm');
+  const uniPlgs=activePlgs.filter(p=>p.group==='uniglow');
+  function makeJ9Chip(name,color){
+    const isA=curJ9PLG===name&&curJ9DSE==='ALL';
+    const col=color||'#374151';
+    const st=isA?'background:'+col+';color:white;border-color:'+col+';':'border-color:'+col+';color:'+col+';';
+    return `<button class="beat-chip${isA?' active':''}" style="${st}" onclick="setJ9PLG('${name}')">${name}</button>`;
+  }
+  let html=makeJ9Chip('ALL','#374151');
+  normalPlgs.forEach(p=>html+=makeJ9Chip(p.name,p.color));
+  if(ofmPlgs.length){
+    html+='<span style="color:#d1d5db;margin:0 4px;align-self:center">|</span>'
+      +'<span style="font-size:10px;color:#7c3aed;font-weight:600;align-self:center;white-space:nowrap">OFM</span>';
+    ofmPlgs.forEach(p=>html+=makeJ9Chip(p.name,p.color));
+  }
+  if(uniPlgs.length){
+    html+='<span style="color:#d1d5db;margin:0 4px;align-self:center">|</span>'
+      +'<span style="font-size:10px;color:#0369a1;font-weight:600;align-self:center;white-space:nowrap">UNI</span>';
+    uniPlgs.forEach(p=>html+=makeJ9Chip(p.name,p.color));
+  }
+  document.getElementById('p9-plg-chips').innerHTML=html;
   document.getElementById('p9-dse-chips').innerHTML=_J9_DAYS.map((d,i)=>{
     const isA=curJ9Market===i;
     const st=isA?'background:#374151;color:white;border-color:#374151;':'';
@@ -3208,7 +3249,7 @@ function renderJaccard9(){
   hulls.forEach(h=>{
     if(curJ9Market!==0&&h.market!==curJ9Market)return;
     if(curJ9PLG!=='ALL'&&h.plg!==curJ9PLG)return;
-    if(curJ9PLG!=='ALL'&&curJ9DSE==='ALL'&&_SPEC_PLG_NAMES.has(h.plg))return;
+    if(curJ9PLG==='ALL'&&curJ9DSE==='ALL'&&_SPEC_PLG_NAMES.has(h.plg))return;
     if(curJ9DSE!=='ALL'&&h.plg!==curJ9DSE)return;
     const pts=h.hull.map(p=>[p[0],p[1]]);
     L.polygon(pts,{
