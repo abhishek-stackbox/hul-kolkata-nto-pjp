@@ -2923,17 +2923,17 @@ function buildBeatChips(){
     const cntLabel=isSel&&checkedN<cnt?checkedN+'/'+cnt+' DSEs':cnt+' DSEs';
     const dseHtml=dsesForPlg.map(d=>{
       const chk=!isSel||curBeatDSEs.has(d.name);
-      return'<div class="dse-item" onclick="p5ToggleDSE(\''+d.name+'\')">'
+      return'<div class="dse-item" data-n="'+d.name+'" onclick="p5ToggleDSE(this.dataset.n)">'
         +'<div class="dse-cb'+(chk?' on':'')+'"></div>'
         +'<span class="dse-label">'+d.name+'</span></div>';
     }).join('');
     return'<div class="plg-item'+(isSel?' sel':'')+'">'
-      +'<div class="plg-row" onclick="setBeatPLG(\''+p.name+'\')">'
+      +'<div class="plg-row" data-n="'+p.name+'" onclick="setBeatPLG(this.dataset.n)">'
       +'<div class="plg-radio'+(isSel?' on':'')+'"></div>'
       +'<div class="plg-dot" style="background:'+col+'"></div>'
       +'<span class="plg-name">'+p.name+'</span>'
       +'<span class="plg-cnt">'+cntLabel+'</span>'
-      +(cnt>0?'<span class="plg-chev'+(isOpen?' open':'')+'" onclick="p5ToggleExpand(\''+p.name+'\',event)">&#9660;</span>':'')
+      +(cnt>0?'<span class="plg-chev'+(isOpen?' open':'')+'" data-n="'+p.name+'" onclick="p5ToggleExpand(this.dataset.n,event)">&#9660;</span>':'')
       +'</div>'
       +(cnt>0?'<div class="dse-list'+(isOpen?' open':'')+'">'+(isSel?dseHtml:'<div style="color:#9ca3af;font-size:11px">Select PLG to see DSEs</div>')+'</div>':'')
       +'</div>';
@@ -2941,7 +2941,7 @@ function buildBeatChips(){
 
   const allSel=curBeatPLG==='ALL';
   let html='<div class="plg-tree">'
-    +'<div class="plg-all-row'+(allSel?' sel':'')+'" onclick="setBeatPLG(\'ALL\')">'
+    +'<div class="plg-all-row'+(allSel?' sel':'')+'" data-n="ALL" onclick="setBeatPLG(this.dataset.n)">'
     +'<div class="plg-radio'+(allSel?' on':'')+'"></div>'
     +'<span class="plg-name" style="color:'+(allSel?'#1565C0':'#374151')+'">All PLGs</span>'
     +'</div>';
