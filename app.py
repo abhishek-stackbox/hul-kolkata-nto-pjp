@@ -1034,6 +1034,40 @@ html,body{width:100%;height:100%;overflow:hidden;
   background:white;cursor:pointer;font-size:11px;font-weight:700;color:#374151;transition:all .15s;}
 .beat-chip.active{color:white;}
 .beat-chip:hover:not(.active){border-color:#9ca3af;}
+/* PLG-DSE accordion tree */
+.plg-tree{margin-bottom:10px;}
+.plg-tree-sec{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
+  padding:4px 4px 2px;color:#9ca3af;}
+.plg-tree-sec.ofm{color:#7c3aed;}.plg-tree-sec.uni{color:#0369a1;}
+.plg-item{border:1.5px solid #e5e7eb;border-radius:8px;margin-bottom:3px;overflow:hidden;}
+.plg-item.sel{border-color:#1565C0;}
+.plg-row{display:flex;align-items:center;padding:7px 10px;gap:8px;cursor:pointer;
+  background:white;transition:background .1s;}
+.plg-row:hover{background:#f8fafc;}
+.plg-item.sel .plg-row{background:#eff6ff;}
+.plg-radio{width:15px;height:15px;border-radius:50%;border:2px solid #d1d5db;
+  flex-shrink:0;transition:all .15s;position:relative;}
+.plg-radio.on{border-color:#1565C0;background:#1565C0;}
+.plg-radio.on::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:5px;height:5px;border-radius:50%;background:white;}
+.plg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.plg-name{flex:1;font-size:12px;font-weight:700;color:#111827;}
+.plg-cnt{font-size:10px;color:#9ca3af;}
+.plg-chev{font-size:11px;color:#9ca3af;transition:transform .2s;flex-shrink:0;}
+.plg-chev.open{transform:rotate(180deg);}
+.dse-list{border-top:1px solid #f3f4f6;padding:4px 10px 8px 36px;display:none;}
+.dse-list.open{display:block;}
+.dse-item{display:flex;align-items:center;gap:7px;padding:3px 0;cursor:pointer;}
+.dse-cb{width:14px;height:14px;border:2px solid #d1d5db;border-radius:3px;flex-shrink:0;
+  position:relative;transition:all .15s;}
+.dse-cb.on{border-color:#1565C0;background:#1565C0;}
+.dse-cb.on::after{content:'✓';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  color:white;font-size:9px;font-weight:900;line-height:1;}
+.dse-label{font-size:11px;color:#374151;}
+.plg-all-row{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;
+  border:1.5px solid #e5e7eb;border-radius:8px;margin-bottom:6px;background:white;transition:background .1s;}
+.plg-all-row.sel{border-color:#1565C0;background:#eff6ff;}
+.plg-all-row:hover:not(.sel){background:#f8fafc;}
 
 .toggle-row{display:flex;gap:0;margin-bottom:12px;
   border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;}
@@ -1348,15 +1382,11 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
         <button class="t-btn"        id="p5-vexisting" onclick="setBeatsView('existing')">Existing</button>
       </div>
       <div class="kpi-r" id="p5-kpis"></div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by PLG</div>
-      <div class="filter-row" id="p5-chips" style="flex-wrap:wrap;gap:4px"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 6px">Filter by PLG &amp; Salesman</div>
+      <div id="p5-plg-tree"></div>
       <div id="p5-day-section">
         <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by Day</div>
         <div class="filter-row" id="p5-day-chips" style="flex-wrap:wrap;gap:4px"></div>
-      </div>
-      <div id="p5-dse-section">
-        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by Salesman</div>
-        <div class="filter-row" style="flex-wrap:wrap;gap:4px" id="p5-dse-chips"></div>
       </div>
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Legend</div>
       <div id="p5-legend"></div>
@@ -2718,7 +2748,9 @@ function renderPanel4(){
 }
 
 // ── SLIDE 5 · BEATS ──────────────────────────────────────────────────────────
-let curBeatsRS='218390', curBeatsView='proposed', curBeatPLG='ALL', curBeatDay='ALL', curBeatDSE='ALL';
+let curBeatsRS='218390', curBeatsView='proposed', curBeatPLG='ALL', curBeatDay='ALL';
+let curBeatDSEs=new Set();   // empty = all DSEs; populated when PLG is selected
+let p5ExpandedPLG=null;      // which PLG accordion row is open
 const _SPEC_PLG_NAMES=new Set(['D-OFM','D_OFM','F-OFM','FN_OFM','N_OFM','PP-A_OFM','PP-B_OFM','D+F_UNIGLOW','PP-A_UNIGLOW','PP-B_UNIGLOW']);
 
 function _getBeats5(){
@@ -2733,8 +2765,16 @@ function _getDseInfo5(){
 }
 function _hasDay5(){return curBeatsRS==='218390'||(curBeatsRS==='218391'&&curBeatsView==='existing');}
 
+// Return DSEs (names) for a given PLG name in current beats
+function _plgDseNames(plgName){
+  const beats=_getBeats5(); const dseInfo=_getDseInfo5();
+  const plgIdx=PLG_INFO.findIndex(p=>p.name===plgName);
+  const idxSet=new Set(beats.filter(bt=>bt[2]===plgIdx).map(bt=>bt[4]));
+  return dseInfo.filter((_,i)=>idxSet.has(i)).map(d=>d.name);
+}
+
 function setBeatsRS(rs){
-  curBeatsRS=rs;curBeatPLG='ALL';curBeatDay='ALL';curBeatDSE='ALL';
+  curBeatsRS=rs;curBeatPLG='ALL';curBeatDay='ALL';curBeatDSEs=new Set();p5ExpandedPLG=null;
   document.getElementById('p5-rs390').classList.toggle('active',rs==='218390');
   document.getElementById('p5-rs391').classList.toggle('active',rs==='218391');
   buildBeatChips();
@@ -2742,7 +2782,7 @@ function setBeatsRS(rs){
   renderPanel5();
 }
 function setBeatsView(v){
-  curBeatsView=v;curBeatDSE='ALL';curBeatDay='ALL';
+  curBeatsView=v;curBeatPLG='ALL';curBeatDay='ALL';curBeatDSEs=new Set();p5ExpandedPLG=null;
   document.getElementById('p5-vproposed').classList.toggle('active',v==='proposed');
   document.getElementById('p5-vexisting').classList.toggle('active',v==='existing');
   buildBeatChips();
@@ -2765,7 +2805,6 @@ function initSlide5(){
       const rFg=Math.max(2,2+(z-9)/(14-9)*5)*dpr;
       const b=m.getBounds();const pad=0.03;
       const sl=b.getSouth()-pad,nl=b.getNorth()+pad,wl=b.getWest()-pad,el=b.getEast()+pad;
-      // Background (other RS) in grey
       ctx5.fillStyle='#94a3b8';ctx5.globalAlpha=0.35;ctx5.beginPath();
       _getBgBeats5().forEach(pt=>{
         if(pt[0]<sl||pt[0]>nl||pt[1]<wl||pt[1]>el)return;
@@ -2773,18 +2812,16 @@ function initSlide5(){
         ctx5.moveTo(p.x*dpr+rBg,p.y*dpr);ctx5.arc(p.x*dpr,p.y*dpr,rBg,0,Math.PI*2);
       });
       ctx5.fill();
-      // Foreground (selected RS+view) — apply filters
       const hasDay=_hasDay5();
       const dayF=(!hasDay||curBeatDay==='ALL')?null:parseInt(curBeatDay);
       const dseInfo=_getDseInfo5();
-      const dseF=(!hasDay||curBeatDSE==='ALL')?null:dseInfo.findIndex(d=>d.name===curBeatDSE);
       const plgF=curBeatPLG==='ALL'?null:PLG_INFO.findIndex(p=>p.name===curBeatPLG);
-      const _selIsSpec=plgF!==null&&_SPEC_PLG_NAMES.has(PLG_INFO[plgF]?.name);
       const rows=_getBeats5().filter(bt=>{
         if(plgF!==null&&bt[2]!==plgF)return false;
-        if(plgF===null&&curBeatDSE==='ALL'&&_SPEC_PLG_NAMES.has(PLG_INFO[bt[2]]?.name))return false;
+        if(plgF===null&&_SPEC_PLG_NAMES.has(PLG_INFO[bt[2]]?.name))return false;
         if(dayF!==null&&bt[3]!==dayF)return false;
-        if(dseF!==null&&bt[4]!==dseF)return false;
+        // DSE multi-select: curBeatDSEs has included DSE names (empty = all)
+        if(curBeatDSEs.size>0&&!curBeatDSEs.has(dseInfo[bt[4]]?.name))return false;
         return true;
       });
       const byCol={};
@@ -2822,19 +2859,27 @@ function _activateChip(selector,key,val,color){
   });
 }
 function setBeatPLG(plg){
-  curBeatPLG=plg;curBeatDSE='ALL';
+  curBeatPLG=plg;
+  curBeatDSEs=plg==='ALL'?new Set():new Set(_plgDseNames(plg));
+  p5ExpandedPLG=plg==='ALL'?null:plg;
   buildBeatChips();
   if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
   renderPanel5();
 }
+function p5ToggleExpand(plgName,ev){
+  if(ev)ev.stopPropagation();
+  p5ExpandedPLG=p5ExpandedPLG===plgName?null:plgName;
+  buildBeatChips();
+}
+function p5ToggleDSE(dseName){
+  if(curBeatDSEs.has(dseName))curBeatDSEs.delete(dseName);
+  else curBeatDSEs.add(dseName);
+  buildBeatChips();
+  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
+}
 function setBeatDay(day){
   curBeatDay=day;
   _activateChip('[data-day]','day',day,null);
-  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
-}
-function setBeatDSE(dse){
-  curBeatDSE=dse;curBeatPLG='ALL';
-  buildBeatChips();
   if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
 }
 
@@ -2852,39 +2897,69 @@ function renderPanel5(){
       +'<span class="rs-name">Market '+(i+1)+' &mdash; '+MKT_DAYS[i]+'</span></div>').join('');
   document.getElementById('p5-legend').innerHTML=legendHTML;
   document.getElementById('p5-day-section').style.display=hasDay?'':'none';
-  document.getElementById('p5-dse-section').style.display=hasDay?'':'none';
 }
 
 function buildBeatChips(){
   const beats=_getBeats5();
   const dseInfo=_getDseInfo5();
-  // Only show PLGs that actually have beats in the current view
   const activePlgIdxSet=new Set(beats.map(bt=>bt[2]));
   const activePlgs=PLG_INFO.filter(p=>activePlgIdxSet.has(p.idx));
   const normalPlgs=activePlgs.filter(p=>p.group==='normal'||p.group==='existing');
   const ofmPlgs=activePlgs.filter(p=>p.group==='ofm');
   const uniPlgs=activePlgs.filter(p=>p.group==='uniglow');
-  function makeChip(p){
-    const isAll=p.name==='ALL';
-    const isA=isAll?(curBeatPLG==='ALL'&&curBeatDSE==='ALL'):(curBeatPLG===p.name&&curBeatDSE==='ALL');
-    const col=p.color||'#1565C0';
-    return'<button class="beat-chip'+(isA?' active':'')+'" data-plg="'+p.name+'" '
-      +'style="'+(isA?'background:'+col+';color:white;border-color:'+col+';':'border-color:'+col+';color:'+col+';')+';" '
-      +`onclick="setBeatPLG('${p.name}')">`+p.name+'</button>';
+
+  function plgDseNamesLocal(plgName){
+    const plgIdx=PLG_INFO.findIndex(p=>p.name===plgName);
+    const idxSet=new Set(beats.filter(bt=>bt[2]===plgIdx).map(bt=>bt[4]));
+    return dseInfo.filter((_,i)=>idxSet.has(i));
   }
-  let html=makeChip({name:'ALL',color:'#1565C0'});
-  normalPlgs.forEach(p=>html+=makeChip(p));
+  function makePlgItem(p){
+    const isSel=curBeatPLG===p.name;
+    const isOpen=p5ExpandedPLG===p.name;
+    const col=p.color||'#1565C0';
+    const dsesForPlg=plgDseNamesLocal(p.name);
+    const cnt=dsesForPlg.length;
+    const checkedN=isSel?curBeatDSEs.size:0;
+    const cntLabel=isSel&&checkedN<cnt?checkedN+'/'+cnt+' DSEs':cnt+' DSEs';
+    const dseHtml=dsesForPlg.map(d=>{
+      const chk=!isSel||curBeatDSEs.has(d.name);
+      return'<div class="dse-item" onclick="p5ToggleDSE(\''+d.name+'\')">'
+        +'<div class="dse-cb'+(chk?' on':'')+'"></div>'
+        +'<span class="dse-label">'+d.name+'</span></div>';
+    }).join('');
+    return'<div class="plg-item'+(isSel?' sel':'')+'">'
+      +'<div class="plg-row" onclick="setBeatPLG(\''+p.name+'\')">'
+      +'<div class="plg-radio'+(isSel?' on':'')+'"></div>'
+      +'<div class="plg-dot" style="background:'+col+'"></div>'
+      +'<span class="plg-name">'+p.name+'</span>'
+      +'<span class="plg-cnt">'+cntLabel+'</span>'
+      +(cnt>0?'<span class="plg-chev'+(isOpen?' open':'')+'" onclick="p5ToggleExpand(\''+p.name+'\',event)">&#9660;</span>':'')
+      +'</div>'
+      +(cnt>0?'<div class="dse-list'+(isOpen?' open':'')+'">'+(isSel?dseHtml:'<div style="color:#9ca3af;font-size:11px">Select PLG to see DSEs</div>')+'</div>':'')
+      +'</div>';
+  }
+
+  const allSel=curBeatPLG==='ALL';
+  let html='<div class="plg-tree">'
+    +'<div class="plg-all-row'+(allSel?' sel':'')+'" onclick="setBeatPLG(\'ALL\')">'
+    +'<div class="plg-radio'+(allSel?' on':'')+'"></div>'
+    +'<span class="plg-name" style="color:'+(allSel?'#1565C0':'#374151')+'">All PLGs</span>'
+    +'</div>';
+
+  if(normalPlgs.length){
+    normalPlgs.forEach(p=>html+=makePlgItem(p));
+  }
   if(ofmPlgs.length){
-    html+='<span style="color:#d1d5db;margin:0 4px;align-self:center">|</span>'
-      +'<span style="font-size:10px;color:#7c3aed;font-weight:600;align-self:center;white-space:nowrap">OFM</span>';
-    ofmPlgs.forEach(p=>html+=makeChip(p));
+    html+='<div class="plg-tree-sec ofm">OFM</div>';
+    ofmPlgs.forEach(p=>html+=makePlgItem(p));
   }
   if(uniPlgs.length){
-    html+='<span style="color:#d1d5db;margin:0 4px;align-self:center">|</span>'
-      +'<span style="font-size:10px;color:#0369a1;font-weight:600;align-self:center;white-space:nowrap">UNI</span>';
-    uniPlgs.forEach(p=>html+=makeChip(p));
+    html+='<div class="plg-tree-sec uni">UNIGLOW</div>';
+    uniPlgs.forEach(p=>html+=makePlgItem(p));
   }
-  document.getElementById('p5-chips').innerHTML=html;
+  html+='</div>';
+  document.getElementById('p5-plg-tree').innerHTML=html;
+
   // Day chips
   const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat'];
   const dayChips=[{val:'ALL',label:'All'},...dayNames.map((d,i)=>({val:String(i),label:d}))];
@@ -2893,21 +2968,6 @@ function buildBeatChips(){
     return'<button class="beat-chip'+(isA?' active':'')+'" data-day="'+d.val+'" '
       +'style="'+(isA?'background:#1565C0;color:white;border-color:#1565C0;':'')+';" '
       +`onclick="setBeatDay('${d.val}')">`+d.label+'</button>';
-  }).join('');
-  // DSE chips — filter to selected PLG's DSEs when a PLG is selected
-  let filtDseInfo=dseInfo;
-  if(curBeatPLG!=='ALL'){
-    const plgIdx=PLG_INFO.findIndex(p=>p.name===curBeatPLG);
-    const dseIdxSet=new Set(beats.filter(bt=>bt[2]===plgIdx).map(bt=>bt[4]));
-    filtDseInfo=dseInfo.filter((_,i)=>dseIdxSet.has(i));
-  }
-  const dseChips=[{name:'ALL'},...filtDseInfo];
-  document.getElementById('p5-dse-chips').innerHTML=dseChips.map(d=>{
-    const isAll=d.name==='ALL';
-    const isA=isAll?(curBeatDSE==='ALL'):(curBeatDSE===d.name);
-    return'<button class="beat-chip'+(isA?' active':'')+'" data-dse="'+d.name+'" '
-      +'style="font-size:10px;padding:3px 8px;'+(isA?'background:#1565C0;color:white;border-color:#1565C0;':'')+';" '
-      +`onclick="setBeatDSE('${d.name}')">`+(isAll?'All':d.name)+'</button>';
   }).join('');
 }
 buildBeatChips();
