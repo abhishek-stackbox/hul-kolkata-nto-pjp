@@ -38,6 +38,8 @@ DATA_ROOT = os.path.expanduser(
     "/My Drive/Clients Self/HUL/Sales Route/Kolkata"
 )
 DATA_FILE       = f"{DATA_ROOT}/Active_Outlet_Master_Kolkata.xlsx"
+ACTIVE_FILE     = f"{DATA_ROOT}/outlet_comparison_v2.xlsx"
+ACTIVE_SHEET    = "Final_active_outlets"
 PROPOSED_PLAN   = os.path.expanduser("~/Downloads/test2_p2_output.xlsx")
 BEATS_390_FILE  = f"{DATA_ROOT}/218390/All_Beat_Designs_218390_V3.xlsx"  # still used for Existing Beats
 BEATS_V4_FILE   = f"{DATA_ROOT}/218390/All_Beat_Designs_218390_V4.xlsx"
@@ -48,7 +50,7 @@ def _cache_path(name): return os.path.join(CACHE_DIR, f"{name}.parquet")
 def _json_path(name):  return os.path.join(CACHE_DIR, f"{name}.json")
 
 def _xlsx_mtime():
-    try: return os.path.getmtime(DATA_FILE)
+    try: return max(os.path.getmtime(DATA_FILE), os.path.getmtime(ACTIVE_FILE))
     except: return 0
 
 def _cache_valid(name):
@@ -108,7 +110,7 @@ def load():
         except Exception:
             pass
 
-    df_all = pd.read_excel(DATA_FILE, sheet_name="Active Outlets", dtype=str)
+    df_all = pd.read_excel(ACTIVE_FILE, sheet_name=ACTIVE_SHEET, dtype=str)
     excl_raw = df_all[df_all["Exclude (Incorrect Lat-Long)"].notna()].copy()
     df = df_all[df_all["Exclude (Incorrect Lat-Long)"].isna()].copy()
 
@@ -324,7 +326,7 @@ def load_clusters():
         except Exception:
             pass
 
-    df = pd.read_excel(DATA_FILE, sheet_name="Active Outlets", dtype=str)
+    df = pd.read_excel(ACTIVE_FILE, sheet_name=ACTIVE_SHEET, dtype=str)
     df = df[df["Exclude (Incorrect Lat-Long)"].isna()].copy()
     df["lat"] = pd.to_numeric(df["Latitude"],  errors="coerce")
     df["lon"] = pd.to_numeric(df["Longitude"], errors="coerce")
@@ -1578,25 +1580,19 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
     <div style="padding:16px 18px 12px;flex-shrink:0;overflow-y:auto;max-height:100vh">
       <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#1565C0;text-transform:uppercase;margin-bottom:6px">Benefit 5 &middot; RS 218390</div>
-      <h2 style="margin-bottom:3px" id="a12-title">Beat Area &mdash; By Day</h2>
-      <p class="p-sub" style="margin-bottom:8px" id="a12-sub">Total beat territory km&sup2; per market day. Map colored by day.</p>
-      <div class="toggle-row" style="margin-bottom:8px">
-        <button class="t-btn active" id="a12-mode-day" onclick="setA12Mode('day')">By Cal Day</button>
-        <button class="t-btn" id="a12-mode-delivery" onclick="setA12Mode('delivery')">By Delivery Zone</button>
+      <h2 style="margin-bottom:3px">Beat Area &mdash; Delivery Zone</h2>
+      <p class="p-sub" style="margin-bottom:8px">Delivery coverage km&sup2; per market zone. Existing = 1-day sales; Proposed = 2-day bundled sales.</p>
+      <div class="toggle-row" style="margin-bottom:10px">
+        <button class="t-btn active" id="a12-vv3" onclick="setA12View('v3')">Proposed (2-day)</button>
+        <button class="t-btn" id="a12-vex" onclick="setA12View('existing')">Existing (1-day)</button>
       </div>
-      <div class="toggle-row" style="margin-bottom:8px" id="a12-view-row">
-        <button class="t-btn active" id="a12-vv3" onclick="setA12View('v3')">Proposed</button>
-        <button class="t-btn" id="a12-vex" onclick="setA12View('existing')">Existing</button>
-      </div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px" id="a12-chip-lbl">Filter by day</div>
-      <div class="filter-row" id="a12-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:10px"></div>
       <div class="kpi-r" style="grid-template-columns:1fr 1fr;margin-bottom:10px" id="p12-kpis"></div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px" id="a12-chart-lbl">
-        km&sup2; per day &mdash; <span style="color:#dc2626">Ex</span> &nbsp; <span style="color:#16a34a">Prop</span>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
+        km&sup2; per delivery zone &mdash; <span style="color:#dc2626">Ex (1-day)</span> &nbsp; <span style="color:#7030A0">Prop (2-day)</span>
       </div>
       <div id="p12-chart"></div>
-      <div style="margin-top:12px;padding:10px 12px;background:#eff6ff;border-radius:8px;font-size:11px;color:#374151;line-height:1.5" id="a12-why">
-        <strong style="color:#1565C0">Why it matters:</strong> Smaller daily area = tighter routes, less travel, more visits per hour.
+      <div style="margin-top:12px;padding:10px 12px;background:#eff6ff;border-radius:8px;font-size:11px;color:#374151;line-height:1.5">
+        <strong style="color:#1565C0">Why it matters:</strong> Delivery truck covers a market zone in one trip. V4 combines 2 days of sales into one compact zone &mdash; fewer truck-km, lower logistics cost.
       </div>
     </div>
   </div>
@@ -3358,11 +3354,9 @@ function renderSlide11(){
   }).join('');
 }
 
-// ── SLIDE 12 · BEAT AREA PER DAY ─────────────────────────────────────────────
-const _A12_DAYS=['All','Mon','Tue','Wed','Thu','Fri','Sat'];
-const _A12_DCOLORS=['#6b7280','#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#a855f7'];
+// ── SLIDE 12 · BEAT AREA — DELIVERY ZONE ────────────────────────────────────
 const _A12_ZONE_COLORS=['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#a855f7'];
-let curA12View='v3',curA12Market=0,curA12Mode='day';
+let curA12View='v3';
 
 function initSlide12(){
   if(MAPS['leaf-12'])return;
@@ -3373,11 +3367,6 @@ function initSlide12(){
   lmap.on('wheel',e=>{if(e.originalEvent&&(e.originalEvent.ctrlKey||e.originalEvent.metaKey))e.originalEvent.preventDefault();});
   MAPS['leaf-12']={map:lmap,lg:L.layerGroup().addTo(lmap)};
   setTimeout(()=>lmap.invalidateSize(),200);
-  document.getElementById('a12-day-chips').innerHTML=_A12_DAYS.map((d,i)=>{
-    const a=i===0;
-    const st=a?'background:#374151;color:white;border-color:#374151;':'';
-    return `<button class="beat-chip${a?' active':''}" style="${st}" onclick="setA12Market(${i})">${d}</button>`;
-  }).join('');
   renderArea12();
 }
 
@@ -3388,139 +3377,57 @@ function setA12View(v){
   renderArea12();
 }
 
-function setA12Market(m){
-  curA12Market=m;
-  document.querySelectorAll('#a12-day-chips .beat-chip').forEach((el,i)=>{
-    const a=i===m;el.classList.toggle('active',a);
-    el.style.background=a?'#374151':'';el.style.color=a?'white':'';el.style.borderColor=a?'#374151':'';
-  });
-  renderArea12();
-}
-
-function setA12Mode(mode){
-  curA12Mode=mode;
-  document.getElementById('a12-mode-day').classList.toggle('active',mode==='day');
-  document.getElementById('a12-mode-delivery').classList.toggle('active',mode==='delivery');
-  const isDelivery=mode==='delivery';
-  document.getElementById('a12-view-row').style.display=isDelivery?'none':'';
-  document.getElementById('a12-chip-lbl').style.display=isDelivery?'none':'';
-  document.getElementById('a12-day-chips').style.display=isDelivery?'none':'';
-  document.getElementById('a12-title').textContent=isDelivery?'Beat Area — By Delivery Zone':'Beat Area — By Day';
-  document.getElementById('a12-sub').textContent=isDelivery
-    ?'Combined Group A+B area per market zone. Each zone = what the delivery truck covers.'
-    :'Total beat territory km² per market day. Map colored by day.';
-  document.getElementById('a12-chart-lbl').innerHTML=isDelivery
-    ?'km² per delivery zone — <span style="color:#dc2626">Ex</span> &nbsp; <span style="color:#7030A0">Proposed</span>'
-    :'km² per day — <span style="color:#dc2626">Ex</span> &nbsp; <span style="color:#16a34a">Prop</span>';
-  document.getElementById('a12-why').innerHTML=isDelivery
-    ?'<strong style="color:#1565C0">Why it matters:</strong> Delivery truck covers Group A + Group B outlets for the same market on consecutive days. A compact zone = fewer truck-km, lower logistics cost.'
-    :'<strong style="color:#1565C0">Why it matters:</strong> Smaller daily area = tighter routes, less travel, more visits per hour.';
-  renderArea12();
-}
-
 function renderArea12(){
   const state=MAPS['leaf-12'];if(!state)return;
   state.lg.clearLayers();
-
-  if(curA12Mode==='delivery'){
-    // Delivery zone mode: one polygon per original market (Group A + Group B combined)
-    const zones=(DELIVERY_ZONES&&DELIVERY_ZONES.zones)||[];
-    const bnds=[];
-    zones.forEach((z,i)=>{
-      const col=_A12_ZONE_COLORS[i];
-      const hull=curA12View==='existing'?z.ex_hull:z.v4_hull;
-      if(!hull||hull.length<3)return;
-      const pts=hull.map(p=>[p[0],p[1]]);
-      const ga=z.group_a_day,gb=z.group_b_day;
-      L.polygon(pts,{color:col,weight:2,fillColor:col,fillOpacity:0.25})
-        .bindTooltip('Market '+z.zone+' (Days '+ga+'+'+gb+'): '+(curA12View==='existing'?z.ex_area:z.v4_area)+' km²',
-          {sticky:true,direction:'top'}).addTo(state.lg);
-      bnds.push(...pts);
-    });
-    if(bnds.length>0)state.map.fitBounds(bnds,{padding:[20,20],maxZoom:14});
-
-    // KPIs
-    const totV4=zones.reduce((s,z)=>s+z.v4_area,0);
-    const totEx=zones.reduce((s,z)=>s+z.ex_area,0);
-    const pctChg=totEx>0?Math.round((totV4-totEx)/totEx*100):0;
-    const pctCol=pctChg<0?'#16a34a':'#dc2626';
-    document.getElementById('p12-kpis').innerHTML=
-      '<div class="kpi" style="border:1.5px solid #fee2e2"><div class="kv" style="color:#dc2626">'+totEx.toFixed(0)+' km&sup2;</div><div class="kl">Existing (sum)</div></div>'
-      +'<div class="kpi" style="border:1.5px solid #ede9fe"><div class="kv" style="color:#7030A0">'+totV4.toFixed(0)+' km&sup2;</div><div class="kl">Proposed <span style="color:'+pctCol+'">('+(pctChg<0?'':'+')+pctChg+'%)</span></div></div>';
-
-    // Bar chart
-    const maxV=Math.max(...zones.map(z=>Math.max(z.v4_area,z.ex_area)),1);
-    const barH=70;
-    document.getElementById('p12-chart').innerHTML='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;align-items:end">'
-      +zones.map((z,i)=>{
-        const col=_A12_ZONE_COLORS[i];
-        const eV=z.ex_area,pV=z.v4_area;
-        const eH=Math.max(3,Math.round(eV/maxV*barH));
-        const pH=Math.max(3,Math.round(pV/maxV*barH));
-        return '<div style="text-align:center">'
-          +'<div style="font-size:9px;font-weight:700;color:#6b7280;margin-bottom:2px">'+eV.toFixed(0)+'</div>'
-          +'<div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:'+barH+'px">'
-            +'<div style="width:16px;height:'+eH+'px;background:#fca5a5;border-radius:2px 2px 0 0"></div>'
-            +'<div style="width:16px;height:'+pH+'px;background:'+col+';border-radius:2px 2px 0 0"></div>'
-          +'</div>'
-          +'<div style="font-size:9px;font-weight:700;color:#7030A0;margin-top:2px">'+pV.toFixed(0)+'</div>'
-          +'<div style="font-size:10px;color:#6b7280;margin-top:1px">Mkt '+z.zone+'</div>'
-          +'<div style="font-size:9px;color:#9ca3af">D'+z.group_a_day+'+D'+z.group_b_day+'</div>'
-          +'</div>';
-      }).join('')+'</div>'
-      +'<div style="font-size:10px;color:#9ca3af;margin-top:8px">&#9632; Ex (red) &nbsp;&#9632; Proposed (zone color)</div>';
-    return;
-  }
-
-  // Calendar day mode (original)
-  const hulls=curA12View==='v3'?HULL_V3_390:HULL_EX_390;
+  const zones=(DELIVERY_ZONES&&DELIVERY_ZONES.zones)||[];
   const bnds=[];
-  hulls.forEach(h=>{
-    if(curA12Market!==0&&h.market!==curA12Market)return;
-    const col=_A12_DCOLORS[h.market]||'#6b7280';
-    const pts=h.hull.map(p=>[p[0],p[1]]);
-    L.polygon(pts,{color:col,weight:1,fillColor:col,fillOpacity:0.2})
-      .bindTooltip(h.plg+' - '+_A12_DAYS[h.market],{sticky:true,direction:'top'}).addTo(state.lg);
+  zones.forEach((z,i)=>{
+    const col=_A12_ZONE_COLORS[i];
+    const hull=curA12View==='existing'?z.ex_hull:z.v4_hull;
+    if(!hull||hull.length<3)return;
+    const pts=hull.map(p=>[p[0],p[1]]);
+    const area=curA12View==='existing'?z.ex_area:z.v4_area;
+    const dayLabel=curA12View==='existing'?'Day '+z.zone:'Days '+z.group_a_day+'+'+z.group_b_day;
+    L.polygon(pts,{color:col,weight:2,fillColor:col,fillOpacity:0.25})
+      .bindTooltip('Zone '+z.zone+' ('+dayLabel+'): '+area+' km\u00b2',{sticky:true,direction:'top'})
+      .addTo(state.lg);
     bnds.push(...pts);
   });
   if(bnds.length>0)state.map.fitBounds(bnds,{padding:[20,20],maxZoom:14});
-  const reg=BEAT_AREA.v3_regular||{},spec=BEAT_AREA.v3_specialist||{},ex=BEAT_AREA.ex||{};
-  const mF=curA12Market===0?null:String(curA12Market);
-  const sumF=o=>mF?o[mF]||0:Object.values(o).reduce((a,b)=>a+b,0);
-  const exTot=Math.round(sumF(ex)*10)/10;
-  const v3Reg=Math.round(sumF(reg)*10)/10;
-  const v3Spec=Math.round(sumF(spec)*10)/10;
-  const v3Tot=Math.round((v3Reg+v3Spec)*10)/10;
-  const kpiEl=document.getElementById('p12-kpis');
-  kpiEl.innerHTML='<div class="kpi" style="border:1.5px solid #fee2e2"><div class="kv" style="color:#dc2626">'+exTot+' km&sup2;</div><div class="kl">Existing</div></div>'
-    +'<div class="kpi" style="border:1.5px solid #dcfce7"><div class="kv" style="color:#16a34a">'+v3Tot+' km&sup2;</div><div class="kl">Proposed</div></div>';
-  if(mF===null){
-    const allVals=[...Object.values(ex),...Object.values(reg),...Object.values(spec)];
-    const maxV=Math.max(...allVals,1);const barH=70;
-    document.getElementById('p12-chart').innerHTML='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;align-items:end">'
-      +['Mon','Tue','Wed','Thu','Fri','Sat'].map((day,i)=>{
-        const m=String(i+1),col=_A12_DCOLORS[i+1];
-        const eV=ex[m]||0,rV=reg[m]||0,sV=spec[m]||0;
-        const eH=Math.max(3,Math.round(eV/maxV*barH));
-        const rH=Math.max(2,Math.round(rV/maxV*barH));
-        const sH=Math.max(2,Math.round(sV/maxV*barH));
-        return '<div style="text-align:center">'
-          +'<div style="font-size:9px;font-weight:700;color:#6b7280;margin-bottom:2px">'+eV.toFixed(1)+'</div>'
-          +'<div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:'+barH+'px">'
-            +'<div style="width:16px;height:'+eH+'px;background:#fca5a5;border-radius:2px 2px 0 0"></div>'
-            +'<div style="display:flex;flex-direction:column;gap:1px;justify-content:flex-end">'
-              +'<div style="width:16px;height:'+sH+'px;background:'+col+';opacity:.45;border-radius:2px 2px 0 0"></div>'
-              +'<div style="width:16px;height:'+rH+'px;background:'+col+';border-radius:0"></div>'
-            +'</div>'
-          +'</div>'
-          +'<div style="font-size:9px;font-weight:700;color:#374151;margin-top:2px">'+(rV+sV).toFixed(1)+'</div>'
-          +'<div style="font-size:10px;color:#6b7280;margin-top:1px">'+day+'</div>'
-          +'</div>';
-      }).join('')+'</div>'
-      +'<div style="font-size:10px;color:#9ca3af;margin-top:8px">&#9632; Ex (red) &nbsp;&#9632; Proposed (day color: regular+specialist stacked)</div>';
-  } else {
-    document.getElementById('p12-chart').innerHTML='';
-  }
+
+  const totV4=zones.reduce((s,z)=>s+z.v4_area,0);
+  const totEx=zones.reduce((s,z)=>s+z.ex_area,0);
+  const pct=totEx>0?Math.round((totV4-totEx)/totEx*100):0;
+  const pctCol=pct<0?'#16a34a':'#dc2626';
+  document.getElementById('p12-kpis').innerHTML=
+    '<div class="kpi" style="border:1.5px solid #fee2e2"><div class="kv" style="color:#dc2626">'+totEx.toFixed(0)+' km&sup2;</div><div class="kl">Existing (1-day)</div></div>'
+   +'<div class="kpi" style="border:1.5px solid #ede9fe"><div class="kv" style="color:#7030A0">'+totV4.toFixed(0)+' km&sup2;</div>'
+   +'<div class="kl">Proposed (2-day) <span style="color:'+pctCol+'">('+(pct<0?'':'+')+pct+'%)</span></div></div>';
+
+  const maxV=Math.max(...zones.map(z=>Math.max(z.v4_area,z.ex_area)),1);
+  const barH=70;
+  document.getElementById('p12-chart').innerHTML='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;align-items:end">'
+    +zones.map((z,i)=>{
+      const col=_A12_ZONE_COLORS[i];
+      const eV=z.ex_area,pV=z.v4_area;
+      const eH=Math.max(3,Math.round(eV/maxV*barH));
+      const pH=Math.max(3,Math.round(pV/maxV*barH));
+      const delta=eV>0?Math.round((pV-eV)/eV*100):0;
+      const dc=delta<0?'#16a34a':'#dc2626';
+      return '<div style="text-align:center">'
+        +'<div style="font-size:9px;font-weight:700;color:#6b7280;margin-bottom:2px">'+eV.toFixed(0)+'</div>'
+        +'<div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:'+barH+'px">'
+          +'<div style="width:16px;height:'+eH+'px;background:#fca5a5;border-radius:2px 2px 0 0" title="Ex Day '+z.zone+'"></div>'
+          +'<div style="width:16px;height:'+pH+'px;background:'+col+';border-radius:2px 2px 0 0" title="V4 Zone '+z.zone+'"></div>'
+        +'</div>'
+        +'<div style="font-size:9px;font-weight:700;color:#7030A0;margin-top:2px">'+pV.toFixed(0)+'</div>'
+        +'<div style="font-size:9px;color:'+dc+';font-weight:700">'+(delta<0?'':'+')+delta+'%</div>'
+        +'<div style="font-size:10px;color:#6b7280;margin-top:1px">Z'+z.zone+'</div>'
+        +'<div style="font-size:9px;color:#9ca3af">D'+z.group_a_day+'+'+z.group_b_day+'</div>'
+        +'</div>';
+    }).join('')+'</div>'
+    +'<div style="font-size:10px;color:#9ca3af;margin-top:8px">&#9632; Ex=red (1-day) &nbsp;&#9632; Prop=zone color (2-day bundled) &nbsp;% = change</div>';
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────────────────────────
