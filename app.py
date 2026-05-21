@@ -2958,19 +2958,21 @@ function buildBeatChips(){
     uniPlgs.forEach(p=>html+=makePlgItem(p));
   }
   html+='</div>';
-  document.getElementById('p5-plg-tree').innerHTML=html;
+  const treeEl=document.getElementById('p5-plg-tree');
+  if(treeEl)treeEl.innerHTML=html;
 
   // Day chips
   const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat'];
   const dayChips=[{val:'ALL',label:'All'},...dayNames.map((d,i)=>({val:String(i),label:d}))];
-  document.getElementById('p5-day-chips').innerHTML=dayChips.map(d=>{
+  const dayEl=document.getElementById('p5-day-chips');
+  if(dayEl)dayEl.innerHTML=dayChips.map(d=>{
     const isA=d.val===curBeatDay;
     return'<button class="beat-chip'+(isA?' active':'')+'" data-day="'+d.val+'" '
       +'style="'+(isA?'background:#1565C0;color:white;border-color:#1565C0;':'')+';" '
       +`onclick="setBeatDay('${d.val}')">`+d.label+'</button>';
   }).join('');
 }
-buildBeatChips();
+try{buildBeatChips();}catch(e){console.error('buildBeatChips init error:',e);}
 
 // ── SLIDE 6 · DELIVERY BEATS ──────────────────────────────────────────────────
 const D6_DESIGN_KEYS=Object.keys(DELIVERY_DATA);
