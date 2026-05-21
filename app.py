@@ -1582,10 +1582,12 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
       <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#1565C0;text-transform:uppercase;margin-bottom:6px">Benefit 5 &middot; RS 218390</div>
       <h2 style="margin-bottom:3px">Beat Area &mdash; Delivery Zone</h2>
       <p class="p-sub" style="margin-bottom:8px">Delivery coverage km&sup2; per market zone. Existing = 1-day sales; Proposed = 2-day bundled sales.</p>
-      <div class="toggle-row" style="margin-bottom:10px">
+      <div class="toggle-row" style="margin-bottom:8px">
         <button class="t-btn active" id="a12-vv3" onclick="setA12View('v3')">Proposed (2-day)</button>
         <button class="t-btn" id="a12-vex" onclick="setA12View('existing')">Existing (1-day)</button>
       </div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by zone</div>
+      <div class="filter-row" id="a12-zone-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:10px"></div>
       <div class="kpi-r" style="grid-template-columns:1fr 1fr;margin-bottom:10px" id="p12-kpis"></div>
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
         km&sup2; per delivery zone &mdash; <span style="color:#dc2626">Ex (1-day)</span> &nbsp; <span style="color:#7030A0">Prop (2-day)</span>
@@ -3356,7 +3358,15 @@ function renderSlide11(){
 
 // ── SLIDE 12 · BEAT AREA — DELIVERY ZONE ────────────────────────────────────
 const _A12_ZONE_COLORS=['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#a855f7'];
-let curA12View='v3';
+const _REV_DFN_MAP={5:1,2:2,4:3,1:4,3:5,6:6};
+const _GROUP_A_PLGS=new Set(['D+F+N','D','D+F','F','PP-A','D_OFM','PP-A_OFM','PP-A_UNIGLOW','D+F_UNIGLOW']);
+let curA12View='v3',curA12Zone=0;
+
+function _getOrigZone(plg,calDay){
+  if(_GROUP_A_PLGS.has(plg))return _REV_DFN_MAP[calDay]||calDay;
+  const ga=((calDay-2+6)%6)+1;
+  return _REV_DFN_MAP[ga]||ga;
+}
 
 function initSlide12(){
   if(MAPS['leaf-12'])return;
@@ -3367,6 +3377,11 @@ function initSlide12(){
   lmap.on('wheel',e=>{if(e.originalEvent&&(e.originalEvent.ctrlKey||e.originalEvent.metaKey))e.originalEvent.preventDefault();});
   MAPS['leaf-12']={map:lmap,lg:L.layerGroup().addTo(lmap)};
   setTimeout(()=>lmap.invalidateSize(),200);
+  const chips=[{label:'All',z:0},...[1,2,3,4,5,6].map(z=>({label:'Z'+z,z}))];
+  document.getElementById('a12-zone-chips').innerHTML=chips.map(c=>{
+    const a=c.z===0;
+    return '<button class="beat-chip'+(a?' active':'')+'" style="'+(a?'background:#374151;color:white;border-color:#374151;':'')+'" onclick="setA12Zone('+c.z+')">'+c.label+'</button>';
+  }).join('');
   renderArea12();
 }
 
@@ -3377,49 +3392,83 @@ function setA12View(v){
   renderArea12();
 }
 
+function setA12Zone(z){
+  curA12Zone=z;
+  document.querySelectorAll('#a12-zone-chips .beat-chip').forEach((el,i)=>{
+    const a=i===z;
+    el.classList.toggle('active',a);
+    el.style.background=a?'#374151':'';el.style.color=a?'white':'';el.style.borderColor=a?'#374151':'';
+  });
+  renderArea12();
+}
+
 function renderArea12(){
   const state=MAPS['leaf-12'];if(!state)return;
   state.lg.clearLayers();
   const zones=(DELIVERY_ZONES&&DELIVERY_ZONES.zones)||[];
+  const beatHulls=curA12View==='existing'?HULL_EX_390:HULL_V3_390;
+  const filtZones=curA12Zone===0?zones:zones.filter(z=>z.zone===curA12Zone);
+  const activeZoneNums=new Set(filtZones.map(z=>z.zone));
   const bnds=[];
-  zones.forEach((z,i)=>{
-    const col=_A12_ZONE_COLORS[i];
-    const hull=curA12View==='existing'?z.ex_hull:z.v4_hull;
-    if(!hull||hull.length<3)return;
-    const pts=hull.map(p=>[p[0],p[1]]);
-    const area=curA12View==='existing'?z.ex_area:z.v4_area;
-    const dayLabel=curA12View==='existing'?'Day '+z.zone:'Days '+z.group_a_day+'+'+z.group_b_day;
-    L.polygon(pts,{color:col,weight:2,fillColor:col,fillOpacity:0.25})
-      .bindTooltip('Zone '+z.zone+' ('+dayLabel+'): '+area+' km\u00b2',{sticky:true,direction:'top'})
+
+  // Individual beat hulls (light fill)
+  beatHulls.forEach(h=>{
+    const oz=curA12View==='existing'?h.market:_getOrigZone(h.plg,h.market);
+    if(!activeZoneNums.has(oz))return;
+    if(!h.hull||h.hull.length<3)return;
+    const col=_A12_ZONE_COLORS[oz-1];
+    const pts=h.hull.map(p=>[p[0],p[1]]);
+    L.polygon(pts,{color:col,weight:0.8,fillColor:col,fillOpacity:0.18,interactive:true})
+      .bindTooltip(h.plg+' • '+h.dse+' • '+(h.area_km2||0).toFixed(2)+' km²',{sticky:true,direction:'top'})
       .addTo(state.lg);
     bnds.push(...pts);
   });
+
+  // Combined zone hull (dashed outline on top)
+  filtZones.forEach((z,i)=>{
+    const hull=curA12View==='existing'?z.ex_hull:z.v4_hull;
+    if(!hull||hull.length<3)return;
+    const col=_A12_ZONE_COLORS[z.zone-1];
+    const pts=hull.map(p=>[p[0],p[1]]);
+    const area=curA12View==='existing'?z.ex_area:z.v4_area;
+    const dayLabel=curA12View==='existing'?'Day '+z.zone:'Days '+z.group_a_day+'+'+z.group_b_day;
+    L.polygon(pts,{color:col,weight:2.5,fillOpacity:0,dashArray:'7,5',interactive:true})
+      .bindTooltip('Zone '+z.zone+' ('+dayLabel+') total: '+area+' km²',{sticky:true,direction:'top'})
+      .addTo(state.lg);
+    if(curA12Zone!==0)bnds.push(...pts);
+  });
+
   if(bnds.length>0)state.map.fitBounds(bnds,{padding:[20,20],maxZoom:14});
 
-  const totV4=zones.reduce((s,z)=>s+z.v4_area,0);
-  const totEx=zones.reduce((s,z)=>s+z.ex_area,0);
+  // KPIs — show selected zone or overall total
+  const kZones=curA12Zone===0?zones:filtZones;
+  const totV4=kZones.reduce((s,z)=>s+z.v4_area,0);
+  const totEx=kZones.reduce((s,z)=>s+z.ex_area,0);
   const pct=totEx>0?Math.round((totV4-totEx)/totEx*100):0;
   const pctCol=pct<0?'#16a34a':'#dc2626';
   document.getElementById('p12-kpis').innerHTML=
-    '<div class="kpi" style="border:1.5px solid #fee2e2"><div class="kv" style="color:#dc2626">'+totEx.toFixed(0)+' km&sup2;</div><div class="kl">Existing (1-day)</div></div>'
-   +'<div class="kpi" style="border:1.5px solid #ede9fe"><div class="kv" style="color:#7030A0">'+totV4.toFixed(0)+' km&sup2;</div>'
-   +'<div class="kl">Proposed (2-day) <span style="color:'+pctCol+'">('+(pct<0?'':'+')+pct+'%)</span></div></div>';
+    '<div class="kpi" style="border:1.5px solid #fee2e2"><div class="kv" style="color:#dc2626">'+totEx.toFixed(0)+' km²</div>'
+   +'<div class="kl">Existing'+(curA12Zone?(' Z'+curA12Zone):' (total)')+'</div></div>'
+   +'<div class="kpi" style="border:1.5px solid #ede9fe"><div class="kv" style="color:#7030A0">'+totV4.toFixed(0)+' km²</div>'
+   +'<div class="kl">Proposed'+(curA12Zone?(' Z'+curA12Zone):' (total)')+' <span style="color:'+pctCol+'">('+(pct<0?'':'+')+pct+'%)</span></div></div>';
 
+  // Bar chart (always show all 6 zones; highlight selected)
   const maxV=Math.max(...zones.map(z=>Math.max(z.v4_area,z.ex_area)),1);
   const barH=70;
   document.getElementById('p12-chart').innerHTML='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;align-items:end">'
-    +zones.map((z,i)=>{
-      const col=_A12_ZONE_COLORS[i];
+    +zones.map((z)=>{
+      const col=_A12_ZONE_COLORS[z.zone-1];
       const eV=z.ex_area,pV=z.v4_area;
       const eH=Math.max(3,Math.round(eV/maxV*barH));
       const pH=Math.max(3,Math.round(pV/maxV*barH));
       const delta=eV>0?Math.round((pV-eV)/eV*100):0;
       const dc=delta<0?'#16a34a':'#dc2626';
-      return '<div style="text-align:center">'
+      const dim=curA12Zone!==0&&curA12Zone!==z.zone?'opacity:0.3;':'';
+      return '<div style="text-align:center;cursor:pointer;'+dim+'" onclick="setA12Zone('+(curA12Zone===z.zone?0:z.zone)+')">'
         +'<div style="font-size:9px;font-weight:700;color:#6b7280;margin-bottom:2px">'+eV.toFixed(0)+'</div>'
         +'<div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:'+barH+'px">'
-          +'<div style="width:16px;height:'+eH+'px;background:#fca5a5;border-radius:2px 2px 0 0" title="Ex Day '+z.zone+'"></div>'
-          +'<div style="width:16px;height:'+pH+'px;background:'+col+';border-radius:2px 2px 0 0" title="V4 Zone '+z.zone+'"></div>'
+          +'<div style="width:16px;height:'+eH+'px;background:#fca5a5;border-radius:2px 2px 0 0"></div>'
+          +'<div style="width:16px;height:'+pH+'px;background:'+col+';border-radius:2px 2px 0 0"></div>'
         +'</div>'
         +'<div style="font-size:9px;font-weight:700;color:#7030A0;margin-top:2px">'+pV.toFixed(0)+'</div>'
         +'<div style="font-size:9px;color:'+dc+';font-weight:700">'+(delta<0?'':'+')+delta+'%</div>'
@@ -3427,7 +3476,7 @@ function renderArea12(){
         +'<div style="font-size:9px;color:#9ca3af">D'+z.group_a_day+'+'+z.group_b_day+'</div>'
         +'</div>';
     }).join('')+'</div>'
-    +'<div style="font-size:10px;color:#9ca3af;margin-top:8px">&#9632; Ex=red (1-day) &nbsp;&#9632; Prop=zone color (2-day bundled) &nbsp;% = change</div>';
+    +'<div style="font-size:10px;color:#9ca3af;margin-top:6px">&#9632; Ex (red) &nbsp;&#9632; Prop (zone color) &nbsp;% = change &nbsp;□― = zone boundary (dashed)</div>';
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────────────────────────
