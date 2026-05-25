@@ -2446,17 +2446,22 @@ function renderPanel2(){
     const ds=RS_DIST_STATS[String(rs.idx)];
     let distLine='';
     if(ds){
-      const exV=ds.ex!=null?ds.ex.toFixed(2)+' km':'&mdash;';
-      if(isProposed){
-        const propV=ds.prop!=null?ds.prop.toFixed(2)+' km':'&mdash;';
-        const delta=(ds.ex!=null&&ds.prop!=null)?ds.prop-ds.ex:null;
-        const dStr=delta!=null?(delta>=0?'+':'')+delta.toFixed(2)+' km':'';
-        const dCol=delta!=null?(delta<0?'#16a34a':'#dc2626'):'#9ca3af';
-        distLine='<div style="font-size:9px;color:#9ca3af;margin-left:14px">dist: '+exV+' &rarr; '+propV
-          +(dStr?'<span style="color:'+dCol+'"> ('+dStr+')</span>':'')+'</div>';
-      } else {
-        distLine='<div style="font-size:9px;color:#9ca3af;margin-left:14px">avg dist: '+exV+'</div>';
+      function _distRow(exV2,propV2,label){
+        if(isProposed){
+          const d=(exV2!=null&&propV2!=null)?propV2-exV2:null;
+          const dStr=d!=null?(d>=0?'+':'')+d.toFixed(2)+' km':'';
+          const dCol=d!=null?(d<0?'#16a34a':'#dc2626'):'#9ca3af';
+          return'<div style="font-size:9px;color:#9ca3af;margin-left:14px">'+label+': '
+            +(exV2!=null?exV2.toFixed(2)+' km':'&mdash;')+' &rarr; '
+            +(propV2!=null?propV2.toFixed(2)+' km':'&mdash;')
+            +(dStr?'<span style="color:'+dCol+'"> ('+dStr+')</span>':'')+'</div>';
+        }else{
+          return'<div style="font-size:9px;color:#9ca3af;margin-left:14px">'+label+': '
+            +(exV2!=null?exV2.toFixed(2)+' km':'&mdash;')+'</div>';
+        }
       }
+      distLine=_distRow(ds.ex,ds.prop,'dist');
+      if(ds.ex_wt!=null||ds.prop_wt!=null)distLine+=_distRow(ds.ex_wt,ds.prop_wt,'wt dist');
     }
     return'<tr style="cursor:pointer;'+(isSel?'background:#eff6ff;':'')+'" '
      +'onclick="toggleRS2('+rs.idx+')">'
@@ -3099,11 +3104,11 @@ function buildBeatChips(){
     const dseHtml=allDseRow+visibleDses.map(d=>{
       const chk=(!curBeatDSEsNone&&curBeatDSEs.size===0)||curBeatDSEs.has(d.name);
       const plgs=_EX390_DSE_PLGS[d.name]||new Set();
-      const tags=colorBy==='plg'?[...plgs].map(pn=>{
+      const tags=[...plgs].map(pn=>{
         const pi=PLG_INFO.find(p=>p.name===pn);
-        const c=pi?.color||'#6b7280';
+        const c=colorBy==='plg'?(pi?.color||'#6b7280'):'#9ca3af';
         return'<span class="dse-plg-tag" style="background:'+c+'22;color:'+c+';border:1px solid '+c+'44">'+pn+'</span>';
-      }).join(''):'';
+      }).join('');
       return'<div class="dse-item" data-n="'+d.name+'" onclick="p5ToggleDSE(this.dataset.n)">'
         +'<div class="dse-cb'+(chk?' on':'')+'"></div>'
         +'<span class="dse-label">'+d.name+'</span>'
