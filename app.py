@@ -22,21 +22,26 @@ footer                              { display:none !important; }
 section[data-testid="stSidebar"]   { display:none !important; }
 .block-container                    { padding:0 !important; max-width:100% !important; }
 [data-testid="stAppViewContainer"] { padding:0 !important; background:#0a1929 !important; }
-[data-testid="stCustomComponentV1"]{
+[data-testid="stMain"]             { padding:0 !important; }
+[data-testid="stMainBlockContainer"]{ padding:0 !important; }
+[data-testid="stElementContainer"] { padding:0 !important; }
+[data-testid="stIFrame"]{
     position:fixed !important; top:0; left:0;
-    width:100vw !important; height:100vh !important; z-index:9999;
-}
-[data-testid="stCustomComponentV1"] iframe{
     width:100vw !important; height:100vh !important;
-    border:none !important; display:block !important;
+    border:none !important; display:block !important; z-index:9999;
 }
 </style>
 <script>
 (function(){
   function fix(){
-    document.querySelectorAll('[data-testid="stCustomComponentV1"] iframe').forEach(function(f){
-      f.style.setProperty('height','100vh','important');
+    document.querySelectorAll('[data-testid="stIFrame"]').forEach(function(f){
+      f.style.setProperty('position','fixed','important');
+      f.style.setProperty('top','0','important');
+      f.style.setProperty('left','0','important');
       f.style.setProperty('width','100vw','important');
+      f.style.setProperty('height','100vh','important');
+      f.style.setProperty('z-index','9999','important');
+      f.style.setProperty('border','none','important');
     });
   }
   fix();
