@@ -41,6 +41,7 @@ All load functions cache to `data/*.json`. Source files are on Google Drive (not
 | `beats_390.json` / `beats_391.json` | Beats Excel changes |
 | `ex_beats_390.json` / `ex_beats_391.json` | Existing beats data changes |
 | `benefit_stats.json` | Hardcoded — edit directly in `load_benefits()` |
+| `rs_overlap.json` | RS hull data changes (computed from `hull_rs_ex` / `hull_rs_prop` via Shapely) |
 
 ## JS data structures (in `DATA_BLOCK`)
 - `OUTLETS[i]` = `[lat, lon, rs_idx, new_rs_idx, outlet_name, classification, moc_2dp, primarychannel, channel_program]`
@@ -49,23 +50,30 @@ All load functions cache to `data/*.json`. Source files are on Google Drive (not
 - `DSE_INFO[i]` = `{idx, name}` (S001–S033 for 218390)
 - `EXCL_OUTLETS[i]` = `[lat, lon, outlet_name, rs_code, rs_lat, rs_lon, dist_km]`
 - `HULL_V3_390[i]` / `HULL_EX_390[i]` = `{plg, dse, market, points:[[lat,lon],...]}` (convex hulls)
+- `HULL_RS_EX[i]` / `HULL_RS_PROP[i]` = `{rs_idx, points:[[lat,lon],...]}` (RS-level distributor hulls)
+- `RS_OVERLAP` = `{General: {ex, prop}, Pharma: {ex, prop}}` — overlap % computed via Shapely
 - `DSE_BALANCE_390[i]` = per-DSE balance metrics
 - `CONFLICTS_EX_390[i]` / `CONFLICTS_V3_390[i]` = outlet-day conflict pairs
 
-## Slides (10 total, 0-indexed)
-| # | Title |
-|---|-------|
-| 0 | Title / summary stats |
-| 1 | Outlets & Distributors |
-| 2 | Territory Overlaps |
-| 3 | Duplicate Outlets |
-| 4 | High Density Clusters |
-| 5 | Proposed Beats |
-| 6 | Delivery Performance |
-| 7 | Benefit: Same-Day Conflicts |
-| 8 | Benefit: PLG Purity |
-| 9 | Benefit: Territory Compactness (Jaccard) |
-| 10 | Benefit: DSE Balance |
+## Slides (12 total, nav position 0-indexed)
+`TOTAL_SLIDES=12`, `DARK_SLIDES=new Set([0,1,6,11])`
+
+| Nav pos | Slide ID | Title | Label |
+|---|---|---|---|
+| 0 | slide-0 | Title / summary | (no label, dark) |
+| 1 | slide-summary | Key Benefits | 1/12, dark |
+| 2 | slide-3 | Duplicate Outlets | 2/12 |
+| 3 | slide-4 | High Density Clusters | 3/12 |
+| 4 | slide-1 | Outlets & Distributors | 4/12 |
+| 5 | slide-2 | Territory Overlaps | 5/12 |
+| 6 | slide-11 | PLG Rules | 6/12, dark |
+| 7 | slide-5 | Proposed Beats | 7/12 |
+| 8 | slide-9 | Beat Territories & Overlap | 8/12 |
+| 9 | slide-12 | Beat Area — Delivery Zone | 9/12 |
+| 10 | slide-7 | Benefit: Same-Day Conflicts | 10/12 |
+| 11 | slide-8 | Benefit: PLG Purity | 11/12, dark |
+
+Slides removed: slide-6 (Delivery Beats) and slide-10 (Beat Balance / DSE Balance).
 
 ## Architecture gotchas
 
@@ -78,6 +86,16 @@ All load functions cache to `data/*.json`. Source files are on Google Drive (not
 **Multi-line arrow functions inside `.map()` callbacks in string literals** can trigger ASI-related parse errors in srcdoc. Keep them on a single line.
 
 **`delivery_data.json` is ~5.7 MB** — the total generated HTML is ~13.7 MB. This is expected.
+
+**OFM PLG name mismatch:** `plg_info` chip names use underscores (`D_OFM`, `F+N_OFM`) but `beat_distances.json` uses hyphens (`D-OFM`, `F-OFM`). The `_CHIP_TO_DIST` map in `renderBeatDists9()` handles the translation. Do not "fix" either source — the mapping is intentional.
+
+**Territory Overlaps slide:** shows RS distributor-level overlap (not PLG-level). Overlap = `(sum of individual hull areas − union area) / union area × 100`. Convex hulls default ON, outlet dots default OFF. Never rename "existing/proposed" to "before/after".
+
+**Beat Territories distances:** `chain_km` = in-beat route distance per market day (from `Road Dist (km)` in Excel). Not a round trip from distributor. Label as "In-Beat Route Distance (km/market day)".
+
+**Beat Area bundling block:** uses Day N / Day N+1 / day N+2 (not "Day b"). Static HTML — does not change with view state.
+
+**`shapely` is a required dependency** — add to `requirements.txt` whenever `load_rs_overlap()` is present. Streamlit Cloud will fail with `ModuleNotFoundError` without it.
 
 ## Canvas 2D overlay pattern
 ```javascript
