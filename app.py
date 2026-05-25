@@ -27,7 +27,7 @@ section[data-testid="stSidebar"]   { display:none !important; }
     width:100vw !important; height:100vh !important; z-index:9999;
 }
 [data-testid="stCustomComponentV1"] iframe{
-    width:100% !important; height:100% !important;
+    width:100vw !important; height:100vh !important;
     border:none !important; display:block !important;
 }
 </style>
