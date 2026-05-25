@@ -364,26 +364,26 @@ def load_beats():
         # New SBX PLGs
         "D","D+F","D+F+N","F","F+N","N","PP","PP-A","PP-B",
         # OFM specialists (V3 then V4 naming; deduped)
-        "D-OFM","D_OFM","F-OFM","FN_OFM","N_OFM",
+        "D-OFM","D_OFM","F-OFM","F+N_OFM","N_OFM",
         "PP-A_OFM","PP-B_OFM",
         # UNIGLOW specialists
         "D+F_UNIGLOW","PP-A_UNIGLOW","PP-B_UNIGLOW",
         # Old RS (existing) PLG names
         "DETS","FNB","NUTS","D+F+NUTS","FNB+NUTS","HUL+NUTS",
     ]
-    _OFM_PLGS = {"D-OFM","D_OFM","F-OFM","FN_OFM","N_OFM","PP-A_OFM","PP-B_OFM"}
+    _OFM_PLGS = {"D-OFM","D_OFM","F-OFM","F+N_OFM","N_OFM","PP-A_OFM","PP-B_OFM"}
     _UNI_PLGS = {"D+F_UNIGLOW","PP-A_UNIGLOW","PP-B_UNIGLOW"}
     _EX_PLGS  = {"DETS","FNB","NUTS","D+F+NUTS","FNB+NUTS","HUL+NUTS"}
     PLG_COLORS = {
         "D":"#2563eb","D+F":"#0891b2","D+F+N":"#0d9488",
         "F":"#16a34a","F+N":"#65a30d","N":"#ca8a04",
         "PP":"#dc2626","PP-A":"#ea580c","PP-B":"#9333ea",
-        # Specialist Sub PLGs (V3)
-        "D-OFM":"#7c3aed","F-OFM":"#059669","N_OFM":"#b45309",
-        "D+F_UNIGLOW":"#0369a1","PP-A_OFM":"#be185d","PP-A_UNIGLOW":"#9333ea",
-        "PP-B_OFM":"#c2410c","PP-B_UNIGLOW":"#7c3aed",
+        # Specialist Sub PLGs (V3) — use same color as base PLG
+        "D-OFM":"#2563eb","F-OFM":"#16a34a","N_OFM":"#ca8a04",
+        "D+F_UNIGLOW":"#0891b2","PP-A_OFM":"#ea580c","PP-A_UNIGLOW":"#ea580c",
+        "PP-B_OFM":"#9333ea","PP-B_UNIGLOW":"#9333ea",
         # Specialist Sub PLGs (V4)
-        "D_OFM":"#7c3aed","FN_OFM":"#059669",
+        "D_OFM":"#2563eb","F+N_OFM":"#65a30d",
         # Existing beat PLG names
         "D+F+NUTS":"#0891b2","DETS":"#2563eb","FNB":"#16a34a",
         "FNB+NUTS":"#65a30d","HUL+NUTS":"#0d9488","NUTS":"#ca8a04",
@@ -1050,6 +1050,15 @@ html,body{width:100%;height:100%;overflow:hidden;
 .plg-radio.on{border-color:#1565C0;background:#1565C0;}
 .plg-radio.on::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   width:5px;height:5px;border-radius:50%;background:white;}
+.plg-cb{width:14px;height:14px;border:2px solid #d1d5db;border-radius:3px;flex-shrink:0;
+  position:relative;transition:all .15s;cursor:pointer;}
+.plg-cb.on{border-color:#1565C0;background:#1565C0;}
+.plg-cb.on::after{content:'✓';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  color:white;font-size:9px;font-weight:900;line-height:1;}
+.plg-cb.partial{border-color:#1565C0;background:#1565C0;}
+.plg-cb.partial::after{content:'–';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  color:white;font-size:11px;font-weight:900;line-height:1;}
+.dse-plg-tag{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600;white-space:nowrap;}
 .plg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 .plg-name{flex:1;font-size:12px;font-weight:700;color:#111827;}
 .plg-cnt{font-size:10px;color:#9ca3af;}
@@ -1063,6 +1072,9 @@ html,body{width:100%;height:100%;overflow:hidden;
 .dse-cb.on{border-color:#1565C0;background:#1565C0;}
 .dse-cb.on::after{content:'✓';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   color:white;font-size:9px;font-weight:900;line-height:1;}
+.dse-cb.partial{border-color:#1565C0;background:#1565C0;}
+.dse-cb.partial::after{content:'–';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  color:white;font-size:11px;font-weight:900;line-height:1;}
 .dse-label{font-size:11px;color:#374151;}
 .plg-all-row{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;
   border:1.5px solid #e5e7eb;border-radius:8px;margin-bottom:6px;background:white;transition:background .1s;}
@@ -1364,12 +1376,12 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 </div>
 
 <!-- SLIDE 5 · BEATS -->
-<div class="slide" id="slide-5">
+<div class="slide" id="slide-5" style="background:white">
   <div class="map-wrap" id="map-5"></div>
   <div class="page-lbl">5 / 13 &middot; Beats &middot; RS 218390 &amp; 218391</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
-  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;">
-    <div style="padding:16px 18px 10px;flex-shrink:0;border-bottom:1px solid #e5e7eb;overflow-y:auto;max-height:70vh">
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
+    <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
       <h2 style="margin-bottom:8px">Beats</h2>
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">RS</div>
       <div class="toggle-row" style="margin-bottom:10px">
@@ -1382,21 +1394,31 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
         <button class="t-btn"        id="p5-vexisting" onclick="setBeatsView('existing')">Existing</button>
       </div>
       <div class="kpi-r" id="p5-kpis"></div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 6px">Filter by PLG &amp; Salesman</div>
-      <div id="p5-plg-tree"></div>
+      <div id="p5-colorby-section" style="display:none;margin:0 0 8px">
+        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Color by</div>
+        <div class="toggle-row" style="margin-bottom:0">
+          <button class="t-btn active" id="p5-cb-plg" onclick="setColorBy('plg')">PLG</button>
+          <button class="t-btn" id="p5-cb-day" onclick="setColorBy('day')">Day</button>
+        </div>
+      </div>
       <div id="p5-day-section">
         <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by Day</div>
         <div class="filter-row" id="p5-day-chips" style="flex-wrap:wrap;gap:4px"></div>
       </div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Legend</div>
-      <div id="p5-legend"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 5px" id="p5-filter-lbl">Filter by PLG &amp; Salesman</div>
+      <div id="p5-plg-tree"></div>
+      <div id="p5-dse-section" style="display:none">
+        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Salesman</div>
+        <div id="p5-dse-list"></div>
+      </div>
       <div style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px">
         <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Download</div>
         <button class="dl-btn" id="p5-v4-dl" onclick="downloadV4Beats()" style="background:#7030A0">
           &#8595; Download V4 Sales Beat CSV</button>
+        <button class="dl-btn" id="p5-ex-dl" onclick="p5DownloadExisting()" style="background:#0369a1;display:none;margin-top:6px">
+          &#8595; Download Existing Beats CSV</button>
       </div>
     </div>
-    <div style="flex:1;min-height:0"></div>
   </div>
 </div>
 
@@ -2201,6 +2223,27 @@ function downloadV4Beats(){
   document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 
+function p5DownloadExisting(){
+  const MKT_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dseInfo=DSE_INFO;
+  const rows=EX_BEATS_390.filter(bt=>{
+    if(curBeatDSEsNone)return false;
+    if(curBeatPLGs.size>0&&!curBeatPLGs.has(PLG_INFO[bt[2]]?.name))return false;
+    if(curBeatDSEs.size>0&&!curBeatDSEs.has(dseInfo[bt[4]]?.name))return false;
+    return true;
+  });
+  const hdr=['lat','lon','plg','day','dse'];
+  const lines=[hdr.join(','),...rows.map(bt=>{
+    const plg=PLG_INFO[bt[2]]?.name||'';
+    const day=bt[3]>=0&&bt[3]<6?MKT_DAYS[bt[3]]:'';
+    const dse=dseInfo[bt[4]]?.name||'';
+    return[bt[0],bt[1],'"'+plg+'"','"'+day+'"','"'+dse+'"'].join(',');
+  })];
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([lines.join('\\r\\n')],{type:'text/csv;charset=utf-8;'}));
+  a.download='existing_beats_218390.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
 function downloadProposed(){
   const hdr=['Outlet Code','Outlet Name','Old RS Code','Old RS Name','New RS Code','New RS Name',
              'primarychannel','Classification','Channel Program','MOC'];
@@ -2748,33 +2791,35 @@ function renderPanel4(){
 }
 
 // ── SLIDE 5 · BEATS ──────────────────────────────────────────────────────────
-let curBeatsRS='218390', curBeatsView='proposed', curBeatPLG='ALL', curBeatDay='ALL';
-let curBeatDSEs=new Set();   // empty = all DSEs; populated when PLG is selected
-let p5ExpandedPLG=null;      // which PLG accordion row is open
-const _SPEC_PLG_NAMES=new Set(['D-OFM','D_OFM','F-OFM','FN_OFM','N_OFM','PP-A_OFM','PP-B_OFM','D+F_UNIGLOW','PP-A_UNIGLOW','PP-B_UNIGLOW']);
+let curBeatsRS='218390', curBeatsView='proposed', curBeatDay='ALL';
+let curBeatPLGs=new Set();     // empty+!PLGsNone=All; non-empty=specific set
+let curBeatPLGsNone=false;     // proposed only: true=no PLGs shown (deselect all state)
+let curBeatDSEs=new Set();     // empty+!DSEsNone=All; non-empty=specific set (existing only)
+let curBeatDSEsNone=false;     // existing only: true=no salesmen shown
+let colorBy='plg';             // 'plg' or 'day'
+let p5ExpandedPLGs=new Set();  // PLG names with open accordion
+const _SPEC_PLG_NAMES=new Set(['D-OFM','D_OFM','F-OFM','F+N_OFM','N_OFM','PP-A_OFM','PP-B_OFM','D+F_UNIGLOW','PP-A_UNIGLOW','PP-B_UNIGLOW']);
 
 function _getBeats5(){
   if(curBeatsRS==='218390')return curBeatsView==='proposed'?BEATS_390:EX_BEATS_390;
   return curBeatsView==='proposed'?BEATS_391:EX_BEATS_391;
 }
-function _getBgBeats5(){
-  return curBeatsRS==='218390'?BEATS_391:BEATS_390;
-}
-function _getDseInfo5(){
-  return(curBeatsRS==='218391'&&curBeatsView==='existing')?DSE_INFO_391:DSE_INFO;
-}
+function _getBgBeats5(){return curBeatsRS==='218390'?BEATS_391:BEATS_390;}
+function _getDseInfo5(){return(curBeatsRS==='218391'&&curBeatsView==='existing')?DSE_INFO_391:DSE_INFO;}
 function _hasDay5(){return curBeatsRS==='218390'||(curBeatsRS==='218391'&&curBeatsView==='existing');}
 
-// Return DSEs (names) for a given PLG name in current beats
-function _plgDseNames(plgName){
-  const beats=_getBeats5(); const dseInfo=_getDseInfo5();
-  const plgIdx=PLG_INFO.findIndex(p=>p.name===plgName);
-  const idxSet=new Set(beats.filter(bt=>bt[2]===plgIdx).map(bt=>bt[4]));
-  return dseInfo.filter((_,i)=>idxSet.has(i)).map(d=>d.name);
-}
+// Pre-compute DSE name -> Set of PLG names for existing 218390
+const _EX390_DSE_PLGS=(()=>{
+  const m={};
+  EX_BEATS_390.forEach(bt=>{
+    const dn=DSE_INFO[bt[4]]?.name; const pn=PLG_INFO[bt[2]]?.name;
+    if(dn&&pn){if(!m[dn])m[dn]=new Set();m[dn].add(pn);}
+  });
+  return m;
+})();
 
 function setBeatsRS(rs){
-  curBeatsRS=rs;curBeatPLG='ALL';curBeatDay='ALL';curBeatDSEs=new Set();p5ExpandedPLG=null;
+  curBeatsRS=rs;curBeatDay='ALL';curBeatPLGs=new Set();curBeatPLGsNone=false;curBeatDSEs=new Set();curBeatDSEsNone=false;p5ExpandedPLGs=new Set();
   document.getElementById('p5-rs390').classList.toggle('active',rs==='218390');
   document.getElementById('p5-rs391').classList.toggle('active',rs==='218391');
   buildBeatChips();
@@ -2782,7 +2827,7 @@ function setBeatsRS(rs){
   renderPanel5();
 }
 function setBeatsView(v){
-  curBeatsView=v;curBeatPLG='ALL';curBeatDay='ALL';curBeatDSEs=new Set();p5ExpandedPLG=null;
+  curBeatsView=v;curBeatDay='ALL';curBeatPLGs=new Set();curBeatPLGsNone=false;curBeatDSEs=new Set();curBeatDSEsNone=false;p5ExpandedPLGs=new Set();
   document.getElementById('p5-vproposed').classList.toggle('active',v==='proposed');
   document.getElementById('p5-vexisting').classList.toggle('active',v==='existing');
   buildBeatChips();
@@ -2815,19 +2860,25 @@ function initSlide5(){
       const hasDay=_hasDay5();
       const dayF=(!hasDay||curBeatDay==='ALL')?null:parseInt(curBeatDay);
       const dseInfo=_getDseInfo5();
-      const plgF=curBeatPLG==='ALL'?null:PLG_INFO.findIndex(p=>p.name===curBeatPLG);
+      const isEx390draw=curBeatsRS==='218390'&&curBeatsView==='existing';
       const rows=_getBeats5().filter(bt=>{
-        if(plgF!==null&&bt[2]!==plgF)return false;
-        if(plgF===null&&_SPEC_PLG_NAMES.has(PLG_INFO[bt[2]]?.name))return false;
+        if(curBeatsView==='proposed'&&curBeatPLGsNone)return false;
+        if(isEx390draw&&curBeatDSEsNone)return false;
+        if(curBeatPLGs.size>0){
+          if(!curBeatPLGs.has(PLG_INFO[bt[2]]?.name))return false;
+          if(curBeatsView==='proposed'&&curBeatDSEs.size>0&&!curBeatDSEs.has(dseInfo[bt[4]]?.name))return false;
+        }else{
+          if(curBeatsView==='proposed'&&_SPEC_PLG_NAMES.has(PLG_INFO[bt[2]]?.name))return false;
+          if(curBeatsView==='proposed'&&curBeatDSEs.size>0&&!curBeatDSEs.has(dseInfo[bt[4]]?.name))return false;
+          if(isEx390draw&&curBeatDSEs.size>0&&!curBeatDSEs.has(dseInfo[bt[4]]?.name))return false;
+        }
         if(dayF!==null&&bt[3]!==dayF)return false;
-        // DSE multi-select: curBeatDSEs has included DSE names (empty = all)
-        if(curBeatDSEs.size>0&&!curBeatDSEs.has(dseInfo[bt[4]]?.name))return false;
         return true;
       });
       const byCol={};
       rows.forEach(bt=>{
         const pi=PLG_INFO[bt[2]];
-        const col=(curBeatPLG!=='ALL'&&hasDay&&bt[3]>=0)?MKT_COLORS[bt[3]]:(pi?pi.color:'#6b7280');
+        const col=(colorBy==='day'&&hasDay&&bt[3]>=0)?MKT_COLORS[bt[3]]:(pi?pi.color:'#6b7280');
         if(!byCol[col])byCol[col]=[];byCol[col].push(bt);
       });
       ctx5.globalAlpha=0.85;
@@ -2849,6 +2900,127 @@ function initSlide5(){
   renderPanel5();
 }
 
+function setColorBy(v){
+  colorBy=v;
+  document.getElementById('p5-cb-plg').classList.toggle('active',v==='plg');
+  document.getElementById('p5-cb-day').classList.toggle('active',v==='day');
+  buildBeatChips();
+  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
+}
+function _p5PlgDseNames(plgName){
+  const beats=_getBeats5(),dseInfo=_getDseInfo5();
+  const pi=PLG_INFO.findIndex(p=>p.name===plgName);
+  const s=new Set();
+  beats.filter(bt=>bt[2]===pi).forEach(bt=>{const n=dseInfo[bt[4]]?.name;if(n)s.add(n);});
+  return s;
+}
+function p5TogglePLG(plgName){
+  const activePlgNames=new Set(_getBeats5().map(bt=>PLG_INFO[bt[2]]?.name).filter(Boolean));
+  if(curBeatPLGsNone){
+    // None mode → select just this PLG
+    curBeatPLGsNone=false;curBeatPLGs=new Set([plgName]);curBeatDSEs=new Set();
+    _p5PlgDseNames(plgName).forEach(dn=>curBeatDSEs.add(dn));
+  }else if(curBeatPLGs.size===0){
+    // All mode → deselect just this one
+    curBeatPLGs=new Set([...activePlgNames].filter(n=>n!==plgName));
+    curBeatDSEs=new Set();
+    [...curBeatPLGs].forEach(pn=>_p5PlgDseNames(pn).forEach(dn=>curBeatDSEs.add(dn)));
+    if(curBeatPLGs.size===0){curBeatPLGsNone=true;curBeatDSEs=new Set();}
+  }else if(curBeatPLGs.has(plgName)){
+    const dses=_p5PlgDseNames(plgName);
+    curBeatPLGs.delete(plgName);
+    dses.forEach(dn=>{
+      const inOther=[...curBeatPLGs].some(op=>_p5PlgDseNames(op).has(dn));
+      if(!inOther)curBeatDSEs.delete(dn);
+    });
+    if(curBeatPLGs.size===0){curBeatPLGsNone=true;curBeatDSEs=new Set();}
+  }else{
+    curBeatPLGs.add(plgName);
+    _p5PlgDseNames(plgName).forEach(dn=>curBeatDSEs.add(dn));
+    if([...activePlgNames].every(n=>curBeatPLGs.has(n))){curBeatPLGs=new Set();curBeatDSEs=new Set();}
+  }
+  buildBeatChips();
+  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
+}
+function p5ClearPLGs(){
+  if(!curBeatPLGsNone&&curBeatPLGs.size===0){
+    curBeatPLGsNone=true;
+  }else{
+    curBeatPLGsNone=false;curBeatPLGs=new Set();curBeatDSEs=new Set();
+  }
+  buildBeatChips();
+  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
+}
+function p5SetExistingPLG(plgName){
+  curBeatDSEs=new Set();
+  curBeatPLGs=plgName==='ALL'?new Set():new Set([plgName]);
+  buildBeatChips();
+  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
+}
+function p5ToggleExpand(plgName,ev){
+  if(ev)ev.stopPropagation();
+  if(p5ExpandedPLGs.has(plgName))p5ExpandedPLGs.delete(plgName);
+  else p5ExpandedPLGs.add(plgName);
+  buildBeatChips();
+}
+function _ex390VisibleDseNames(){
+  const idxSet=new Set(EX_BEATS_390.map(bt=>bt[4]));
+  return DSE_INFO.filter((d,i)=>{
+    if(!idxSet.has(i))return false;
+    if(curBeatPLGs.size===0)return true;
+    const plgs=_EX390_DSE_PLGS[d.name];if(!plgs)return false;
+    for(const pn of curBeatPLGs)if(plgs.has(pn))return true;
+    return false;
+  }).map(d=>d.name);
+}
+function _p5AllProposedDseNames(){
+  const beats=_getBeats5(),dseInfo=_getDseInfo5();
+  const idxSet=new Set(beats.map(bt=>bt[4]));
+  return dseInfo.filter((_,i)=>idxSet.has(i)).map(d=>d.name);
+}
+function p5ToggleDSE(dseName){
+  const isEx390=curBeatsRS==='218390'&&curBeatsView==='existing';
+  const isProposedAll=curBeatsView==='proposed'&&curBeatPLGs.size===0&&!curBeatPLGsNone;
+  if(isEx390&&curBeatDSEsNone){
+    curBeatDSEsNone=false;curBeatDSEs=new Set([dseName]);
+  }else if(isEx390&&curBeatDSEs.size===0){
+    const all=_ex390VisibleDseNames();
+    curBeatDSEs=new Set(all.filter(n=>n!==dseName));
+    if(curBeatDSEs.size===0)curBeatDSEsNone=true;
+  }else if(isProposedAll&&curBeatDSEs.size===0){
+    const all=_p5AllProposedDseNames();
+    curBeatDSEs=new Set(all.filter(n=>n!==dseName));
+  }else if(curBeatDSEs.has(dseName)){
+    curBeatDSEs.delete(dseName);
+    if(isEx390&&curBeatDSEs.size===0)curBeatDSEsNone=true;
+  }else{
+    curBeatDSEs.add(dseName);
+    if(isEx390){
+      const all=_ex390VisibleDseNames();
+      if(all.every(n=>curBeatDSEs.has(n))){curBeatDSEsNone=false;curBeatDSEs=new Set();}
+    }else if(isProposedAll){
+      const all=_p5AllProposedDseNames();
+      if(all.every(n=>curBeatDSEs.has(n)))curBeatDSEs=new Set();
+    }
+  }
+  buildBeatChips();
+  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
+}
+function p5ResetDSEs(){
+  if(curBeatsView==='proposed'){
+    curBeatDSEs=new Set();
+    [...curBeatPLGs].forEach(pn=>_p5PlgDseNames(pn).forEach(dn=>curBeatDSEs.add(dn)));
+  }else{
+    // Existing: toggle all-on vs all-off
+    if(!curBeatDSEsNone&&curBeatDSEs.size===0){
+      curBeatDSEsNone=true;
+    }else{
+      curBeatDSEsNone=false;curBeatDSEs=new Set();
+    }
+  }
+  buildBeatChips();
+  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
+}
 function _activateChip(selector,key,val,color){
   document.querySelectorAll(selector).forEach(b=>{
     const isA=b.dataset[key]===val;
@@ -2858,28 +3030,9 @@ function _activateChip(selector,key,val,color){
     b.style.borderColor=isA?(color||'#1565C0'):'';
   });
 }
-function setBeatPLG(plg){
-  curBeatPLG=plg;
-  curBeatDSEs=plg==='ALL'?new Set():new Set(_plgDseNames(plg));
-  p5ExpandedPLG=plg==='ALL'?null:plg;
-  buildBeatChips();
-  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
-  renderPanel5();
-}
-function p5ToggleExpand(plgName,ev){
-  if(ev)ev.stopPropagation();
-  p5ExpandedPLG=p5ExpandedPLG===plgName?null:plgName;
-  buildBeatChips();
-}
-function p5ToggleDSE(dseName){
-  if(curBeatDSEs.has(dseName))curBeatDSEs.delete(dseName);
-  else curBeatDSEs.add(dseName);
-  buildBeatChips();
-  if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
-}
 function setBeatDay(day){
   curBeatDay=day;
-  _activateChip('[data-day]','day',day,null);
+  buildBeatChips();
   if(MAPS['map-5']&&MAPS['map-5']._draw)MAPS['map-5']._draw();
 }
 
@@ -2890,13 +3043,15 @@ function renderPanel5(){
     '<div class="kpi"><div class="kv">'+fN(beats.length)+'</div><div class="kl">'+rsLabel+'</div></div>'
    +'<div class="kpi"><div class="kv">'+PLG_INFO.length+'</div><div class="kl">PLGs</div></div>';
   const hasDay=_hasDay5();
-  const legendHTML=(curBeatPLG==='ALL'||!hasDay)
-    ?PLG_INFO.map(p=>'<div class="rs-item"><div class="rs-dot" style="background:'+p.color+'"></div>'
-      +'<span class="rs-name">'+p.name+'</span></div>').join('')
-    :MKT_COLORS.map((c,i)=>'<div class="rs-item"><div class="rs-dot" style="background:'+c+'"></div>'
-      +'<span class="rs-name">Market '+(i+1)+' &mdash; '+MKT_DAYS[i]+'</span></div>').join('');
-  document.getElementById('p5-legend').innerHTML=legendHTML;
+  const isEx390=curBeatsRS==='218390'&&curBeatsView==='existing';
+  const fl=document.getElementById('p5-filter-lbl');
+  if(fl)fl.textContent=isEx390?'Filter by PLG':'Filter by PLG & Salesman';
+  const ds=document.getElementById('p5-dse-section');
+  if(ds)ds.style.display=isEx390?'':'none';
+  document.getElementById('p5-colorby-section').style.display=hasDay?'':'none';
   document.getElementById('p5-day-section').style.display=hasDay?'':'none';
+  const exDl=document.getElementById('p5-ex-dl');
+  if(exDl)exDl.style.display=isEx390?'':'none';
 }
 
 function buildBeatChips(){
@@ -2904,71 +3059,125 @@ function buildBeatChips(){
   const dseInfo=_getDseInfo5();
   const activePlgIdxSet=new Set(beats.map(bt=>bt[2]));
   const activePlgs=PLG_INFO.filter(p=>activePlgIdxSet.has(p.idx));
-  const normalPlgs=activePlgs.filter(p=>p.group==='normal'||p.group==='existing');
-  const ofmPlgs=activePlgs.filter(p=>p.group==='ofm');
-  const uniPlgs=activePlgs.filter(p=>p.group==='uniglow');
+  const isEx390=curBeatsRS==='218390'&&curBeatsView==='existing';
 
-  function plgDseNamesLocal(plgName){
-    const plgIdx=PLG_INFO.findIndex(p=>p.name===plgName);
-    const idxSet=new Set(beats.filter(bt=>bt[2]===plgIdx).map(bt=>bt[4]));
-    return dseInfo.filter((_,i)=>idxSet.has(i));
-  }
-  function makePlgItem(p){
-    const isSel=curBeatPLG===p.name;
-    const isOpen=p5ExpandedPLG===p.name;
-    const col=p.color||'#1565C0';
-    const dsesForPlg=plgDseNamesLocal(p.name);
-    const cnt=dsesForPlg.length;
-    const checkedN=isSel?curBeatDSEs.size:0;
-    const cntLabel=isSel&&checkedN<cnt?checkedN+'/'+cnt+' DSEs':cnt+' DSEs';
-    const dseHtml=dsesForPlg.map(d=>{
-      const chk=!isSel||curBeatDSEs.has(d.name);
+  if(isEx390){
+    // Existing 218390: PLG filter chips + flat DSE list
+    const allSel=curBeatPLGs.size===0;
+    let html='<div class="filter-row" style="flex-wrap:wrap;gap:4px;margin-bottom:8px">';
+    html+='<button class="beat-chip'+(allSel?' active':'')+'" data-n="ALL" '
+      +'style="'+(allSel?'background:#1565C0;color:white;border-color:#1565C0;':'')+'" '
+      +'onclick="p5SetExistingPLG(this.dataset.n)">All</button>';
+    activePlgs.forEach(p=>{
+      const isSel=curBeatPLGs.has(p.name);
+      const col=p.color||'#1565C0';
+      html+='<button class="beat-chip'+(isSel?' active':'')+'" data-n="'+p.name+'" '
+        +'style="'+(isSel?'background:'+col+';color:white;border-color:'+col+';':'')+'" '
+        +'onclick="p5SetExistingPLG(this.dataset.n)">'+p.name+'</button>';
+    });
+    html+='</div>';
+    const treeEl=document.getElementById('p5-plg-tree');
+    if(treeEl)treeEl.innerHTML=html;
+
+    // Flat DSE list filtered by selected PLG chip
+    const activeDseIdxSet=new Set(EX_BEATS_390.map(bt=>bt[4]));
+    const visibleDses=DSE_INFO.filter((d,i)=>{
+      if(!activeDseIdxSet.has(i))return false;
+      if(curBeatPLGs.size===0)return true;
+      const plgs=_EX390_DSE_PLGS[d.name];
+      if(!plgs)return false;
+      for(const pn of curBeatPLGs)if(plgs.has(pn))return true;
+      return false;
+    });
+    const exAllDseOn=!curBeatDSEsNone&&curBeatDSEs.size===0;
+    const exAllDsePartial=!curBeatDSEsNone&&curBeatDSEs.size>0;
+    const exDseCb=exAllDseOn?'on':exAllDsePartial?'partial':'';
+    const allDseRow='<div class="dse-item" onclick="p5ResetDSEs()" style="padding:3px 0;cursor:pointer;">'
+      +'<div class="dse-cb '+exDseCb+'"></div>'
+      +'<span class="dse-label" style="font-weight:700;color:'+(exAllDseOn||exAllDsePartial?'#1565C0':'#374151')+'">All Salesmen</span>'
+      +'</div>';
+    const dseHtml=allDseRow+visibleDses.map(d=>{
+      const chk=(!curBeatDSEsNone&&curBeatDSEs.size===0)||curBeatDSEs.has(d.name);
+      const plgs=_EX390_DSE_PLGS[d.name]||new Set();
+      const tags=colorBy==='plg'?[...plgs].map(pn=>{
+        const pi=PLG_INFO.find(p=>p.name===pn);
+        const c=pi?.color||'#6b7280';
+        return'<span class="dse-plg-tag" style="background:'+c+'22;color:'+c+';border:1px solid '+c+'44">'+pn+'</span>';
+      }).join(''):'';
       return'<div class="dse-item" data-n="'+d.name+'" onclick="p5ToggleDSE(this.dataset.n)">'
         +'<div class="dse-cb'+(chk?' on':'')+'"></div>'
-        +'<span class="dse-label">'+d.name+'</span></div>';
+        +'<span class="dse-label">'+d.name+'</span>'
+        +(tags?'<span style="margin-left:4px;display:flex;gap:3px;flex-wrap:wrap;flex:1">'+tags+'</span>':'')
+        +'</div>';
     }).join('');
-    return'<div class="plg-item'+(isSel?' sel':'')+'">'
-      +'<div class="plg-row" data-n="'+p.name+'" onclick="setBeatPLG(this.dataset.n)">'
-      +'<div class="plg-radio'+(isSel?' on':'')+'"></div>'
-      +'<div class="plg-dot" style="background:'+col+'"></div>'
-      +'<span class="plg-name">'+p.name+'</span>'
-      +'<span class="plg-cnt">'+cntLabel+'</span>'
-      +(cnt>0?'<span class="plg-chev'+(isOpen?' open':'')+'" data-n="'+p.name+'" onclick="p5ToggleExpand(this.dataset.n,event)">&#9660;</span>':'')
-      +'</div>'
-      +(cnt>0?'<div class="dse-list'+(isOpen?' open':'')+'">'+(isSel?dseHtml:'<div style="color:#9ca3af;font-size:11px">Select PLG to see DSEs</div>')+'</div>':'')
+    const dseListEl=document.getElementById('p5-dse-list');
+    if(dseListEl)dseListEl.innerHTML=dseHtml||'<span style="color:#9ca3af;font-size:11px">No salesmen</span>';
+  }else{
+    // Proposed / 391: PLG accordion tree with checkboxes
+    const normalPlgs=activePlgs.filter(p=>p.group==='normal'||p.group==='existing');
+    const ofmPlgs=activePlgs.filter(p=>p.group==='ofm');
+    const uniPlgs=activePlgs.filter(p=>p.group==='uniglow');
+
+    function plgDses(plgName){
+      const plgIdx=PLG_INFO.findIndex(p=>p.name===plgName);
+      const idxSet=new Set(beats.filter(bt=>bt[2]===plgIdx).map(bt=>bt[4]));
+      return dseInfo.filter((_,i)=>idxSet.has(i));
+    }
+    function makePlgItem(p){
+      const isChk=curBeatPLGsNone?false:(curBeatPLGs.size===0||curBeatPLGs.has(p.name));
+      const isOpen=p5ExpandedPLGs.has(p.name);
+      const col=p.color||'#1565C0';
+      const dses=plgDses(p.name);
+      const cnt=dses.length;
+      const allProposedMode=curBeatPLGs.size===0&&!curBeatPLGsNone;
+      const dseHtml=isChk?dses.map(d=>{
+        const chk=allProposedMode?(curBeatDSEs.size===0||curBeatDSEs.has(d.name)):curBeatDSEs.has(d.name);
+        return'<div class="dse-item" data-n="'+d.name+'" onclick="p5ToggleDSE(this.dataset.n)">'
+          +'<div class="dse-cb'+(chk?' on':'')+'"></div>'
+          +'<span class="dse-label">'+d.name+'</span></div>';
+      }).join(''):'';
+      const allDseNames=dses.map(d=>d.name);
+      const chkCount=allProposedMode&&curBeatDSEs.size===0?allDseNames.length:allDseNames.filter(n=>curBeatDSEs.has(n)).length;
+      const plgCbClass=!isChk?'':(chkCount===allDseNames.length||allDseNames.length===0?'on':'partial');
+      const dotHtml=colorBy==='plg'?'<div class="plg-dot" style="background:'+col+'"></div>':'';
+      return'<div class="plg-item'+(isChk?' sel':'')+'">'
+        +'<div class="plg-row">'
+        +'<div class="plg-cb '+plgCbClass+'" data-n="'+p.name+'" onclick="p5TogglePLG(this.dataset.n)"></div>'
+        +dotHtml
+        +'<span class="plg-name">'+p.name+'</span>'
+        +'<span class="plg-cnt">'+cnt+' DSEs</span>'
+        +(isChk&&cnt>0?'<span class="plg-chev'+(isOpen?' open':'')+'" data-n="'+p.name+'" onclick="p5ToggleExpand(this.dataset.n,event)">&#9660;</span>':'')
+        +'</div>'
+        +(isChk&&cnt>0&&isOpen?'<div class="dse-list open">'+dseHtml+'</div>':'')
+        +'</div>';
+    }
+
+    const allPLGsOn=!curBeatPLGsNone&&curBeatPLGs.size===0;
+    const allPLGsPartial=!curBeatPLGsNone&&curBeatPLGs.size>0;
+    const allPLGsCb=allPLGsOn?'on':allPLGsPartial?'partial':'';
+    let html='<div class="plg-tree">'
+      +'<div class="plg-all-row'+((allPLGsOn||allPLGsPartial)?' sel':'')+'" onclick="p5ClearPLGs()">'
+      +'<div class="plg-cb '+(allPLGsCb)+'"></div>'
+      +'<span class="plg-name" style="color:'+((allPLGsOn||allPLGsPartial)?'#1565C0':'#374151')+'">All PLGs</span>'
       +'</div>';
+    if(normalPlgs.length)normalPlgs.forEach(p=>html+=makePlgItem(p));
+    if(ofmPlgs.length){html+='<div class="plg-tree-sec ofm">OFM</div>';ofmPlgs.forEach(p=>html+=makePlgItem(p));}
+    if(uniPlgs.length){html+='<div class="plg-tree-sec uni">UNIGLOW</div>';uniPlgs.forEach(p=>html+=makePlgItem(p));}
+    html+='</div>';
+    const treeEl=document.getElementById('p5-plg-tree');
+    if(treeEl)treeEl.innerHTML=html;
   }
 
-  const allSel=curBeatPLG==='ALL';
-  let html='<div class="plg-tree">'
-    +'<div class="plg-all-row'+(allSel?' sel':'')+'" data-n="ALL" onclick="setBeatPLG(this.dataset.n)">'
-    +'<div class="plg-radio'+(allSel?' on':'')+'"></div>'
-    +'<span class="plg-name" style="color:'+(allSel?'#1565C0':'#374151')+'">All PLGs</span>'
-    +'</div>';
-
-  if(normalPlgs.length){
-    normalPlgs.forEach(p=>html+=makePlgItem(p));
-  }
-  if(ofmPlgs.length){
-    html+='<div class="plg-tree-sec ofm">OFM</div>';
-    ofmPlgs.forEach(p=>html+=makePlgItem(p));
-  }
-  if(uniPlgs.length){
-    html+='<div class="plg-tree-sec uni">UNIGLOW</div>';
-    uniPlgs.forEach(p=>html+=makePlgItem(p));
-  }
-  html+='</div>';
-  const treeEl=document.getElementById('p5-plg-tree');
-  if(treeEl)treeEl.innerHTML=html;
-
-  // Day chips
-  const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat'];
-  const dayChips=[{val:'ALL',label:'All'},...dayNames.map((d,i)=>({val:String(i),label:d}))];
+  // Day chips — colored when colorBy==='day'
+  const MKT_DAY_LABELS=['Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dayChipData=[{val:'ALL',label:'All',col:null},...MKT_DAY_LABELS.map((d,i)=>({val:String(i),label:d,col:MKT_COLORS[i]}))];
   const dayEl=document.getElementById('p5-day-chips');
-  if(dayEl)dayEl.innerHTML=dayChips.map(d=>{
+  if(dayEl)dayEl.innerHTML=dayChipData.map(d=>{
     const isA=d.val===curBeatDay;
+    const chipCol=colorBy==='day'&&d.col?d.col:'#1565C0';
     return'<button class="beat-chip'+(isA?' active':'')+'" data-day="'+d.val+'" '
-      +'style="'+(isA?'background:#1565C0;color:white;border-color:#1565C0;':'')+';" '
+      +'style="'+(isA?'background:'+chipCol+';color:white;border-color:'+chipCol+';':
+        colorBy==='day'&&d.col?'border-color:'+d.col+'40;':'')+'" '
       +`onclick="setBeatDay('${d.val}')">`+d.label+'</button>';
   }).join('');
 }
