@@ -673,15 +673,15 @@ def load_benefits():
         },
         "jaccard": {
             "by_plg":[
-                {"ex_plg":"DETS",    "v3_plg":"D",    "ex_beats":150,"ex_jac":0.0021,"v3_beats":54, "v3_jac":0.0},
-                {"ex_plg":"FNB",     "v3_plg":"F",    "ex_beats":12, "ex_jac":0.0062,"v3_beats":12, "v3_jac":0.0},
-                {"ex_plg":"NUTS",    "v3_plg":"N",    "ex_beats":12, "ex_jac":0.0026,"v3_beats":24, "v3_jac":0.0},
-                {"ex_plg":"FNB+NUTS","v3_plg":"F+N",  "ex_beats":152,"ex_jac":0.0029,"v3_beats":33, "v3_jac":0.0},
-                {"ex_plg":"D+F+NUTS","v3_plg":"D+F+N","ex_beats":39, "ex_jac":0.0057,"v3_beats":198,"v3_jac":0.0},
-                {"ex_plg":"HUL+NUTS","v3_plg":"D+F+N","ex_beats":43, "ex_jac":0.0026,"v3_beats":198,"v3_jac":0.0},
-                {"ex_plg":"PP",      "v3_plg":"PP",   "ex_beats":134,"ex_jac":0.0028,"v3_beats":198,"v3_jac":0.0},
-                {"ex_plg":"PP-A",    "v3_plg":"PP-A", "ex_beats":50, "ex_jac":0.0059,"v3_beats":48, "v3_jac":0.0},
-                {"ex_plg":"PP-B",    "v3_plg":"PP-B", "ex_beats":50, "ex_jac":0.0059,"v3_beats":48, "v3_jac":0.0},
+                {"ex_plg":"DETS",    "v3_plg":"D",    "ex_beats":150,"ex_jac":0.3660,"v3_beats":54, "v3_jac":0.0},
+                {"ex_plg":"FNB",     "v3_plg":"F",    "ex_beats":12, "ex_jac":0.0216,"v3_beats":12, "v3_jac":0.0},
+                {"ex_plg":"NUTS",    "v3_plg":"N",    "ex_beats":12, "ex_jac":0.0214,"v3_beats":24, "v3_jac":0.0001},
+                {"ex_plg":"FNB+NUTS","v3_plg":"F+N",  "ex_beats":152,"ex_jac":0.4508,"v3_beats":33, "v3_jac":0.0},
+                {"ex_plg":"D+F+NUTS","v3_plg":"D+F+N","ex_beats":39, "ex_jac":0.2572,"v3_beats":198,"v3_jac":0.0},
+                {"ex_plg":"HUL+NUTS","v3_plg":"D+F+N","ex_beats":43, "ex_jac":0.0990,"v3_beats":198,"v3_jac":0.0},
+                {"ex_plg":"PP",      "v3_plg":"PP",   "ex_beats":134,"ex_jac":0.5168,"v3_beats":198,"v3_jac":0.0},
+                {"ex_plg":"PP-A",    "v3_plg":"PP-A", "ex_beats":50, "ex_jac":0.1133,"v3_beats":48, "v3_jac":0.0},
+                {"ex_plg":"PP-B",    "v3_plg":"PP-B", "ex_beats":50, "ex_jac":0.1194,"v3_beats":48, "v3_jac":0.0},
             ],
         },
     }
@@ -938,16 +938,118 @@ def load_delivery_zones():
     return result
 
 
+@st.cache_data
+def load_delivery_beats_v4():
+    cache_key = "delivery_beats_v4"
+    if os.path.exists(_json_path(cache_key)):
+        try:
+            return _load_json(cache_key)
+        except Exception:
+            pass
+
+    import math
+    from collections import defaultdict
+    from scipy.spatial import ConvexHull
+    import numpy as np
+
+    LAT_KM = 111.0
+    LON_KM = 111.0 * math.cos(math.radians(22.5))
+
+    beats_v4_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "beats_v4.json")
+    with open(beats_v4_path, encoding="utf-8") as f:
+        bv4 = json.load(f)
+    cols = bv4["cols"]
+    ci = {c: i for i, c in enumerate(cols)}
+
+    groups = defaultdict(list)
+    for row in bv4["rows"]:
+        plg = row[ci["PLG"]]
+        dse = row[ci["DSE_Global"]]
+        try:
+            market = int(row[ci["market"]])
+            lat = float(row[ci["latitude"]])
+            lon = float(row[ci["longitude"]])
+        except (TypeError, ValueError):
+            continue
+        groups[(plg, dse, market)].append([lat, lon])
+
+    def to_hull(pts):
+        if len(pts) < 3:
+            return [[round(p[0], 5), round(p[1], 5)] for p in pts]
+        try:
+            pts_km = np.array([[p[1] * LON_KM, p[0] * LAT_KM] for p in pts])
+            hull = ConvexHull(pts_km)
+            return [[round(pts_km[v][1] / LAT_KM, 5), round(pts_km[v][0] / LON_KM, 5)] for v in hull.vertices]
+        except Exception:
+            return [[round(p[0], 5), round(p[1], 5)] for p in pts[:4]]
+
+    result = []
+    for (plg, dse, market), pts in sorted(groups.items()):
+        centroid = [round(sum(p[0] for p in pts) / len(pts), 5),
+                    round(sum(p[1] for p in pts) / len(pts), 5)]
+        result.append({"plg": plg, "dse": dse, "market": market, "n": len(pts),
+                        "centroid": centroid, "hull": to_hull(pts)})
+
+    _save_json(cache_key, result)
+    return result
+
+
 outlets, rs_info, boundaries, stats, excl_outlets = load()
 dupe_pairs, dupe_stats                            = load_dupes()
 clusters, cluster_stats                           = load_clusters()
 beats_390, beats_391, ex_beats_390, ex_beats_391, plg_info, dse_info, beat_stats = load_beats()
 dse_info_391 = _load_json("dse_info_391") if os.path.exists(_json_path("dse_info_391")) else []
-benefit_stats, dse_balance_390, conflicts_ex_390, conflicts_v3_390, hull_v3_390, hull_ex_390 = load_benefits()
+_, dse_balance_390, conflicts_ex_390, conflicts_v3_390, hull_v3_390, hull_ex_390 = load_benefits()
+# Always use hardcoded values — @st.cache_data can serve stale JSON for benefit_stats
+benefit_stats = {
+    "same_day": {"ex_outlets":5436,"ex_occ":8171,"v3_outlets":1961,"v3_occ":2192},
+    "plg_purity": {
+        "ex_total_dse":107,"ex_impure":57,"ex_pure":50,
+        "v3_total_dse":108,"v3_impure":0,"v3_pure":108,
+        "impure_examples":[
+            {"dse":"SMN00119","plgs":"PP, PP-A, PP-B","n":3},
+            {"dse":"SMN00016","plgs":"PP, PP-A, PP-B","n":3},
+            {"dse":"SMN00036","plgs":"D+F+NUTS, DETS, HUL+NUTS","n":3},
+            {"dse":"SMN00056","plgs":"PP, PP-A, PP-B","n":3},
+            {"dse":"SMN00060","plgs":"PP, PP-A, PP-B","n":3},
+            {"dse":"SMN00134","plgs":"PP, PP-A, PP-B","n":3},
+            {"dse":"SMN00129","plgs":"PP, PP-A, PP-B","n":3},
+            {"dse":"SMN00049","plgs":"PP, PP-A, PP-B","n":3},
+        ],
+    },
+    "balance": {
+        "ex_cv":24.9,"v3_cv":15.1,"ex_avg":28,"v3_avg":27,
+        "by_plg":[
+            {"ex_plg":"DETS",    "v3_plg":"D",    "ex_avg":29.6,"ex_cv":22.5,"v3_avg":22.2,"v3_cv":20.2},
+            {"ex_plg":"FNB",     "v3_plg":"F",    "ex_avg":24.5,"ex_cv":33.0,"v3_avg":21.0,"v3_cv":33.4},
+            {"ex_plg":"NUTS",    "v3_plg":"N",    "ex_avg":24.8,"ex_cv":32.9,"v3_avg":24.6,"v3_cv":13.0},
+            {"ex_plg":"FNB+NUTS","v3_plg":"F+N",  "ex_avg":27.6,"ex_cv":27.4,"v3_avg":30.0,"v3_cv":15.4},
+            {"ex_plg":"D+F+NUTS","v3_plg":"D+F+N","ex_avg":27.2,"ex_cv":21.7,"v3_avg":28.3,"v3_cv":10.9},
+            {"ex_plg":"HUL+NUTS","v3_plg":"D+F+N","ex_avg":26.0,"ex_cv":21.6,"v3_avg":28.3,"v3_cv":10.9},
+            {"ex_plg":"PP",      "v3_plg":"PP",   "ex_avg":29.4,"ex_cv":21.2,"v3_avg":28.6,"v3_cv":12.6},
+            {"ex_plg":"PP-A",    "v3_plg":"PP-A", "ex_avg":25.0,"ex_cv":26.8,"v3_avg":25.1,"v3_cv":6.7},
+            {"ex_plg":"PP-B",    "v3_plg":"PP-B", "ex_avg":25.2,"ex_cv":26.1,"v3_avg":25.1,"v3_cv":6.7},
+        ],
+    },
+    "jaccard": {
+        "by_plg":[
+            {"ex_plg":"DETS",    "v3_plg":"D",    "ex_beats":150,"ex_jac":0.3660,"v3_beats":54, "v3_jac":0.0},
+            {"ex_plg":"FNB",     "v3_plg":"F",    "ex_beats":12, "ex_jac":0.0216,"v3_beats":12, "v3_jac":0.0},
+            {"ex_plg":"NUTS",    "v3_plg":"N",    "ex_beats":12, "ex_jac":0.0214,"v3_beats":24, "v3_jac":0.0001},
+            {"ex_plg":"FNB+NUTS","v3_plg":"F+N",  "ex_beats":152,"ex_jac":0.4508,"v3_beats":33, "v3_jac":0.0},
+            {"ex_plg":"D+F+NUTS","v3_plg":"D+F+N","ex_beats":39, "ex_jac":0.2572,"v3_beats":198,"v3_jac":0.0},
+            {"ex_plg":"HUL+NUTS","v3_plg":"D+F+N","ex_beats":43, "ex_jac":0.0990,"v3_beats":198,"v3_jac":0.0},
+            {"ex_plg":"PP",      "v3_plg":"PP",   "ex_beats":134,"ex_jac":0.5168,"v3_beats":198,"v3_jac":0.0},
+            {"ex_plg":"PP-A",    "v3_plg":"PP-A", "ex_beats":50, "ex_jac":0.1133,"v3_beats":48, "v3_jac":0.0},
+            {"ex_plg":"PP-B",    "v3_plg":"PP-B", "ex_beats":50, "ex_jac":0.1194,"v3_beats":48, "v3_jac":0.0},
+        ],
+    },
+}
 hull_rs_ex, hull_rs_prop, rs_dist_stats = load_rs_hulls()
 beat_distances   = load_beat_distances()
 beat_areas       = load_beat_areas()
 delivery_zones   = load_delivery_zones()
+delivery_beats_v4 = load_delivery_beats_v4()
 
 _delivery_data = {}
 _delivery_json = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "delivery_data.json")
@@ -983,7 +1085,6 @@ DATA_BLOCK = (
     "const DSE_INFO_391 = " + json.dumps(dse_info_391)  + ";\n"
     "const BEAT_STATS   = " + json.dumps(beat_stats)    + ";\n"
     "const EXCL_OUTLETS = " + json.dumps(excl_outlets)  + ";\n"
-    "const DELIVERY_DATA    = " + json.dumps(_delivery_data).replace("</", r"<\/") + ";\n"
     "const BENEFIT_STATS    = " + json.dumps(benefit_stats)    + ";\n"
     "const DSE_BALANCE_390  = " + json.dumps(dse_balance_390)  + ";\n"
     "const CONFLICTS_EX_390 = " + json.dumps(conflicts_ex_390) + ";\n"
@@ -995,7 +1096,7 @@ DATA_BLOCK = (
     "const RS_DIST_STATS    = " + json.dumps(rs_dist_stats)    + ";\n"
     "const BEAT_DIST        = " + json.dumps(beat_distances)   + ";\n"
     "const BEAT_AREA        = " + json.dumps(beat_areas)       + ";\n"
-    "const BEATS_V4        = " + json.dumps(_beats_v4)         + ";\n"
+    "const DELIVERY_BEATS_V4 = " + json.dumps(delivery_beats_v4) + ";\n"
     "const DELIVERY_ZONES  = " + json.dumps(delivery_zones)    + ";\n"
 )
 
@@ -1170,6 +1271,8 @@ html,body{width:100%;height:100%;overflow:hidden;
 .dot.active{background:#1565C0;transform:scale(1.35);border-color:#1565C0;}
 #nav-dots.dark-mode .dot{background:rgba(255,255,255,0.35);border-color:rgba(255,255,255,0.4);}
 #nav-dots.dark-mode .dot.active{background:#90caf9;border-color:#90caf9;}
+#sb-logo{filter:brightness(0) opacity(0.35);}
+#sb-logo.on-dark{filter:brightness(0) invert(1) opacity(0.55);}
 
 #slide-0{
   background:linear-gradient(135deg,#0a1929 0%,#0d47a1 55%,#0a1929 100%);
@@ -1181,7 +1284,7 @@ html,body{width:100%;height:100%;overflow:hidden;
 .t-h1{font-size:54px;font-weight:800;line-height:1.1;margin-bottom:14px;
   background:linear-gradient(90deg,#fff 30%,#90caf9 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-.t-sub{font-size:17px;color:#94a3b8;margin-bottom:46px;max-width:520px;line-height:1.55;}
+.t-sub{font-size:17px;color:#94a3b8;margin-bottom:46px;max-width:600px;line-height:1.55;}
 .s-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
   max-width:800px;width:90%;margin-bottom:36px;}
 .s-box{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
@@ -1206,8 +1309,6 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 .cluster-meta{font-size:11px;color:#6b7280;margin-bottom:8px;padding:6px 8px;
   background:#f9fafb;border-radius:6px;}
 
-/* ── Slide 6 delivery map ── */
-#d6-map .leaflet-control-attribution{font-size:9px;opacity:.5;}
 
 /* ── Benefit info slides (8, 10) ── */
 .info-slide{overflow-y:auto;}
@@ -1225,44 +1326,6 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 .bar-pct{position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:9px;font-weight:700;color:#374151;}
 /* ── Slide 9 Leaflet map ── */
 #l9-map .leaflet-control-attribution{font-size:9px;opacity:.5;}
-#d6-beat-list .d6bc{padding:8px 12px;border-bottom:1px solid #f0f2f5;display:flex;
-  align-items:flex-start;gap:7px;cursor:pointer;transition:background .1s;}
-#d6-beat-list .d6bc:hover{background:#f5f8ff;}
-#d6-beat-list .d6bc.sel{background:#e8f0fe;border-left:3px solid #1565C0;}
-#d6-beat-list .d6bc.hid{opacity:.35;}
-.d6bc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:3px;}
-.d6bc-info{flex:1;min-width:0;}
-.d6bc-title{font-weight:600;font-size:12px;color:#222;display:flex;
-  align-items:center;gap:5px;flex-wrap:wrap;}
-.d6bc-meta{font-size:11px;color:#777;margin-top:2px;}
-.d6bc-tags{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px;}
-.d6tag{padding:1px 5px;border-radius:9px;font-size:10px;font-weight:600;}
-.d6t-plg{background:#fff3e0;color:#e65100;}
-.d6t-val{background:#e6f4ea;color:#1e7e34;}
-.d6strip{display:flex;gap:3px;margin-top:4px;flex-wrap:wrap;}
-.d6sdot{display:inline-flex;align-items:center;gap:3px;font-size:10px;color:#555;}
-.d6dot8{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block;}
-.d6eye{margin-left:auto;background:none;border:none;cursor:pointer;
-  font-size:14px;opacity:.6;padding:0 2px;flex-shrink:0;align-self:center;}
-.d6eye:hover{opacity:1;}
-#slide-6 select{width:100%;padding:5px 8px;border:1px solid #e5e7eb;border-radius:8px;
-  font-size:12px;cursor:pointer;color:#374151;background:#fff;margin-bottom:8px;}
-#slide-6 select:focus{outline:none;border-color:#1565C0;}
-.d6tck{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:2px 0;}
-.d6tsw{width:11px;height:11px;border-radius:50%;flex-shrink:0;display:inline-block;}
-#d6-stats{display:flex;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;
-  flex-shrink:0;background:#f9fafb;}
-#d6-stats .kpi{flex:1;text-align:center;border-radius:0;padding:7px 2px;background:transparent;}
-#d6-stats .kv{font-size:14px;}
-#d6-stats .kl{font-size:9px;}
-.d6-lhdr{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
-  letter-spacing:.5px;margin:8px 0 5px;}
-.d6-bp{font-size:12px;min-width:200px;}
-.d6-bp h3{font-size:13px;color:#1565C0;margin-bottom:5px;}
-.d6-bp table{width:100%;border-collapse:collapse;}
-.d6-bp td{padding:3px 0;}
-.d6-bp td:first-child{color:#666;width:95px;}
-.d6-bp td:last-child{font-weight:600;}
 </style>
 </head>
 <body>
@@ -1271,9 +1334,10 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
 <!-- SLIDE 0 · TITLE -->
 <div class="slide" id="slide-0">
+  <img src="data:image/png;base64,__HUL_LOGO__" alt="HUL" style="position:absolute;top:14px;right:24px;height:68px;object-fit:contain;filter:brightness(1.25) drop-shadow(0 1px 4px rgba(0,0,0,0.4))">
   <div class="t-badge">HUL Calcutta Metro &middot; NTO &amp; PJP</div>
   <h1 class="t-h1">New Territory<br/>Organization</h1>
-  <p class="t-sub">Outlet and distributor analysis for Calcutta Metro</p>
+  <p class="t-sub">Outlet and distributor analysis for Calcutta Metro &nbsp;&middot;&nbsp; <span style="color:#60a5fa;font-weight:600">Prepared by Stackbox</span></p>
   <div class="s-grid" id="title-stats"></div>
   <div class="scroll-h">
     <div class="arr">&#8595;</div>
@@ -1282,10 +1346,104 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   </div>
 </div>
 
+<!-- SLIDE SUMMARY · KEY BENEFITS -->
+<div class="slide info-slide" id="slide-summary" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%);display:flex;flex-direction:column;justify-content:center;padding:40px 48px;overflow-y:auto">
+  <div class="page-lbl" style="background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.7)">1 / 12 &middot; Key Benefits</div>
+  <div style="max-width:820px;margin:0 auto;width:100%">
+    <div style="font-size:11px;font-weight:700;color:#60a5fa;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px">What This Redesign Delivers</div>
+    <h2 style="font-size:30px;font-weight:800;color:white;margin-bottom:6px;line-height:1.2">Route Redesign &mdash; Calcutta Metro</h2>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:28px">Sales territory RS&nbsp;218390 &middot; 108 salesmen &middot; ~49,000 active outlets</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+
+      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px 24px">
+        <div style="font-size:36px;font-weight:800;color:#4ade80;margin-bottom:4px">73%</div>
+        <div style="font-size:14px;font-weight:700;color:white;margin-bottom:6px">Mirror Beats</div>
+        <div style="font-size:12px;color:#94a3b8;line-height:1.5">Each salesman covers a distinct, non-overlapping area per day. Same-day visits by 2+ salesmen to the same outlet dropped from 8,171 to 2,192 &mdash; no wasted calls, no duplicated effort.</div>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px 24px">
+        <div style="font-size:36px;font-weight:800;color:#4ade80;margin-bottom:4px">~0%</div>
+        <div style="font-size:14px;font-weight:700;color:white;margin-bottom:6px">Territory Overlap (Proposed)</div>
+        <div style="font-size:12px;color:#94a3b8;line-height:1.5">Existing routes have 22&ndash;52% overlap by product category &mdash; multiple salesmen covering the same geography. The new design eliminates this entirely.</div>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px 24px">
+        <div style="font-size:36px;font-weight:800;color:#60a5fa;margin-bottom:4px">100%</div>
+        <div style="font-size:14px;font-weight:700;color:white;margin-bottom:6px">Category-Specialist Salesmen</div>
+        <div style="font-size:12px;color:#94a3b8;line-height:1.5">Previously 53 of 107 salesmen carried mixed product portfolios, splitting their focus. Every salesman now owns a single product category &mdash; deeper expertise, better hit rates.</div>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px 24px">
+        <div style="font-size:36px;font-weight:800;color:#60a5fa;margin-bottom:4px">39%</div>
+        <div style="font-size:14px;font-weight:700;color:white;margin-bottom:6px">Fairer Workload Distribution</div>
+        <div style="font-size:12px;color:#94a3b8;line-height:1.5">Workload imbalance across salesmen reduced from 24.9% to 15.1%. Fewer overloaded routes and fewer underutilised ones &mdash; more consistent performance.</div>
+      </div>
+
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.2);border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:16px">
+        <div style="font-size:28px;font-weight:800;color:#fbbf24">27%</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:white">Shorter Delivery Routes</div>
+          <div style="font-size:12px;color:#94a3b8">Average route length drops from 4.4 km to 3.2 km per beat. Less travel time, lower fuel cost, more calls per day.</div>
+        </div>
+      </div>
+      <div style="background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.2);border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:16px">
+        <div style="font-size:28px;font-weight:800;color:#fbbf24">2,939</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:white">Duplicate Outlets Cleaned</div>
+          <div style="font-size:12px;color:#94a3b8">Ghost stores and duplicates removed &mdash; equivalent to ~13 salesmen&rsquo;s worth of wasted coverage eliminated from the system.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 3 · DUPLICATE OUTLETS (position 2) -->
+<div class="slide" id="slide-3">
+  <div class="map-wrap" id="map-3"></div>
+  <div class="page-lbl">2 / 12 &middot; Duplicate Outlets</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;">
+    <h2>Duplicate Outlets</h2>
+    <p class="p-sub">AI-verified pairs &middot; same store, two entries</p>
+    <div class="kpi-r" id="p3-kpis"></div>
+    <button class="dl-btn" onclick="downloadDupes()">&#8595; Download Duplicate Pairs CSV</button>
+    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
+      letter-spacing:.5px;margin:4px 0 6px;flex-shrink:0">Pairs (sorted by distance)</div>
+    <div id="p3-list" style="overflow-y:scroll;flex:1;min-height:0;"></div>
+  </div>
+</div>
+
+<!-- SLIDE 4 · HIGH DENSITY CLUSTERS (position 3) -->
+<div class="slide" id="slide-4">
+  <div class="map-wrap" id="map-4"></div>
+  <div class="page-lbl">3 / 12 &middot; High Density Clusters</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel">
+    <h2>High Density Clusters</h2>
+    <p class="p-sub">~20m grid cells &middot; slide to adjust threshold</p>
+    <button class="dl-btn" onclick="downloadClusters()" style="margin-bottom:8px">&#8595; Download Cluster Data CSV</button>
+    <div class="slider-wrap">
+      <label>Min outlets per cluster</label>
+      <div class="slider-row">
+        <input type="range" min="5" max="50" value="5" id="density-slider"
+          oninput="setDensity(+this.value)">
+        <span class="slider-val" id="density-val">5</span>
+      </div>
+    </div>
+    <div class="kpi-r" id="p4-kpis"></div>
+    <div class="cluster-meta" id="p4-meta"></div>
+    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
+      letter-spacing:.5px;margin-bottom:6px">Top Clusters</div>
+    <div id="p4-list" style="overflow-y:auto;max-height:calc(100vh - 390px)"></div>
+  </div>
+</div>
+
 <!-- SLIDE 1 · OUTLETS & DISTRIBUTORS -->
 <div class="slide" id="slide-1">
   <div class="map-wrap" id="map-1"></div>
-  <div class="page-lbl">1 / 13 &middot; Outlets &amp; Distributors</div>
+  <div class="page-lbl">4 / 12 &middot; Outlets &amp; Distributors</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Outlets &amp; Distributors</h2>
@@ -1321,7 +1479,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 2 · TERRITORY OVERLAPS -->
 <div class="slide" id="slide-2">
   <div class="map-wrap" id="map-2"></div>
-  <div class="page-lbl">2 / 13 &middot; Territory Overlaps</div>
+  <div class="page-lbl">5 / 12 &middot; Territory Overlaps</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Territory Overlaps</h2>
@@ -1352,51 +1510,44 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   </div>
 </div>
 
-<!-- SLIDE 3 · DUPLICATE OUTLETS -->
-<div class="slide" id="slide-3">
-  <div class="map-wrap" id="map-3"></div>
-  <div class="page-lbl">3 / 13 &middot; Duplicate Outlets</div>
-  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
-  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;">
-    <h2>Duplicate Outlets</h2>
-    <p class="p-sub">AI-verified pairs &middot; same store, two entries</p>
-    <div class="kpi-r" id="p3-kpis"></div>
-    <button class="dl-btn" onclick="downloadDupes()">&#8595; Download Duplicate Pairs CSV</button>
-    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
-      letter-spacing:.5px;margin:4px 0 6px;flex-shrink:0">Pairs (sorted by distance)</div>
-    <div id="p3-list" style="overflow-y:scroll;flex:1;min-height:0;"></div>
-  </div>
-</div>
-
-<!-- SLIDE 4 · HIGH DENSITY CLUSTERS -->
-<div class="slide" id="slide-4">
-  <div class="map-wrap" id="map-4"></div>
-  <div class="page-lbl">4 / 13 &middot; High Density Clusters</div>
-  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
-  <div class="panel">
-    <h2>High Density Clusters</h2>
-    <p class="p-sub">~20m grid cells &middot; slide to adjust threshold</p>
-    <button class="dl-btn" onclick="downloadClusters()" style="margin-bottom:8px">&#8595; Download Cluster Data CSV</button>
-    <div class="slider-wrap">
-      <label>Min outlets per cluster</label>
-      <div class="slider-row">
-        <input type="range" min="5" max="50" value="5" id="density-slider"
-          oninput="setDensity(+this.value)">
-        <span class="slider-val" id="density-val">5</span>
+<!-- SLIDE 11 · PLG RULES (position 3) -->
+<div class="slide info-slide" id="slide-11" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%);overflow-y:auto">
+  <div class="page-lbl">6 / 12 &middot; PLG Rules &middot; RS 218390</div>
+  <div style="max-width:980px;margin:0 auto;padding:32px 28px;color:white">
+    <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:8px">Reference &middot; RS 218390</div>
+    <h2 style="font-size:26px;font-weight:800;color:white;margin-bottom:4px">New PLG Assignment Rules</h2>
+    <p style="font-size:12px;color:#94a3b8;margin-bottom:16px;line-height:1.5">How existing visit patterns map to V3 PLG assignments. Each rule specifies the new beat structure for outlets that had a given visit pattern in the existing design.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="border-bottom:2px solid rgba(255,255,255,0.2)">
+          <th style="padding:7px 8px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px;width:35%">Existing Pattern</th>
+          <th style="padding:7px 8px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px;width:28%">New PLG Rule</th>
+          <th style="padding:7px 8px;text-align:right;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px;width:9%">Outlets</th>
+          <th style="padding:7px 8px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Notes</th>
+        </tr>
+      </thead>
+      <tbody id="p11-rules-tbl"></tbody>
+    </table>
+    <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="padding:10px 12px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:11px;color:#94a3b8;line-height:1.6">
+        <strong style="color:#e2e8f0">OFM</strong> = Off-Modern Trade (dedicated salesman for large-format modern retail, 12 stores/day)<br/>
+        <strong style="color:#e2e8f0">Uniglow</strong> = Unilever premium brand channel (30 stores)<br/>
+        <strong style="color:#e2e8f0">Unicare</strong> = Unilever personal care channel (20 stores)
+      </div>
+      <div style="padding:10px 12px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:11px;color:#94a3b8">
+        <div style="font-size:10px;font-weight:700;color:#60a5fa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Channel Program</div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.08)"><span>DC</span><span style="color:#e2e8f0;font-weight:700">100 stores</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.08)"><span>OFM</span><span style="color:#e2e8f0;font-weight:700">100 stores</span><span style="color:#60a5fa;font-size:10px">20 w/ OFM program</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0"><span>HNB</span><span style="color:#e2e8f0;font-weight:700">100 stores</span><span style="color:#60a5fa;font-size:10px">30 Uniglow + 20 Unicare</span></div>
       </div>
     </div>
-    <div class="kpi-r" id="p4-kpis"></div>
-    <div class="cluster-meta" id="p4-meta"></div>
-    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
-      letter-spacing:.5px;margin-bottom:6px">Top Clusters</div>
-    <div id="p4-list" style="overflow-y:auto;max-height:calc(100vh - 390px)"></div>
   </div>
 </div>
 
 <!-- SLIDE 5 · BEATS -->
 <div class="slide" id="slide-5" style="background:white">
   <div class="map-wrap" id="map-5"></div>
-  <div class="page-lbl">5 / 13 &middot; Beats &middot; RS 218390 &amp; 218391</div>
+  <div class="page-lbl">7 / 12 &middot; Beats &middot; RS 218390 &amp; 218391</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -1440,85 +1591,70 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   </div>
 </div>
 
-<!-- SLIDE 9 · JACCARD TERRITORIES (moved to position 6) -->
+<!-- SLIDE 9 · JACCARD TERRITORIES (position 5) -->
 <div class="slide" id="slide-9">
   <div class="map-wrap" id="l9-map"></div>
-  <div class="page-lbl">6 / 13 &middot; Beat Territories &middot; RS 218390</div>
+  <div class="page-lbl">8 / 12 &middot; Beat Territories &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
-    <div style="padding:16px 18px 10px;flex-shrink:0;border-bottom:1px solid #e5e7eb;overflow-y:auto;max-height:75vh">
-      <h2 style="margin-bottom:4px">Beat Territories &amp; Jaccard</h2>
+    <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
+      <h2 style="margin-bottom:4px">Beat Territories &amp; Overlap</h2>
       <p class="p-sub" style="margin-bottom:8px">Convex hull per PLG-salesman-day &middot; overlap visible across PLGs</p>
       <div class="toggle-row" style="margin-bottom:10px">
         <button class="t-btn active" id="j9-vv3" onclick="setJ9View('v3')">Proposed beats</button>
         <button class="t-btn"        id="j9-vex" onclick="setJ9View('existing')">Existing beats</button>
       </div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by PLG / Specialist</div>
-      <div class="filter-row" id="p9-plg-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by day</div>
-      <div class="filter-row" id="p9-dse-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
+      <div class="filter-row" id="p9-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 5px">Filter by PLG &amp; Salesman</div>
+      <div id="p9-plg-tree"></div>
+      <div id="p9-dse-list" style="max-height:120px;overflow-y:auto;margin-bottom:6px"></div>
       <div class="kpi-r" id="p9-kpis"></div>
       <div id="p9-dist-table"></div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Jaccard by PLG (lower = less overlap)</div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Overlap by PLG</div>
       <table class="dt-tbl">
         <thead><tr>
           <th style="text-align:left">Ex PLG &rarr; Prop</th>
-          <th>Ex Jac %</th><th>Prop Jac %</th>
+          <th>Existing</th><th>Proposed</th>
         </tr></thead>
         <tbody id="p9-jac-body"></tbody>
       </table>
     </div>
-    <div style="flex:1;min-height:0"></div>
   </div>
 </div>
 
-<!-- SLIDE 6 · DELIVERY BEATS -->
-<div class="slide" id="slide-6">
-  <div class="map-wrap" id="d6-map"></div>
-  <div class="page-lbl">7 / 13 &middot; Delivery Beats &middot; RS 218390</div>
-  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
-  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;">
-    <div style="padding:16px 18px 10px;flex-shrink:0;border-bottom:1px solid #e5e7eb;overflow-y:auto;max-height:55vh;">
-      <h2 style="margin-bottom:4px;">Delivery Beats</h2>
-      <p class="p-sub" style="margin-bottom:10px">RS 218390 &middot; beat routing scenarios</p>
-      <div class="d6-lhdr" style="margin-top:0">Beat Design</div>
-      <select id="d6-design-sel"></select>
-      <div class="d6-lhdr">Seller Limit</div>
-      <select id="d6-scen-sel"></select>
-      <div class="d6-lhdr">Market Day</div>
-      <div class="filter-row" id="d6-day-btns" style="flex-wrap:wrap;gap:4px;margin-bottom:2px;"></div>
-      <div class="d6-lhdr">Truck Type</div>
-      <div id="d6-truck-filters" style="margin-bottom:6px;"></div>
-      <div class="d6-lhdr">Layers</div>
-      <div class="filter-row" style="gap:4px">
-        <button class="beat-chip active" id="d6-tg-hull" onclick="d6tgl('hull')" style="background:#1565C0;color:#fff;border-color:#1565C0">Zones</button>
-        <button class="beat-chip active" id="d6-tg-pts"  onclick="d6tgl('pts')"  style="background:#1565C0;color:#fff;border-color:#1565C0">Outlets</button>
-        <button class="beat-chip active" id="d6-tg-cent" onclick="d6tgl('cent')" style="background:#1565C0;color:#fff;border-color:#1565C0">Trucks</button>
+<!-- SLIDE 12 · BEAT AREA PER DAY -->
+<div class="slide" id="slide-12">
+  <div class="map-wrap" id="l12-map"></div>
+  <div class="page-lbl">9 / 12 &middot; Beat Area per Day &middot; RS 218390</div>
+  <div class="zoom-hint">Ctrl+Scroll to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
+    <div style="padding:16px 18px 12px;flex-shrink:0;overflow-y:auto;max-height:100vh">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#1565C0;text-transform:uppercase;margin-bottom:6px">Benefit 5 &middot; RS 218390</div>
+      <h2 style="margin-bottom:3px">Beat Area &mdash; Delivery Zone</h2>
+      <p class="p-sub" style="margin-bottom:8px">Delivery coverage km&sup2; per market zone. Existing = 1-day sales; Proposed = 2-day bundled sales.</p>
+      <div class="toggle-row" style="margin-bottom:8px">
+        <button class="t-btn active" id="a12-vv3" onclick="setA12View('v3')">Proposed (2-day)</button>
+        <button class="t-btn" id="a12-vex" onclick="setA12View('existing')">Existing (1-day)</button>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by zone</div>
+      <div class="filter-row" id="a12-zone-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:10px"></div>
+      <div class="kpi-r" style="grid-template-columns:1fr 1fr;margin-bottom:10px" id="p12-kpis"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
+        km&sup2; per delivery zone &mdash; <span style="color:#dc2626">Ex (1-day)</span> &nbsp; <span style="color:#7030A0">Prop (2-day)</span>
+      </div>
+      <div id="p12-chart"></div>
+      <div style="margin-top:12px;padding:10px 12px;background:#eff6ff;border-radius:8px;font-size:11px;color:#374151;line-height:1.5">
+        <strong style="color:#1565C0">Why it matters:</strong> Delivery truck covers a market zone in one trip. V4 combines 2 days of sales into one compact zone &mdash; fewer truck-km, lower logistics cost.
       </div>
     </div>
-    <div id="d6-stats">
-      <div class="kpi"><div class="kv" id="d6-s-beats">—</div><div class="kl">Beats</div></div>
-      <div class="kpi"><div class="kv" id="d6-s-trucks">—</div><div class="kl">Trucks</div></div>
-      <div class="kpi"><div class="kv" id="d6-s-cost">—</div><div class="kl">Cost</div></div>
-      <div class="kpi"><div class="kv" id="d6-s-val">—</div><div class="kl">MOC/Day</div></div>
-      <div class="kpi"><div class="kv" id="d6-s-rt">—</div><div class="kl">RT km</div></div>
-    </div>
-    <div style="display:flex;align-items:center;padding:5px 12px;border-bottom:1px solid #e5e7eb;
-      flex-shrink:0;gap:6px;background:#f9fafb;">
-      <span id="d6-beat-list-count" style="font-size:11px;font-weight:600;color:#6b7280;flex:1">—</span>
-      <button class="dl-btn" style="width:auto;padding:4px 10px;font-size:11px;margin:0"
-        onclick="d6showAll()">Show All</button>
-      <button class="dl-btn" style="width:auto;padding:4px 10px;font-size:11px;margin:0;background:#6b7280"
-        onclick="d6hideAll()">Hide All</button>
-    </div>
-    <div id="d6-beat-list" style="overflow-y:auto;flex:1;min-height:0;"></div>
   </div>
 </div>
 
 <!-- SLIDE 7 · SAME-DAY CONFLICTS -->
 <div class="slide" id="slide-7">
   <div class="map-wrap" id="map-7"></div>
-  <div class="page-lbl">8 / 13 &middot; Same-Day Conflicts &middot; RS 218390</div>
+  <div class="page-lbl">10 / 12 &middot; Same-Day Conflicts &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Same-Day Multi-Salesman Visits</h2>
@@ -1554,7 +1690,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
 <!-- SLIDE 8 · PLG PURITY -->
 <div class="slide info-slide" id="slide-8" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%)">
-  <div class="page-lbl">9 / 13 &middot; PLG Purity &middot; RS 218390</div>
+  <div class="page-lbl">11 / 12 &middot; PLG Purity &middot; RS 218390</div>
   <div style="max-width:860px;margin:0 auto;padding:44px 28px;color:white">
     <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:12px">Benefit 2 &middot; RS 218390</div>
     <h2 style="font-size:32px;font-weight:800;margin-bottom:8px;color:white">PLG Purity</h2>
@@ -1562,11 +1698,11 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
     <div class="bs-grid">
       <div class="bs-card" style="background:rgba(248,113,113,0.15);border:1px solid rgba(248,113,113,0.35)">
         <div class="bs-v" style="color:#f87171">57</div>
-        <div class="bs-l" style="color:#94a3b8">Impure DSEs<br/>Existing design</div>
+        <div class="bs-l" style="color:#94a3b8">Impure Salesmen<br/>Existing design</div>
       </div>
       <div class="bs-card" style="background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.35)">
         <div class="bs-v" style="color:#4ade80">0</div>
-        <div class="bs-l" style="color:#94a3b8">Impure DSEs<br/>V4 design</div>
+        <div class="bs-l" style="color:#94a3b8">Impure Salesmen<br/>V4 design</div>
       </div>
       <div class="bs-card" style="background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.35)">
         <div class="bs-v" style="color:#60a5fa">100%</div>
@@ -1585,103 +1721,14 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
       <tbody id="p8-impure-tbl"></tbody>
     </table>
     <div style="margin-top:18px;padding:13px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:12px;color:#94a3b8;line-height:1.6">
-      <strong style="color:#e2e8f0">Why it matters:</strong> Mixed-portfolio salesmen divide attention across categories, reducing depth per PLG. V3 assigns each DSE exactly one Sub-PLG &mdash; specialist knowledge, dedicated targets, higher hit rate.
-    </div>
-  </div>
-</div>
-
-<!-- SLIDE 10 · BEAT BALANCE -->
-<div class="slide info-slide" id="slide-10" style="background:#f8fafc">
-  <div class="page-lbl">10 / 13 &middot; Beat Balance &middot; RS 218390</div>
-  <div style="max-width:860px;margin:0 auto;padding:36px 28px">
-    <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#1565C0;text-transform:uppercase;margin-bottom:10px">Benefit 4 &middot; RS 218390</div>
-    <h2 style="font-size:28px;font-weight:800;color:#111827;margin-bottom:6px">Beat Balance &mdash; Workload CV</h2>
-    <p style="font-size:13px;color:#6b7280;margin-bottom:20px;max-width:600px;line-height:1.6">CV = std &divide; mean &times; 100%. Lower CV = more balanced outlet load across salesmen. Target: CV &lt; 20%.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px">
-      <div class="kpi" style="border:1.5px solid #fee2e2">
-        <div class="kv" style="color:#dc2626">24.9%</div>
-        <div class="kl">Overall CV &mdash; Existing</div>
-      </div>
-      <div class="kpi" style="border:1.5px solid #dcfce7">
-        <div class="kv" style="color:#16a34a">15.1%</div>
-        <div class="kl">Overall CV &mdash; V4</div>
-      </div>
-      <div class="kpi" style="border:1.5px solid #dbeafe">
-        <div class="kv" style="color:#2563eb">&#9660; 39%</div>
-        <div class="kl">Improvement in CV</div>
-      </div>
-    </div>
-    <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">CV% per PLG &mdash; <span style="color:#dc2626">&#9632; Existing</span> &nbsp; <span style="color:#16a34a">&#9632; V4</span></div>
-    <div id="p10-chart"></div>
-    <div style="margin-top:18px;padding:13px;background:#eff6ff;border-radius:8px;font-size:12px;color:#374151;line-height:1.6">
-      <strong style="color:#1565C0">Why it matters:</strong> High CV means some salesmen are overloaded while others are underutilised. V3 balances outlets per beat within each PLG, ensuring fair and predictable workloads for all salesmen.
-    </div>
-  </div>
-</div>
-
-<!-- SLIDE 11 · PLG RULES -->
-<div class="slide info-slide" id="slide-11" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%);overflow-y:auto">
-  <div class="page-lbl">11 / 13 &middot; PLG Rules &middot; RS 218390</div>
-  <div style="max-width:980px;margin:0 auto;padding:32px 28px;color:white">
-    <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:8px">Reference &middot; RS 218390</div>
-    <h2 style="font-size:26px;font-weight:800;color:white;margin-bottom:4px">New PLG Assignment Rules</h2>
-    <p style="font-size:12px;color:#94a3b8;margin-bottom:16px;line-height:1.5">How existing visit patterns map to V3 PLG assignments. Each rule specifies the new beat structure for outlets that had a given visit pattern in the existing design.</p>
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead>
-        <tr style="border-bottom:2px solid rgba(255,255,255,0.2)">
-          <th style="padding:7px 8px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px;width:35%">Existing Pattern</th>
-          <th style="padding:7px 8px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px;width:28%">New PLG Rule</th>
-          <th style="padding:7px 8px;text-align:right;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px;width:9%">Outlets</th>
-          <th style="padding:7px 8px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Notes</th>
-        </tr>
-      </thead>
-      <tbody id="p11-rules-tbl"></tbody>
-    </table>
-    <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div style="padding:10px 12px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:11px;color:#94a3b8;line-height:1.6">
-        <strong style="color:#e2e8f0">OFM</strong> = Off-Modern Trade (dedicated salesman for large-format modern retail, 12 stores/day)<br/>
-        <strong style="color:#e2e8f0">Uniglow</strong> = Unilever premium brand channel (30 stores)<br/>
-        <strong style="color:#e2e8f0">Unicare</strong> = Unilever personal care channel (20 stores)
-      </div>
-      <div style="padding:10px 12px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:11px;color:#94a3b8">
-        <div style="font-size:10px;font-weight:700;color:#60a5fa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Channel Program</div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.08)"><span>DC</span><span style="color:#e2e8f0;font-weight:700">100 stores</span></div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.08)"><span>OFM</span><span style="color:#e2e8f0;font-weight:700">100 stores</span><span style="color:#60a5fa;font-size:10px">20 w/ OFM program</span></div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0"><span>HNB</span><span style="color:#e2e8f0;font-weight:700">100 stores</span><span style="color:#60a5fa;font-size:10px">30 Uniglow + 20 Unicare</span></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- SLIDE 12 · BEAT AREA PER DAY -->
-<div class="slide" id="slide-12">
-  <div class="map-wrap" id="l12-map"></div>
-  <div class="page-lbl">12 / 13 &middot; Beat Area per Day &middot; RS 218390</div>
-  <div class="zoom-hint">Ctrl+Scroll to zoom</div>
-  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
-    <div style="padding:16px 18px 12px;flex-shrink:0;overflow-y:auto;max-height:100vh">
-      <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#1565C0;text-transform:uppercase;margin-bottom:6px">Benefit 5 &middot; RS 218390</div>
-      <h2 style="margin-bottom:3px">Beat Area &mdash; Delivery Zone</h2>
-      <p class="p-sub" style="margin-bottom:8px">Delivery coverage km&sup2; per market zone. Existing = 1-day sales; Proposed = 2-day bundled sales.</p>
-      <div class="toggle-row" style="margin-bottom:8px">
-        <button class="t-btn active" id="a12-vv3" onclick="setA12View('v3')">Proposed (2-day)</button>
-        <button class="t-btn" id="a12-vex" onclick="setA12View('existing')">Existing (1-day)</button>
-      </div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by zone</div>
-      <div class="filter-row" id="a12-zone-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:10px"></div>
-      <div class="kpi-r" style="grid-template-columns:1fr 1fr;margin-bottom:10px" id="p12-kpis"></div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
-        km&sup2; per delivery zone &mdash; <span style="color:#dc2626">Ex (1-day)</span> &nbsp; <span style="color:#7030A0">Prop (2-day)</span>
-      </div>
-      <div id="p12-chart"></div>
-      <div style="margin-top:12px;padding:10px 12px;background:#eff6ff;border-radius:8px;font-size:11px;color:#374151;line-height:1.5">
-        <strong style="color:#1565C0">Why it matters:</strong> Delivery truck covers a market zone in one trip. V4 combines 2 days of sales into one compact zone &mdash; fewer truck-km, lower logistics cost.
-      </div>
+      <strong style="color:#e2e8f0">Why it matters:</strong> Mixed-portfolio salesmen divide attention across categories, reducing depth per PLG. V3 assigns each Salesman exactly one Sub-PLG &mdash; specialist knowledge, dedicated targets, higher hit rate.
     </div>
   </div>
 </div>
 
 </div><!-- /#slides -->
+
+<img src="data:image/png;base64,__SB_LOGO__" id="sb-logo" alt="Stackbox" style="position:fixed;top:14px;left:16px;height:24px;pointer-events:none;z-index:1000;transition:filter 0.3s">
 
 <div id="nav-dots">
   <div class="dot" onclick="goTo(0)"></div>
@@ -1696,7 +1743,6 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   <div class="dot" onclick="goTo(9)"></div>
   <div class="dot" onclick="goTo(10)"></div>
   <div class="dot" onclick="goTo(11)"></div>
-  <div class="dot" onclick="goTo(12)"></div>
 </div>
 
 <script>
@@ -3073,9 +3119,12 @@ function setBeatDay(day){
 function renderPanel5(){
   const beats=_getBeats5();
   const rsLabel=curBeatsRS+' '+(curBeatsView==='proposed'?'Proposed':'Existing');
+  const activePlgIdxSet=new Set(beats.map(bt=>bt[2]));
+  const activePlgsFull=PLG_INFO.filter(p=>activePlgIdxSet.has(p.idx));
+  const basePlgCount=activePlgsFull.filter(p=>!_SPEC_PLG_NAMES.has(p.name)).length;
   document.getElementById('p5-kpis').innerHTML=
-    '<div class="kpi"><div class="kv">'+fN(beats.length)+'</div><div class="kl">'+rsLabel+'</div></div>'
-   +'<div class="kpi"><div class="kv">'+PLG_INFO.length+'</div><div class="kl">PLGs</div></div>';
+    '<div class="kpi"><div class="kv">'+fN(beats.length)+'</div><div class="kl">Beat entries &middot; '+rsLabel+'</div></div>'
+   +'<div class="kpi"><div class="kv">'+basePlgCount+'</div><div class="kl">PLGs</div></div>';
   const hasDay=_hasDay5();
   const isEx390=curBeatsRS==='218390'&&curBeatsView==='existing';
   const fl=document.getElementById('p5-filter-lbl');
@@ -3179,7 +3228,7 @@ function buildBeatChips(){
         +'<div class="plg-cb '+plgCbClass+'" data-n="'+p.name+'" onclick="p5TogglePLG(this.dataset.n)"></div>'
         +dotHtml
         +'<span class="plg-name">'+p.name+'</span>'
-        +'<span class="plg-cnt">'+cnt+' DSEs</span>'
+        +'<span class="plg-cnt">'+cnt+' Salesmen</span>'
         +(isChk&&cnt>0?'<span class="plg-chev'+(isOpen?' open':'')+'" data-n="'+p.name+'" onclick="p5ToggleExpand(this.dataset.n,event)">&#9660;</span>':'')
         +'</div>'
         +(isChk&&cnt>0&&isOpen?'<div class="dse-list open">'+dseHtml+'</div>':'')
@@ -3217,196 +3266,6 @@ function buildBeatChips(){
 }
 try{buildBeatChips();}catch(e){console.error('buildBeatChips init error:',e);}
 
-// ── SLIDE 6 · DELIVERY BEATS ──────────────────────────────────────────────────
-const D6_DESIGN_KEYS=Object.keys(DELIVERY_DATA);
-const D6_SCEN_KEYS=D6_DESIGN_KEYS.length?Object.keys(DELIVERY_DATA[D6_DESIGN_KEYS[0]]):[];
-const D6_TRUCK_COLORS={"3 Wheeler":"#2196F3","Tata Ace":"#4CAF50","407":"#FF5722"};
-const D6_DEF="#607D8B";
-const D6={map:null,LG:{hull:null,pts:null,cent:null},
-  curDesign:D6_DESIGN_KEYS[0]||'',curScen:D6_SCEN_KEYS[0]||'',
-  curDay:1,showHull:true,showPts:true,showCent:true,selIdx:null,hiddenSet:new Set()};
-
-function d6GetBeats(){return((DELIVERY_DATA[D6.curDesign]||{})[D6.curScen]||{})[D6.curDay]||[];}
-function d6ActiveTrucks(){return new Set([...document.querySelectorAll('#d6-truck-filters input:checked')].map(x=>x.dataset.truck));}
-
-function d6BuildSelects(){
-  const ds=document.getElementById('d6-design-sel');
-  D6_DESIGN_KEYS.forEach(d=>{const o=document.createElement('option');o.value=o.textContent=d;ds.appendChild(o);});
-  ds.value=D6.curDesign;
-  ds.onchange=()=>{D6.curDesign=ds.value;D6.hiddenSet.clear();d6Render();};
-  const ss=document.getElementById('d6-scen-sel');
-  D6_SCEN_KEYS.forEach(s=>{const o=document.createElement('option');o.value=o.textContent=s;ss.appendChild(o);});
-  ss.value=D6.curScen;
-  ss.onchange=()=>{D6.curScen=ss.value;D6.hiddenSet.clear();d6Render();};
-}
-
-function d6BuildDayBtns(){
-  const c=document.getElementById('d6-day-btns');
-  const days=[...new Set(
-    Object.values(DELIVERY_DATA).flatMap(d=>Object.values(d).flatMap(s=>Object.keys(s).map(Number).filter(n=>!isNaN(n))))
-  )].sort((a,b)=>a-b);
-  const dayNames=['','Mon','Tue','Wed','Thu','Fri','Sat'];
-  days.forEach(d=>{
-    const b=document.createElement('button');
-    const isActive=d===D6.curDay;
-    b.className='beat-chip'+(isActive?' active':'');
-    b.style.cssText=isActive?'background:#1565C0;color:#fff;border-color:#1565C0':'';
-    b.textContent=dayNames[d]||('D'+d); b.dataset.day=d;
-    b.onclick=()=>{
-      D6.curDay=d; D6.hiddenSet.clear();
-      c.querySelectorAll('.beat-chip').forEach(x=>{
-        const on=+x.dataset.day===d;
-        x.classList.toggle('active',on);
-        x.style.cssText=on?'background:#1565C0;color:#fff;border-color:#1565C0':'';
-      });
-      d6Render();
-    };
-    c.appendChild(b);
-  });
-}
-
-function d6BuildTruckFilters(){
-  const c=document.getElementById('d6-truck-filters');
-  Object.entries(D6_TRUCK_COLORS).forEach(([t,color])=>{
-    const lbl=document.createElement('label');
-    lbl.className='d6tck';
-    lbl.innerHTML=`<input type="checkbox" checked data-truck="${t}"><span class="d6tsw" style="background:${color}"></span>${t}`;
-    lbl.querySelector('input').onchange=d6Render;
-    c.appendChild(lbl);
-  });
-}
-
-function d6tgl(k){
-  if(k==='hull')D6.showHull=!D6.showHull;
-  if(k==='pts') D6.showPts =!D6.showPts;
-  if(k==='cent')D6.showCent=!D6.showCent;
-  const on=k==='hull'?D6.showHull:k==='pts'?D6.showPts:D6.showCent;
-  const btn=document.getElementById('d6-tg-'+k);
-  btn.classList.toggle('active',on);
-  btn.style.cssText=on?'background:#1565C0;color:#fff;border-color:#1565C0':'';
-  d6Render();
-}
-
-function d6showAll(){D6.hiddenSet.clear();d6Render();}
-function d6hideAll(){
-  const beats=d6GetBeats(),active=d6ActiveTrucks();
-  beats.forEach((b,i)=>{if(active.has(b.truck))D6.hiddenSet.add(i);});
-  d6Render();
-}
-
-function d6Render(){
-  if(!D6.map)return;
-  D6.LG.hull.clearLayers();D6.LG.pts.clearLayers();D6.LG.cent.clearLayers();
-  const beats=d6GetBeats(),active=d6ActiveTrucks();
-  let tCost=0,tTrucks=0,tRT=0,nVis=0,nShown=0;
-  beats.forEach((b,idx)=>{
-    if(!active.has(b.truck))return;
-    nVis++;
-    const hidden=D6.hiddenSet.has(idx);
-    if(hidden)return;
-    nShown++;
-    const color=b.truck_color||D6_DEF;
-    const isSel=idx===D6.selIdx;
-    tCost+=b.cost; tTrucks+=1; tRT+=b.round_trip;
-    if(D6.showHull&&b.is_first&&b.hull&&b.hull.length>=3){
-      const poly=L.polygon(b.hull,{color,weight:isSel?2.5:1.5,fillColor:color,fillOpacity:isSel?.22:.1}).addTo(D6.LG.hull);
-      poly.on('click',()=>d6selectBeat(idx));
-    }
-    if(D6.showPts&&b.is_first&&b.seller_pts){
-      b.seller_pts.forEach(sp=>{
-        sp.pts.forEach(pt=>{
-          L.circleMarker(pt,{radius:3,color:sp.color,weight:.6,fillColor:sp.color,fillOpacity:.75}).addTo(D6.LG.pts);
-        });
-      });
-    }
-    if(D6.showCent&&b.centroid){
-      const label=b.sub_id!=null?`${b.id}${b.sub_id}`:`${b.id}`;
-      const sz=label.length>2?26:22;
-      const icon=L.divIcon({html:`<div style="background:${color};color:#fff;border-radius:50%;width:${sz}px;height:${sz}px;display:flex;align-items:center;justify-content:center;font-size:${sz>22?9:10}px;font-weight:700;border:2px solid rgba(255,255,255,.9);box-shadow:0 1px 4px rgba(0,0,0,.4)">${label}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],className:''});
-      L.marker(b.centroid,{icon}).bindPopup(d6buildPopup(b),{maxWidth:280}).on('click',()=>d6selectBeat(idx)).addTo(D6.LG.cent);
-    }
-  });
-  let totalVal=0;const valSeen=new Set();
-  beats.forEach((b,idx)=>{if(!active.has(b.truck)||D6.hiddenSet.has(idx))return;if(!valSeen.has(b.id)){valSeen.add(b.id);totalVal+=b.value;}});
-  document.getElementById('d6-s-beats').textContent=nShown+'/'+nVis;
-  document.getElementById('d6-s-trucks').textContent=tTrucks;
-  document.getElementById('d6-s-cost').textContent=tCost.toFixed(1);
-  document.getElementById('d6-s-val').textContent=totalVal.toFixed(2);
-  document.getElementById('d6-s-rt').textContent=tRT.toFixed(0);
-  d6buildBeatList(beats,active);
-}
-
-function d6buildPopup(b){
-  const label=b.sub_id!=null?`${b.id}${b.sub_id}`:`${b.id}`;
-  const sellerRows=b.is_first
-    ?(b.seller_pts||[]).map(sp=>`<div style="display:flex;align-items:center;gap:4px;margin-top:2px;font-size:11px"><span class="d6dot8" style="background:${sp.color}"></span><span>${sp.bid} (${sp.pts.length} outlets)</span></div>`).join('')
-    :`<div style="font-size:11px;color:#888;margin-top:4px">See Beat ${b.id}a for details</div>`;
-  return `<div class="d6-bp"><h3>Beat ${label}</h3><table>
-    <tr><td>Truck</td><td style="color:${b.truck_color};font-weight:700">${b.truck}</td></tr>
-    <tr><td>Truck load</td><td>${b.truck_val.toFixed(3)} L</td></tr>
-    ${b.sub_id!=null?`<tr><td>Beat total</td><td>${b.value.toFixed(3)} L</td></tr>`:''}
-    <tr><td>Outlets</td><td>${b.outlets}</td></tr>
-    <tr><td>Sellers</td><td>${b.sellers} · ${b.plgs}</td></tr>
-    <tr><td>Round trip</td><td>${b.round_trip} km</td></tr>
-    <tr><td>Rel cost</td><td>${b.cost}</td></tr>
-    </table>${b.is_first?'<div style="margin-top:6px;font-size:11px;font-weight:600;color:#333">Sellers:</div>'+sellerRows:sellerRows}</div>`;
-}
-
-function d6selectBeat(idx){
-  D6.selIdx=idx;d6Render();
-  const card=document.querySelector('#d6-beat-list .d6bc[data-idx="'+idx+'"]');
-  if(card)card.scrollIntoView({behavior:'smooth',block:'nearest'});
-}
-
-function d6buildBeatList(beats,active){
-  const c=document.getElementById('d6-beat-list');c.innerHTML='';
-  let n=0;
-  beats.forEach((b,idx)=>{
-    if(!active.has(b.truck))return; n++;
-    const hidden=D6.hiddenSet.has(idx);
-    const color=b.truck_color||D6_DEF;
-    const label=b.sub_id!=null?`${b.id}${b.sub_id}`:`${b.id}`;
-    const valLine=b.sub_id!=null?`${b.truck_val.toFixed(3)}L (of ${b.value.toFixed(3)}L total)`:`${b.value.toFixed(3)}L`;
-    const strip=b.is_first?(b.seller_pts||[]).map(sp=>`<span class="d6sdot"><span class="d6dot8" style="background:${sp.color}"></span>${sp.bid.split('|')[0]}</span>`).join(''):'';
-    const card=document.createElement('div');
-    card.className='d6bc'+(idx===D6.selIdx?' sel':'')+(hidden?' hid':'');
-    card.dataset.idx=idx;
-    card.innerHTML=`<div class="d6bc-dot" style="background:${color}"></div>
-      <div class="d6bc-info">
-        <div class="d6bc-title"><span>Beat ${label}</span>
-          <span style="background:${color}22;color:${color};border:1px solid ${color}55;padding:1px 6px;border-radius:9px;font-size:10px;font-weight:600">${b.truck}</span>
-        </div>
-        <div class="d6bc-meta">${b.outlets} outlets · ${valLine} · ${b.round_trip}km RT</div>
-        <div class="d6bc-tags"><span class="d6tag d6t-plg">${b.plgs}</span><span class="d6tag d6t-val">${b.sellers} seller(s)</span></div>
-        ${strip?`<div class="d6strip">${strip}</div>`:''}
-      </div>
-      <button class="d6eye" data-idx="${idx}" title="${hidden?'Show':'Hide'}">${hidden?'🚫':'👁'}</button>`;
-    card.querySelector('.d6eye').onclick=e=>{
-      e.stopPropagation();
-      if(D6.hiddenSet.has(idx))D6.hiddenSet.delete(idx);else D6.hiddenSet.add(idx);
-      d6Render();
-    };
-    card.onclick=e=>{
-      if(e.target.classList.contains('d6eye'))return;
-      D6.selIdx=idx;if(b.centroid)D6.map.panTo(b.centroid);d6Render();
-    };
-    c.appendChild(card);
-  });
-  document.getElementById('d6-beat-list-count').textContent=n+' truck(s)';
-}
-
-function initSlide6(){
-  if(D6.map)return;
-  D6.map=L.map('d6-map',{zoomControl:true,preferCanvas:true}).setView([22.52,88.34],13);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    {attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19,opacity:.9}).addTo(D6.map);
-  D6.LG.hull=L.layerGroup().addTo(D6.map);
-  D6.LG.pts =L.layerGroup().addTo(D6.map);
-  D6.LG.cent=L.layerGroup().addTo(D6.map);
-  d6BuildSelects();d6BuildDayBtns();d6BuildTruckFilters();d6Render();
-  setTimeout(()=>D6.map.invalidateSize(),150);
-}
-
 // ── SLIDE 7 · SAME-DAY CONFLICTS ─────────────────────────────────────────────
 let curS7View='v3';
 
@@ -3440,7 +3299,7 @@ function initSlide7(){
     }
     MAPS['map-7']._draw=draw7;
     m.on('render',draw7);
-  },[88.36,22.52],12);
+  },[88.30,22.49],12);
   renderPanel7();
 }
 
@@ -3468,9 +3327,87 @@ function renderPanel8(){
   document.getElementById('p8-impure-tbl').innerHTML=examples.map(r=>'<tr style="border-bottom:1px solid rgba(255,255,255,0.08)"><td style="padding:7px 6px;color:#e2e8f0;font-weight:600">'+r.dse+'</td><td style="padding:7px 6px;color:#fbbf24">'+r.plgs+'</td><td style="padding:7px 6px;text-align:right;color:#f87171;font-weight:700">'+r.n+'</td></tr>').join('');
 }
 
-// ── SLIDE 9 · JACCARD TERRITORIES ─────────────────────────────────────────────
-let curJ9View='v3',curJ9Market=0,curJ9PLG='ALL',curJ9DSE='ALL';
-const _J9_SPECIALISTS=[..._SPEC_PLG_NAMES];
+// ── SLIDE 9 · BEAT TERRITORIES & OVERLAP ──────────────────────────────────────
+let curJ9View='v3',curJ9Market=0;
+let curJ9PLG='ALL';
+let curJ9DSEs=new Set();
+
+function _j9ActivePLGs(){
+  const hulls=curJ9View==='v3'?HULL_V3_390:HULL_EX_390;
+  const names=new Set(hulls.map(h=>h.plg));
+  return PLG_INFO.filter(p=>names.has(p.name));
+}
+
+function _j9PlgDses(plgName){
+  const hulls=curJ9View==='v3'?HULL_V3_390:HULL_EX_390;
+  const dseSet=new Set(hulls.filter(h=>h.plg===plgName).map(h=>h.dse));
+  return [...dseSet].sort();
+}
+
+function buildJ9Filters(){
+  const activePLGs=_j9ActivePLGs();
+  const allSel=curJ9PLG==='ALL';
+  let html='<div class="filter-row" style="flex-wrap:wrap;gap:4px;margin-bottom:8px">';
+  html+='<button class="beat-chip'+(allSel?' active':'')+'" data-pn="ALL" '
+    +'style="'+(allSel?'background:#374151;color:white;border-color:#374151;':'')+'" '
+    +'onclick="setJ9PLG(this.dataset.pn)">All</button>';
+  activePLGs.forEach(p=>{
+    const isSel=curJ9PLG===p.name;
+    const col=p.color||'#1565C0';
+    html+='<button class="beat-chip'+(isSel?' active':'')+'" data-pn="'+p.name+'" '
+      +'style="'+(isSel?'background:'+col+';color:white;border-color:'+col+';':'')+'" '
+      +'onclick="setJ9PLG(this.dataset.pn)">'+p.name+'</button>';
+  });
+  html+='</div>';
+  document.getElementById('p9-plg-tree').innerHTML=html;
+
+  const hulls=curJ9View==='v3'?HULL_V3_390:HULL_EX_390;
+  const visibleDses=allSel
+    ?[...new Set(hulls.filter(h=>!_SPEC_PLG_NAMES.has(h.plg)).map(h=>h.dse))].sort()
+    :_j9PlgDses(curJ9PLG);
+  const allDseOn=curJ9DSEs.size===0;
+  const allDseRow='<div class="dse-item" onclick="j9ResetDSEs()" style="padding:3px 0;cursor:pointer;">'
+    +'<div class="dse-cb '+(allDseOn?'on':'partial')+'"></div>'
+    +'<span class="dse-label" style="font-weight:700;color:'+(allDseOn?'#1565C0':'#374151')+'">All Salesmen</span>'
+    +'</div>';
+  const dseRows=visibleDses.map(d=>{
+    const chk=curJ9DSEs.size===0||curJ9DSEs.has(d);
+    const plgOfDse=hulls.find(h=>h.dse===d)?.plg||'';
+    const pi=PLG_INFO.find(p=>p.name===plgOfDse);
+    const tag=pi?'<span class="dse-plg-tag" style="background:'+pi.color+'22;color:'+pi.color+';border:1px solid '+pi.color+'44">'+pi.name+'</span>':'';
+    return'<div class="dse-item" data-n="'+d+'" onclick="j9ToggleDSE(this.dataset.n)">'
+      +'<div class="dse-cb'+(chk?' on':'')+'"></div>'
+      +'<span class="dse-label">'+d+'</span>'
+      +(allSel&&tag?'<span style="margin-left:4px">'+tag+'</span>':'')
+      +'</div>';
+  }).join('');
+  const dseEl=document.getElementById('p9-dse-list');
+  if(dseEl)dseEl.innerHTML=allDseRow+dseRows;
+
+  const days=[{l:'All',v:0},{l:'Mon',v:1},{l:'Tue',v:2},{l:'Wed',v:3},{l:'Thu',v:4},{l:'Fri',v:5},{l:'Sat',v:6}];
+  document.getElementById('p9-day-chips').innerHTML=days.map(d=>{
+    const on=curJ9Market===d.v;
+    const st=on?'background:#374151;color:white;border-color:#374151;':'';
+    return'<button class="beat-chip'+(on?' active':'')+'" style="'+st+'" data-mv="'+d.v+'" onclick="setJ9Market(+this.dataset.mv)">'+d.l+'</button>';
+  }).join('');
+}
+
+function setJ9PLG(name){
+  curJ9PLG=name;curJ9DSEs=new Set();
+  buildJ9Filters();renderJaccard9();
+}
+
+function j9ToggleDSE(name){
+  const hulls=curJ9View==='v3'?HULL_V3_390:HULL_EX_390;
+  const allDses=curJ9PLG==='ALL'
+    ?[...new Set(hulls.filter(h=>!_SPEC_PLG_NAMES.has(h.plg)).map(h=>h.dse))].sort()
+    :_j9PlgDses(curJ9PLG);
+  if(curJ9DSEs.has(name)){curJ9DSEs.delete(name);}
+  else{curJ9DSEs.add(name);if(allDses.every(n=>curJ9DSEs.has(n)))curJ9DSEs=new Set();}
+  buildJ9Filters();renderJaccard9();
+}
+
+function j9ResetDSEs(){curJ9DSEs=new Set();buildJ9Filters();renderJaccard9();}
 
 function initSlide9(){
   if(MAPS['leaf-9'])return;
@@ -3490,60 +3427,23 @@ function initSlide9(){
   buildJ9Filters();renderJaccard9();
 }
 
-const _J9_DAYS=['All','Mon','Tue','Wed','Thu','Fri','Sat'];
-function buildJ9Filters(){
-  const hulls=curJ9View==='v3'?HULL_V3_390:HULL_EX_390;
-  const activePlgNames=new Set(hulls.map(h=>h.plg));
-  const activePlgs=PLG_INFO.filter(p=>activePlgNames.has(p.name));
-  const normalPlgs=activePlgs.filter(p=>p.group==='normal'||p.group==='existing');
-  const ofmPlgs=activePlgs.filter(p=>p.group==='ofm');
-  const uniPlgs=activePlgs.filter(p=>p.group==='uniglow');
-  function makeJ9Chip(name,color){
-    const isA=curJ9PLG===name&&curJ9DSE==='ALL';
-    const col=color||'#374151';
-    const st=isA?'background:'+col+';color:white;border-color:'+col+';':'border-color:'+col+';color:'+col+';';
-    return `<button class="beat-chip${isA?' active':''}" style="${st}" onclick="setJ9PLG('${name}')">${name}</button>`;
-  }
-  let html=makeJ9Chip('ALL','#374151');
-  normalPlgs.forEach(p=>html+=makeJ9Chip(p.name,p.color));
-  if(ofmPlgs.length){
-    html+='<span style="color:#d1d5db;margin:0 4px;align-self:center">|</span>'
-      +'<span style="font-size:10px;color:#7c3aed;font-weight:600;align-self:center;white-space:nowrap">OFM</span>';
-    ofmPlgs.forEach(p=>html+=makeJ9Chip(p.name,p.color));
-  }
-  if(uniPlgs.length){
-    html+='<span style="color:#d1d5db;margin:0 4px;align-self:center">|</span>'
-      +'<span style="font-size:10px;color:#0369a1;font-weight:600;align-self:center;white-space:nowrap">UNI</span>';
-    uniPlgs.forEach(p=>html+=makeJ9Chip(p.name,p.color));
-  }
-  document.getElementById('p9-plg-chips').innerHTML=html;
-  document.getElementById('p9-dse-chips').innerHTML=_J9_DAYS.map((d,i)=>{
-    const isA=curJ9Market===i;
-    const st=isA?'background:#374151;color:white;border-color:#374151;':'';
-    return `<button class="beat-chip${isA?' active':''}" style="${st}" onclick="setJ9Market(${i})">${d}</button>`;
-  }).join('');
-}
-
 function setJ9View(v){
-  curJ9View=v;curJ9Market=0;curJ9PLG='ALL';curJ9DSE='ALL';
+  curJ9View=v;curJ9Market=0;curJ9PLG='ALL';curJ9DSEs=new Set();
   document.getElementById('j9-vv3').classList.toggle('active',v==='v3');
   document.getElementById('j9-vex').classList.toggle('active',v==='existing');
-  buildJ9Filters();renderJaccard9();
-}
-
-function setJ9PLG(p){
-  curJ9PLG=p;curJ9DSE='ALL';
+  document.getElementById('j9-vv3').textContent='Proposed — '+HULL_V3_390.length+' beats';
+  document.getElementById('j9-vex').textContent='Existing — '+HULL_EX_390.length+' beats';
   buildJ9Filters();renderJaccard9();
 }
 
 function setJ9Market(m){
   curJ9Market=m;
-  buildJ9Filters();renderJaccard9();
-}
-
-function setJ9DSE(d){
-  curJ9DSE=d;curJ9PLG='ALL';
-  buildJ9Filters();renderJaccard9();
+  document.querySelectorAll('#p9-day-chips .beat-chip').forEach(b=>{
+    const on=+b.dataset.mv===m;
+    b.classList.toggle('active',on);
+    b.style.cssText=on?'background:#374151;color:white;border-color:#374151;':'';
+  });
+  renderJaccard9();
 }
 
 function renderJaccard9(){
@@ -3551,15 +3451,16 @@ function renderJaccard9(){
   state.lg.clearLayers();
   const hulls=curJ9View==='v3'?HULL_V3_390:HULL_EX_390;
   let drawn=0;const bnds=[];
+  const _J9_DNAMES=['','Mon','Tue','Wed','Thu','Fri','Sat'];
   hulls.forEach(h=>{
     if(curJ9Market!==0&&h.market!==curJ9Market)return;
     if(curJ9PLG!=='ALL'&&h.plg!==curJ9PLG)return;
-    if(curJ9PLG==='ALL'&&curJ9DSE==='ALL'&&_SPEC_PLG_NAMES.has(h.plg))return;
-    if(curJ9DSE!=='ALL'&&h.plg!==curJ9DSE)return;
+    if(curJ9PLG==='ALL'&&_SPEC_PLG_NAMES.has(h.plg))return;
+    if(curJ9DSEs.size>0&&!curJ9DSEs.has(h.dse))return;
     const pts=h.hull.map(p=>[p[0],p[1]]);
     L.polygon(pts,{
       color:'#374151',weight:1.5,fillColor:'#374151',fillOpacity:0.06
-    }).bindTooltip((h.plg?h.plg+' - ':'')+h.dse+' - '+_J9_DAYS[h.market]+' - '+h.n+' outlets',
+    }).bindTooltip((h.plg?h.plg+' - ':'')+h.dse+' - '+_J9_DNAMES[h.market]+' - '+h.n+' outlets',
       {sticky:true,direction:'top'}).addTo(state.lg);
     bnds.push(...pts);
     drawn++;
@@ -3568,7 +3469,7 @@ function renderJaccard9(){
   const jacRow=BENEFIT_STATS.jaccard.by_plg||[];
   const jv3=(curJ9View==='v3');
   document.getElementById('p9-kpis').innerHTML='<div class="kpi"><div class="kv">'+drawn+'</div><div class="kl">'+(jv3?'Proposed':'Existing')+' beats shown</div></div>'
-    +'<div class="kpi" style="background:'+(jv3?'#f0fdf4':'#fff7f7')+'"><div class="kv" style="color:'+(jv3?'#16a34a':'#dc2626')+'">'+(jv3?'0.00%':'0.21%&ndash;0.62%')+'</div><div class="kl">Avg Jaccard</div></div>';
+    +'<div class="kpi" style="background:'+(jv3?'#f0fdf4':'#fff7f7')+'"><div class="kv" style="color:'+(jv3?'#16a34a':'#dc2626')+'">'+(jv3?'~0%':'22%&ndash;52%')+'</div><div class="kl">Avg Overlap</div></div>';
   document.getElementById('p9-jac-body').innerHTML=jacRow.map(r=>'<tr><td style="text-align:left">'+r.ex_plg+' &rarr; <b>'+r.v3_plg+'</b></td>'
     +'<td style="color:#dc2626;font-weight:700">'+(r.ex_jac*100).toFixed(2)+'%</td>'
     +'<td style="color:#16a34a;font-weight:700">'+(r.v3_jac*100).toFixed(2)+'%</td>'
@@ -3581,19 +3482,9 @@ function renderBeatDists9(){
   if(!BEAT_DIST||!BEAT_DIST.v3)return;
   const v3=BEAT_DIST.v3||[],ex=BEAT_DIST.ex||[];
   const mktF=curJ9Market===0?null:curJ9Market;
-  const dseF=curJ9DSE==='ALL'?null:curJ9DSE;
   const plgF=curJ9PLG==='ALL'?null:curJ9PLG;
   const avg=(arr,k)=>{const v=arr.filter(d=>d[k]!=null).map(d=>d[k]);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
   const fmt=v=>v==null?'&mdash;':v.toFixed(1)+' km';
-  // Specialist selected: show only that specialist's proposed distances
-  if(dseF){
-    const specD=v3.filter(d=>d.plg===dseF&&(mktF?d.market===mktF:true));
-    const vc=avg(specD,'chain_km');
-    el.innerHTML='<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px">In Beat Distance</div>'
-      +'<table class="dt-tbl" style="width:100%"><thead><tr><th style="text-align:left">Specialist</th><th>Proposed</th></tr></thead>'
-      +'<tbody><tr><td style="text-align:left">'+dseF+'</td><td>'+fmt(vc)+'</td></tr></tbody></table>';
-    return;
-  }
   // Use Jaccard PLG mapping: ex_plg → v3_plg
   const jacMap=BENEFIT_STATS.jaccard.by_plg||[];
   const showJac=plgF?jacMap.filter(r=>(curJ9View==='v3'?r.v3_plg:r.ex_plg)===plgF):jacMap;
@@ -3624,35 +3515,6 @@ function renderBeatDists9(){
       +'</tr>')
     +plgRows
     +'</tbody></table>';
-}
-
-// ── SLIDE 10 · BEAT BALANCE ───────────────────────────────────────────────────
-let _s10init=false;
-function renderPanel10(){
-  if(_s10init)return;_s10init=true;
-  const byPlg=BENEFIT_STATS.balance.by_plg||[];
-  const maxCV=Math.max(...byPlg.map(r=>Math.max(r.ex_cv,r.v3_cv)));
-  document.getElementById('p10-chart').innerHTML=byPlg.map(r=>{
-    const exW=Math.round(r.ex_cv/maxCV*100);
-    const v3W=Math.round(r.v3_cv/maxCV*100);
-    const target=20;const tW=Math.round(target/maxCV*100);
-    return'<div class="bal-row">'
-      +'<div class="bal-lbl">'+r.ex_plg+'<br/><span style="font-size:10px;color:#9ca3af">&rarr;'+r.v3_plg+'</span></div>'
-      +'<div class="bar-wrap">'
-        +'<div style="position:relative;height:14px;background:#f3f4f6;border-radius:3px;overflow:visible">'
-          +'<div style="height:100%;width:'+exW+'%;background:#fca5a5;border-radius:3px;display:flex;align-items:center;justify-content:flex-end;padding-right:4px">'
-            +'<span style="font-size:9px;font-weight:700;color:#7f1d1d">'+r.ex_cv+'%</span>'
-          +'</div>'
-          +'<div style="position:absolute;top:0;left:'+tW+'%;height:100%;width:2px;background:#f59e0b;z-index:1;border-radius:1px" title="Target 20%"></div>'
-        +'</div>'
-        +'<div style="height:14px;background:#f3f4f6;border-radius:3px;display:flex;align-items:center;margin-top:2px">'
-          +'<div style="height:100%;width:'+v3W+'%;background:#86efac;border-radius:3px;display:flex;align-items:center;justify-content:flex-end;padding-right:4px">'
-            +'<span style="font-size:9px;font-weight:700;color:#14532d">'+r.v3_cv+'%</span>'
-          +'</div>'
-        +'</div>'
-      +'</div>'
-      +'</div>';
-  }).join('')+'<div style="font-size:10px;color:#9ca3af;margin-top:8px">&#9646; Amber line = 20% target</div>';
 }
 
 // ── SLIDE 11 · PLG RULES ─────────────────────────────────────────────────────
@@ -3829,16 +3691,20 @@ function renderArea12(){
 const slidesEl=document.getElementById('slides');
 const navDots=document.querySelectorAll('.dot');
 const navEl=document.getElementById('nav-dots');
-const TOTAL_SLIDES=13;
-const DARK_SLIDES=new Set([0,8,11]);
+const TOTAL_SLIDES=12;
+const DARK_SLIDES=new Set([0,1,6,11]);
 
+const sbLogo=document.getElementById('sb-logo');
+function _updateLogoMode(idx){if(sbLogo)sbLogo.classList.toggle('on-dark',DARK_SLIDES.has(idx));}
 function goTo(n){slidesEl.scrollTo({top:n*window.innerHeight,behavior:'smooth'});}
 
 slidesEl.addEventListener('scroll',()=>{
   const idx=Math.round(slidesEl.scrollTop/window.innerHeight);
   navDots.forEach((d,i)=>d.classList.toggle('active',i===idx));
   navEl.classList.toggle('dark-mode',DARK_SLIDES.has(idx));
+  _updateLogoMode(idx);
 });
+_updateLogoMode(0);
 
 let lastWheelTime=0,gestureCount=0,lastGestureTs=0,gestureSnapped=false;
 slidesEl.addEventListener('wheel',e=>{
@@ -3879,11 +3745,9 @@ const obs=new IntersectionObserver(entries=>{
     if(e.target.id==='slide-3'){initSlide3();setTimeout(()=>resizeMap('map-3'),100);}
     if(e.target.id==='slide-4'){initSlide4();setTimeout(()=>resizeMap('map-4'),100);}
     if(e.target.id==='slide-5'){initSlide5();setTimeout(()=>resizeMap('map-5'),100);}
-    if(e.target.id==='slide-6'){initSlide6();}
     if(e.target.id==='slide-7'){initSlide7();setTimeout(()=>resizeMap('map-7'),100);}
     if(e.target.id==='slide-8'){renderPanel8();}
     if(e.target.id==='slide-9'){initSlide9();}
-    if(e.target.id==='slide-10'){renderPanel10();}
     if(e.target.id==='slide-11'){renderSlide11();}
     if(e.target.id==='slide-12'){initSlide12();}
   });
@@ -3895,5 +3759,22 @@ navEl.classList.add('dark-mode');
 </body>
 </html>"""
 
-HTML = HTML_TEMPLATE.replace("__DATA_BLOCK__", DATA_BLOCK)
+import base64 as _b64
+_logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "stackbox-logo.png")
+_hul_logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "hul-logo-transparent.png")
+try:
+    with open(_logo_path, "rb") as _lf:
+        _logo_b64 = _b64.b64encode(_lf.read()).decode()
+except Exception:
+    _logo_b64 = ""
+try:
+    with open(_hul_logo_path, "rb") as _lf:
+        _hul_logo_b64 = _b64.b64encode(_lf.read()).decode()
+except Exception:
+    _hul_logo_b64 = ""
+
+HTML = (HTML_TEMPLATE
+    .replace("__DATA_BLOCK__", DATA_BLOCK)
+    .replace("__SB_LOGO__", _logo_b64)
+    .replace("__HUL_LOGO__", _hul_logo_b64))
 components.html(HTML, height=800, scrolling=False)
