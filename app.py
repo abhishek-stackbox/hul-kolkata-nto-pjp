@@ -770,6 +770,51 @@ def load_rs_hulls():
 
 
 @st.cache_data
+def load_rs_overlap():
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+
+    cache_key = "rs_overlap"
+    if os.path.exists(_json_path(cache_key)):
+        try:
+            return _load_json(cache_key)
+        except Exception:
+            pass
+
+    hull_rs_ex   = _load_json("hull_rs_ex")
+    hull_rs_prop = _load_json("hull_rs_prop")
+    rs_info_data = _load_json("rs_info")
+    rs_by_idx    = {r["idx"]: r for r in rs_info_data}
+
+    def _overlap_pct(hulls, ter_type):
+        polys = []
+        for h in hulls:
+            r = rs_by_idx.get(h["rs_idx"])
+            if not r or r["type"] != ter_type:
+                continue
+            pts = [(p[1], p[0]) for p in h["points"]]
+            if len(pts) >= 3:
+                polys.append(Polygon(pts))
+        if not polys:
+            return None
+        union_area = unary_union(polys).area
+        if union_area == 0:
+            return None
+        overlap = sum(p.area for p in polys) - union_area
+        return round(overlap / union_area * 100, 1)
+
+    result = {}
+    for ter_type in ["General", "Pharma"]:
+        result[ter_type] = {
+            "ex":   _overlap_pct(hull_rs_ex,   ter_type),
+            "prop": _overlap_pct(hull_rs_prop,  ter_type),
+        }
+
+    _save_json(cache_key, result)
+    return result
+
+
+@st.cache_data
 def load_beat_distances():
     cache_key = "beat_distances"
     if os.path.exists(_json_path(cache_key)):
@@ -1046,6 +1091,7 @@ benefit_stats = {
     },
 }
 hull_rs_ex, hull_rs_prop, rs_dist_stats = load_rs_hulls()
+rs_overlap = load_rs_overlap()
 beat_distances   = load_beat_distances()
 beat_areas       = load_beat_areas()
 delivery_zones   = load_delivery_zones()
@@ -1094,6 +1140,7 @@ DATA_BLOCK = (
     "const HULL_RS_EX       = " + json.dumps(hull_rs_ex)       + ";\n"
     "const HULL_RS_PROP     = " + json.dumps(hull_rs_prop)     + ";\n"
     "const RS_DIST_STATS    = " + json.dumps(rs_dist_stats)    + ";\n"
+    "const RS_OVERLAP       = " + json.dumps(rs_overlap)       + ";\n"
     "const BEAT_DIST        = " + json.dumps(beat_distances)   + ";\n"
     "const BEAT_AREA        = " + json.dumps(beat_areas)       + ";\n"
     "const DELIVERY_BEATS_V4 = " + json.dumps(delivery_beats_v4) + ";\n"
@@ -1357,8 +1404,8 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
       <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px 24px">
         <div style="font-size:36px;font-weight:800;color:#4ade80;margin-bottom:4px">73%</div>
-        <div style="font-size:14px;font-weight:700;color:white;margin-bottom:6px">Mirror Beats</div>
-        <div style="font-size:12px;color:#94a3b8;line-height:1.5">Each salesman covers a distinct, non-overlapping area per day. Same-day visits by 2+ salesmen to the same outlet dropped from 8,171 to 2,192 &mdash; no wasted calls, no duplicated effort.</div>
+        <div style="font-size:14px;font-weight:700;color:white;margin-bottom:6px">Reduction in Mirror Beats</div>
+        <div style="font-size:12px;color:#94a3b8;line-height:1.5">Each salesman covers a distinct, non-overlapping area per day. Same-day visits by 2+ salesmen to the same outlet dropped from 8,171 to 2,192.</div>
       </div>
 
       <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px 24px">
@@ -1491,10 +1538,13 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
       <button class="t-btn active" id="t-existing" onclick="setView('existing')">Existing</button>
       <button class="t-btn"        id="t-proposed" onclick="setView('proposed')">Proposed</button>
     </div>
-    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Layers</div>
+    <div style="font-size:11px;color:#6b7280;line-height:1.5;margin:8px 0 4px">
+      Convex hull of each distributor&rsquo;s outlets. Overlapping fills = territory overlap.
+    </div>
+    <div id="p2-overlap-stats" style="margin-bottom:8px"></div>
     <div class="filter-row" style="gap:4px;margin-bottom:6px">
-      <button class="beat-chip" id="p2-tg-boundary" onclick="s2tgl('boundary')" style="">Boundary</button>
-      <button class="beat-chip active" id="p2-tg-ret" onclick="s2tgl('ret')"    style="background:#1565C0;color:#fff;border-color:#1565C0">Retailers</button>
+      <button class="beat-chip active" id="p2-tg-boundary" onclick="s2tgl('boundary')" style="background:#1565C0;color:#fff;border-color:#1565C0">Hulls</button>
+      <button class="beat-chip" id="p2-tg-ret" onclick="s2tgl('ret')" style="">Outlets</button>
     </div>
     <button class="dl-btn" id="p2-dl-btn" style="display:none;margin-top:4px" onclick="downloadProposed()">
       &#8595; Download Proposed Plan CSV</button>
@@ -1644,8 +1694,23 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
         km&sup2; per delivery zone &mdash; <span style="color:#dc2626">Ex (1-day)</span> &nbsp; <span style="color:#7030A0">Prop (2-day)</span>
       </div>
       <div id="p12-chart"></div>
-      <div style="margin-top:12px;padding:10px 12px;background:#eff6ff;border-radius:8px;font-size:11px;color:#374151;line-height:1.5">
-        <strong style="color:#1565C0">Why it matters:</strong> Delivery truck covers a market zone in one trip. V4 combines 2 days of sales into one compact zone &mdash; fewer truck-km, lower logistics cost.
+      <div style="margin-top:10px;padding:10px 12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;font-size:11px;color:#0c4a6e;line-height:1.6">
+        <div style="font-size:10px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">V4 Delivery Bundling (N+2)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:7px">
+          <div style="background:rgba(255,255,255,0.6);border-radius:6px;padding:6px 8px">
+            <div style="font-size:10px;font-weight:700;color:#0369a1;margin-bottom:2px">Day N &mdash; Group A</div>
+            <div style="font-size:11px;color:#374151">D+F+N &nbsp; D &nbsp; D+F &nbsp; F &nbsp; PP-A</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.6);border-radius:6px;padding:6px 8px">
+            <div style="font-size:10px;font-weight:700;color:#0369a1;margin-bottom:2px">Day N+1 &mdash; Group B</div>
+            <div style="font-size:11px;color:#374151">PP &nbsp; F+N &nbsp; N &nbsp; PP-B</div>
+          </div>
+        </div>
+        <div style="margin-bottom:5px">Delivery truck combines orders from both days on <strong>day N+2</strong> &mdash; one trip per zone covers 2 days of sales.</div>
+        <div style="border-top:1px solid #bae6fd;padding-top:5px;color:#374151">
+          Within-group pairs (D&thinsp;+&thinsp;PP-A, F+N&thinsp;+&thinsp;PP-B) visit the same outlets on the same day intentionally &mdash;
+          <strong>89.6%</strong> of D+F+N / PP pairs are on consecutive days &middot; <strong>100%</strong> of PP-A / PP-B pairs.
+        </div>
       </div>
     </div>
   </div>
@@ -2339,7 +2404,7 @@ function downloadProposed(){
 // ── SLIDE 2 · TERRITORY OVERLAPS ─────────────────────────────────────────────
 let curView='existing', curTerType='General';
 let selRS2=new Set();
-let _s2ShowBoundary=false, _s2ShowRetailers=true;
+let _s2ShowBoundary=true, _s2ShowRetailers=false;
 
 function _applyTer2Filters(m){
   let f;
@@ -2384,25 +2449,25 @@ function initSlide2(){
 
     const {canvas:oc,ctx:ctx2}=_makeOutletCanvas(m,_DPR);
     function _drawHulls2(){
-      if(!_s2ShowBoundary||selRS2.size===0)return;
+      if(!_s2ShowBoundary)return;
       const hulls=curView==='existing'?HULL_RS_EX:HULL_RS_PROP;
       ctx2.save();
       hulls.forEach(h=>{
         const rs=RS_INFO[h.rs_idx];
-        if(!rs||rs.type!==curTerType||!selRS2.has(h.rs_idx))return;
+        if(!rs||rs.type!==curTerType)return;
         const pts=h.points.map(p=>m.project([p[1],p[0]]));
         if(pts.length<3)return;
         ctx2.beginPath();
         pts.forEach((pt,i)=>{const x=pt.x*_DPR,y=pt.y*_DPR;i===0?ctx2.moveTo(x,y):ctx2.lineTo(x,y);});
         ctx2.closePath();
-        ctx2.globalAlpha=0.1;ctx2.fillStyle=rs.color;ctx2.fill();
-        ctx2.globalAlpha=0.95;ctx2.strokeStyle=rs.color;ctx2.lineWidth=2.5*_DPR;ctx2.stroke();
+        ctx2.globalAlpha=0.13;ctx2.fillStyle=rs.color;ctx2.fill();
+        ctx2.globalAlpha=0.9;ctx2.strokeStyle=rs.color;ctx2.lineWidth=2*_DPR;ctx2.stroke();
       });
       ctx2.globalAlpha=1;ctx2.restore();
     }
     function draw2(){
       ctx2.clearRect(0,0,oc.width,oc.height);
-      if(!_s2ShowRetailers||selRS2.size===0){_drawHulls2();return;}
+      if(!_s2ShowRetailers){_drawHulls2();return;}
       const tpF=curTerType==='General'?0:1;
       const filt=RS_INFO.filter(r=>r.type===curTerType);
       if(filt.every(r=>selRS2.has(r.idx))){
@@ -2493,6 +2558,27 @@ function setView(v){
 function renderPanel2(){
   document.getElementById('t-existing').classList.toggle('active',curView==='existing');
   document.getElementById('t-proposed').classList.toggle('active',curView==='proposed');
+  const overlapEl=document.getElementById('p2-overlap-stats');
+  if(overlapEl&&RS_OVERLAP){
+    const t=curTerType;
+    const d=RS_OVERLAP[t]||{};
+    const exP=d.ex!=null?d.ex.toFixed(1)+'%':'&mdash;';
+    const prP=d.prop!=null?d.prop.toFixed(1)+'%':'&mdash;';
+    const exCol=d.ex==null?'#6b7280':d.ex>10?'#dc2626':d.ex>5?'#ca8a04':'#16a34a';
+    const prCol=d.prop==null?'#6b7280':d.prop>10?'#dc2626':d.prop>5?'#ca8a04':'#16a34a';
+    const active=curView==='existing';
+    overlapEl.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'
+      +'<div style="padding:8px 10px;border-radius:8px;border:1.5px solid '+(active?'#1565C0':'#e5e7eb')+';background:'+(active?'#eff6ff':'#f9fafb')+'">'
+      +'<div style="font-size:10px;color:#6b7280;margin-bottom:2px">Existing overlap</div>'
+      +'<div style="font-size:20px;font-weight:800;color:'+exCol+'">'+exP+'</div>'
+      +'</div>'
+      +'<div style="padding:8px 10px;border-radius:8px;border:1.5px solid '+(!active?'#1565C0':'#e5e7eb')+';background:'+(!active?'#eff6ff':'#f9fafb')+'">'
+      +'<div style="font-size:10px;color:#6b7280;margin-bottom:2px">Proposed overlap</div>'
+      +'<div style="font-size:20px;font-weight:800;color:'+prCol+'">'+prP+'</div>'
+      +'</div>'
+      +'</div>'
+      +'<div style="font-size:10px;color:#9ca3af;margin-top:4px">Overlap = double-covered area &divide; total footprint. '+(t)+' distributors.</div>';
+  }
   const isProposed=curView==='proposed';
   const dlBtn=document.getElementById('p2-dl-btn');
   if(dlBtn)dlBtn.style.display=isProposed?'':'none';
@@ -3505,15 +3591,46 @@ function renderBeatDists9(){
   const eC=avg(allEx,'chain_km'),dC=avg(allV3,'chain_km');
   const dChain=dC!=null&&eC!=null?dC-eC:null;
   const colC=dChain==null?'#6b7280':dChain<0?'#16a34a':'#dc2626';
-  el.innerHTML='<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px">In Beat Distance Comparison (km)</div>'
+  // OFM and UNIGLOW specialist rows (proposed only — no existing equivalent)
+  // plg_info chip names differ from beat_distances PLG names in two cases
+  const _CHIP_TO_DIST={'D_OFM':'D-OFM','F+N_OFM':'F-OFM'};
+  const _OFM_CHIPS=new Set(['D_OFM','F+N_OFM','N_OFM','PP-A_OFM','PP-B_OFM']);
+  const _OFM_DIST=new Set(['D-OFM','F-OFM','N_OFM','PP-A_OFM','PP-B_OFM']);
+  const _UNI_PLG=new Set(['D+F_UNIGLOW','PP-A_UNIGLOW','PP-B_UNIGLOW']);
+  const showOFM=!plgF||_OFM_CHIPS.has(plgF);
+  const showUNI=!plgF||_UNI_PLG.has(plgF);
+  let specRows='';
+  if(showOFM){
+    let ofmD;
+    if(plgF&&_OFM_CHIPS.has(plgF)){
+      const distName=_CHIP_TO_DIST[plgF]||plgF;
+      ofmD=v3.filter(d=>d.plg===distName&&(mktF?d.market===mktF:true));
+    } else {
+      ofmD=v3.filter(d=>_OFM_DIST.has(d.plg)&&(mktF?d.market===mktF:true));
+    }
+    const ofmKm=avg(ofmD,'chain_km');
+    const lbl=(plgF&&_OFM_CHIPS.has(plgF))?plgF:'OFM (all)';
+    if(ofmKm!=null)specRows+='<tr style="background:#faf5ff"><td style="text-align:left;color:#7c3aed;font-weight:600">&mdash; &rarr; <b>'+lbl+'</b></td>'
+      +'<td style="color:#9ca3af">&mdash;</td><td>'+fmt(ofmKm)+'</td><td style="color:#9ca3af">&mdash;</td></tr>';
+  }
+  if(showUNI){
+    const uniD=v3.filter(d=>(plgF&&_UNI_PLG.has(plgF)?d.plg===plgF:_UNI_PLG.has(d.plg))&&(mktF?d.market===mktF:true));
+    const uniKm=avg(uniD,'chain_km');
+    const lbl=(plgF&&_UNI_PLG.has(plgF))?plgF:'UNIGLOW (all)';
+    if(uniKm!=null)specRows+='<tr style="background:#eff6ff"><td style="text-align:left;color:#0369a1;font-weight:600">&mdash; &rarr; <b>'+lbl+'</b></td>'
+      +'<td style="color:#9ca3af">&mdash;</td><td>'+fmt(uniKm)+'</td><td style="color:#9ca3af">&mdash;</td></tr>';
+  }
+  el.innerHTML='<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 2px">In-Beat Route Distance (km/market day)</div>'
+    +'<div style="font-size:10px;color:#9ca3af;margin-bottom:4px">Distance a salesman travels within their beat on one market day. Not a round trip from distributor.</div>'
     +'<table class="dt-tbl" style="width:100%"><thead><tr>'
     +'<th style="text-align:left">Ex PLG &rarr; Prop</th><th>Existing</th><th>Proposed</th><th>&Delta;</th>'
     +'</tr></thead><tbody>'
-    +(plgF?'':'<tr style="font-weight:700;background:#f9fafb"><td style="text-align:left">All</td>'
+    +(plgF?'':'<tr style="font-weight:700;background:#f9fafb"><td style="text-align:left">All (regular)</td>'
       +'<td>'+fmt(eC)+'</td><td>'+fmt(dC)+'</td>'
       +'<td style="color:'+colC+'">'+(dChain==null?'&mdash;':(dChain<0?'':'+')+dChain.toFixed(1))+'</td>'
       +'</tr>')
     +plgRows
+    +specRows
     +'</tbody></table>';
 }
 
