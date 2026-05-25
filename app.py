@@ -31,6 +31,19 @@ section[data-testid="stSidebar"]   { display:none !important; }
     border:none !important; display:block !important;
 }
 </style>
+<script>
+(function(){
+  function fix(){
+    document.querySelectorAll('[data-testid="stCustomComponentV1"] iframe').forEach(function(f){
+      f.style.setProperty('height','100vh','important');
+      f.style.setProperty('width','100vw','important');
+    });
+  }
+  fix();
+  new MutationObserver(fix).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style']});
+  window.addEventListener('resize',fix);
+})();
+</script>
 """, unsafe_allow_html=True)
 
 DATA_ROOT = os.path.expanduser(
