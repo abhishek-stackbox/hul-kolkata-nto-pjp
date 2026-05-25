@@ -4,3 +4,4 @@
 *.geojson
 __pycache__/
 .env
+create_notion_page.py
