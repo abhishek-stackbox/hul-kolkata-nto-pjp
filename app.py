@@ -2245,14 +2245,25 @@ function p5DownloadExisting(){
   document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 function downloadProposed(){
+  function _hav(la1,lo1,la2,lo2){
+    const R=6371,dLat=(la2-la1)*Math.PI/180,dLon=(lo2-lo1)*Math.PI/180;
+    const a=Math.sin(dLat/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
   const hdr=['Outlet Code','Outlet Name','Old RS Code','Old RS Name','New RS Code','New RS Name',
-             'primarychannel','Classification','Channel Program','MOC'];
+             'primarychannel','Classification','Channel Program','MOC',
+             'Old Dist (km)','New Dist (km)','Old Dist x MOC','New Dist x MOC'];
   const rows=[hdr,...OUTLETS.map(o=>{
     const oldRS=RS_INFO[o[2]],newRS=RS_INFO[o[3]];
+    const moc=o[6]||0;
+    const oldD=(oldRS&&oldRS.lat&&oldRS.lon)?_hav(o[0],o[1],oldRS.lat,oldRS.lon):null;
+    const newD=(newRS&&newRS.lat&&newRS.lon)?_hav(o[0],o[1],newRS.lat,newRS.lon):null;
     return[o[9]||'',o[4],
            oldRS?oldRS.code:'',oldRS?oldRS.name:'',
            newRS?newRS.code:'',newRS?newRS.name:'',
-           o[7]||'',o[5]||'',o[8]||'',o[6]||0];
+           o[7]||'',o[5]||'',o[8]||'',moc,
+           oldD!=null?oldD.toFixed(3):'',newD!=null?newD.toFixed(3):'',
+           oldD!=null?(oldD*moc).toFixed(3):'',newD!=null?(newD*moc).toFixed(3):''];
   })];
   const csv=rows.map(r=>r.map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')).join('\\r\\n');
   const a=document.createElement('a');
