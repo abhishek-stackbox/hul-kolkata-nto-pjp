@@ -1446,51 +1446,10 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   </div>
 </div>
 
-<!-- SLIDE 3 · DUPLICATE OUTLETS (position 2) -->
-<div class="slide" id="slide-3">
-  <div class="map-wrap" id="map-3"></div>
-  <div class="page-lbl">2 / 12 &middot; Duplicate Outlets</div>
-  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
-  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;">
-    <h2>Duplicate Outlets</h2>
-    <p class="p-sub">AI-verified pairs &middot; same store, two entries</p>
-    <div class="kpi-r" id="p3-kpis"></div>
-    <button class="dl-btn" onclick="downloadDupes()">&#8595; Download Duplicate Pairs CSV</button>
-    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
-      letter-spacing:.5px;margin:4px 0 6px;flex-shrink:0">Pairs (sorted by distance)</div>
-    <div id="p3-list" style="overflow-y:scroll;flex:1;min-height:0;"></div>
-  </div>
-</div>
-
-<!-- SLIDE 4 · HIGH DENSITY CLUSTERS (position 3) -->
-<div class="slide" id="slide-4">
-  <div class="map-wrap" id="map-4"></div>
-  <div class="page-lbl">3 / 12 &middot; High Density Clusters</div>
-  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
-  <div class="panel">
-    <h2>High Density Clusters</h2>
-    <p class="p-sub">~20m grid cells &middot; slide to adjust threshold</p>
-    <button class="dl-btn" onclick="downloadClusters()" style="margin-bottom:8px">&#8595; Download Cluster Data CSV</button>
-    <div class="slider-wrap">
-      <label>Min outlets per cluster</label>
-      <div class="slider-row">
-        <input type="range" min="5" max="50" value="5" id="density-slider"
-          oninput="setDensity(+this.value)">
-        <span class="slider-val" id="density-val">5</span>
-      </div>
-    </div>
-    <div class="kpi-r" id="p4-kpis"></div>
-    <div class="cluster-meta" id="p4-meta"></div>
-    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
-      letter-spacing:.5px;margin-bottom:6px">Top Clusters</div>
-    <div id="p4-list" style="overflow-y:auto;max-height:calc(100vh - 390px)"></div>
-  </div>
-</div>
-
 <!-- SLIDE 1 · OUTLETS & DISTRIBUTORS -->
 <div class="slide" id="slide-1">
   <div class="map-wrap" id="map-1"></div>
-  <div class="page-lbl">4 / 12 &middot; Outlets &amp; Distributors</div>
+  <div class="page-lbl">2 / 12 &middot; Outlets &amp; Distributors</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Outlets &amp; Distributors</h2>
@@ -1526,7 +1485,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 2 · TERRITORY OVERLAPS -->
 <div class="slide" id="slide-2">
   <div class="map-wrap" id="map-2"></div>
-  <div class="page-lbl">5 / 12 &middot; Territory Overlaps</div>
+  <div class="page-lbl">3 / 12 &middot; Territory Overlaps</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Territory Overlaps</h2>
@@ -1557,6 +1516,47 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
         <th>Distributor</th><th id="p2-col-ol">Outlets</th><th id="p2-col-moc">MOC</th></tr></thead>
       <tbody id="p2-tb"></tbody>
     </table>
+  </div>
+</div>
+
+<!-- SLIDE 4 · HIGH DENSITY CLUSTERS (position 3) -->
+<div class="slide" id="slide-4">
+  <div class="map-wrap" id="map-4"></div>
+  <div class="page-lbl">4 / 12 &middot; High Density Clusters</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel">
+    <h2>High Density Clusters</h2>
+    <p class="p-sub">~20m grid cells &middot; slide to adjust threshold</p>
+    <button class="dl-btn" onclick="downloadClusters()" style="margin-bottom:8px">&#8595; Download Cluster Data CSV</button>
+    <div class="slider-wrap">
+      <label>Min outlets per cluster</label>
+      <div class="slider-row">
+        <input type="range" min="5" max="50" value="5" id="density-slider"
+          oninput="setDensity(+this.value)">
+        <span class="slider-val" id="density-val">5</span>
+      </div>
+    </div>
+    <div class="kpi-r" id="p4-kpis"></div>
+    <div class="cluster-meta" id="p4-meta"></div>
+    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
+      letter-spacing:.5px;margin-bottom:6px">Top Clusters</div>
+    <div id="p4-list" style="overflow-y:auto;max-height:calc(100vh - 390px)"></div>
+  </div>
+</div>
+
+<!-- SLIDE 3 · DUPLICATE OUTLETS (position 2) -->
+<div class="slide" id="slide-3">
+  <div class="map-wrap" id="map-3"></div>
+  <div class="page-lbl">5 / 12 &middot; Duplicate Outlets</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;">
+    <h2>Duplicate Outlets</h2>
+    <p class="p-sub">AI-verified pairs &middot; same store, two entries</p>
+    <div class="kpi-r" id="p3-kpis"></div>
+    <button class="dl-btn" onclick="downloadDupes()">&#8595; Download Duplicate Pairs CSV</button>
+    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;
+      letter-spacing:.5px;margin:4px 0 6px;flex-shrink:0">Pairs (sorted by distance)</div>
+    <div id="p3-list" style="overflow-y:scroll;flex:1;min-height:0;"></div>
   </div>
 </div>
 
@@ -1594,10 +1594,48 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   </div>
 </div>
 
+<!-- SLIDE 8 · PLG PURITY -->
+<div class="slide info-slide" id="slide-8" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%)">
+  <div class="page-lbl">7 / 12 &middot; PLG Purity &middot; RS 218390</div>
+  <div style="max-width:860px;margin:0 auto;padding:44px 28px;color:white">
+    <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:12px">Benefit 2 &middot; RS 218390</div>
+    <h2 style="font-size:32px;font-weight:800;margin-bottom:8px;color:white">PLG Purity</h2>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:24px;max-width:580px;line-height:1.6">In V4 every salesman specialises in exactly one product category. Previously 57 of 107 salesmen carried mixed portfolios across 2&ndash;3 PLG types.</p>
+    <div class="bs-grid">
+      <div class="bs-card" style="background:rgba(248,113,113,0.15);border:1px solid rgba(248,113,113,0.35)">
+        <div class="bs-v" style="color:#f87171">57</div>
+        <div class="bs-l" style="color:#94a3b8">Impure Salesmen<br/>Existing design</div>
+      </div>
+      <div class="bs-card" style="background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.35)">
+        <div class="bs-v" style="color:#4ade80">0</div>
+        <div class="bs-l" style="color:#94a3b8">Impure Salesmen<br/>V4 design</div>
+      </div>
+      <div class="bs-card" style="background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.35)">
+        <div class="bs-v" style="color:#60a5fa">100%</div>
+        <div class="bs-l" style="color:#94a3b8">Pure specialist<br/>coverage in V4</div>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:#60a5fa;letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Mixed-portfolio salesmen in existing design (sample of 57)</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.15)">
+          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Salesman</th>
+          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">PLG Types Assigned</th>
+          <th style="padding:7px 6px;text-align:right;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">PLG Count</th>
+        </tr>
+      </thead>
+      <tbody id="p8-impure-tbl"></tbody>
+    </table>
+    <div style="margin-top:18px;padding:13px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:12px;color:#94a3b8;line-height:1.6">
+      <strong style="color:#e2e8f0">Why it matters:</strong> Mixed-portfolio salesmen divide attention across categories, reducing depth per PLG. V3 assigns each Salesman exactly one Sub-PLG &mdash; specialist knowledge, dedicated targets, higher hit rate.
+    </div>
+  </div>
+</div>
+
 <!-- SLIDE 5 · BEATS -->
 <div class="slide" id="slide-5" style="background:white">
   <div class="map-wrap" id="map-5"></div>
-  <div class="page-lbl">7 / 12 &middot; Beats &middot; RS 218390 &amp; 218391</div>
+  <div class="page-lbl">8 / 12 &middot; Beats &middot; RS 218390 &amp; 218391</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -1644,7 +1682,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 9 · JACCARD TERRITORIES (position 5) -->
 <div class="slide" id="slide-9">
   <div class="map-wrap" id="l9-map"></div>
-  <div class="page-lbl">8 / 12 &middot; Beat Territories &middot; RS 218390</div>
+  <div class="page-lbl">9 / 12 &middot; Beat Territories &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -1669,49 +1707,6 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
         </tr></thead>
         <tbody id="p9-jac-body"></tbody>
       </table>
-    </div>
-  </div>
-</div>
-
-<!-- SLIDE 12 · BEAT AREA PER DAY -->
-<div class="slide" id="slide-12">
-  <div class="map-wrap" id="l12-map"></div>
-  <div class="page-lbl">9 / 12 &middot; Beat Area per Day &middot; RS 218390</div>
-  <div class="zoom-hint">Ctrl+Scroll to zoom</div>
-  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
-    <div style="padding:16px 18px 12px;flex-shrink:0;overflow-y:auto;max-height:100vh">
-      <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#1565C0;text-transform:uppercase;margin-bottom:6px">Benefit 5 &middot; RS 218390</div>
-      <h2 style="margin-bottom:3px">Beat Area &mdash; Delivery Zone</h2>
-      <p class="p-sub" style="margin-bottom:8px">Delivery coverage km&sup2; per market zone. Existing = 1-day sales; Proposed = 2-day bundled sales.</p>
-      <div class="toggle-row" style="margin-bottom:8px">
-        <button class="t-btn active" id="a12-vv3" onclick="setA12View('v3')">Proposed (2-day)</button>
-        <button class="t-btn" id="a12-vex" onclick="setA12View('existing')">Existing (1-day)</button>
-      </div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by zone</div>
-      <div class="filter-row" id="a12-zone-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:10px"></div>
-      <div class="kpi-r" style="grid-template-columns:1fr 1fr;margin-bottom:10px" id="p12-kpis"></div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
-        km&sup2; per delivery zone &mdash; <span style="color:#dc2626">Ex (1-day)</span> &nbsp; <span style="color:#7030A0">Prop (2-day)</span>
-      </div>
-      <div id="p12-chart"></div>
-      <div style="margin-top:10px;padding:10px 12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;font-size:11px;color:#0c4a6e;line-height:1.6">
-        <div style="font-size:10px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">V4 Delivery Bundling (N+2)</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:7px">
-          <div style="background:rgba(255,255,255,0.6);border-radius:6px;padding:6px 8px">
-            <div style="font-size:10px;font-weight:700;color:#0369a1;margin-bottom:2px">Day N &mdash; Group A</div>
-            <div style="font-size:11px;color:#374151">D+F+N &nbsp; D &nbsp; D+F &nbsp; F &nbsp; PP-A</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.6);border-radius:6px;padding:6px 8px">
-            <div style="font-size:10px;font-weight:700;color:#0369a1;margin-bottom:2px">Day N+1 &mdash; Group B</div>
-            <div style="font-size:11px;color:#374151">PP &nbsp; F+N &nbsp; N &nbsp; PP-B</div>
-          </div>
-        </div>
-        <div style="margin-bottom:5px">Delivery truck combines orders from both days on <strong>day N+2</strong> &mdash; one trip per zone covers 2 days of sales.</div>
-        <div style="border-top:1px solid #bae6fd;padding-top:5px;color:#374151">
-          Within-group pairs (D&thinsp;+&thinsp;PP-A, F+N&thinsp;+&thinsp;PP-B) visit the same outlets on the same day intentionally &mdash;
-          <strong>89.6%</strong> of D+F+N / PP pairs are on consecutive days &middot; <strong>100%</strong> of PP-A / PP-B pairs.
-        </div>
-      </div>
     </div>
   </div>
 </div>
@@ -1753,40 +1748,45 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   </div>
 </div>
 
-<!-- SLIDE 8 · PLG PURITY -->
-<div class="slide info-slide" id="slide-8" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%)">
-  <div class="page-lbl">11 / 12 &middot; PLG Purity &middot; RS 218390</div>
-  <div style="max-width:860px;margin:0 auto;padding:44px 28px;color:white">
-    <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:12px">Benefit 2 &middot; RS 218390</div>
-    <h2 style="font-size:32px;font-weight:800;margin-bottom:8px;color:white">PLG Purity</h2>
-    <p style="font-size:13px;color:#94a3b8;margin-bottom:24px;max-width:580px;line-height:1.6">In V4 every salesman specialises in exactly one product category. Previously 57 of 107 salesmen carried mixed portfolios across 2&ndash;3 PLG types.</p>
-    <div class="bs-grid">
-      <div class="bs-card" style="background:rgba(248,113,113,0.15);border:1px solid rgba(248,113,113,0.35)">
-        <div class="bs-v" style="color:#f87171">57</div>
-        <div class="bs-l" style="color:#94a3b8">Impure Salesmen<br/>Existing design</div>
+<!-- SLIDE 12 · BEAT AREA PER DAY -->
+<div class="slide" id="slide-12">
+  <div class="map-wrap" id="l12-map"></div>
+  <div class="page-lbl">11 / 12 &middot; Beat Area per Day &middot; RS 218390</div>
+  <div class="zoom-hint">Ctrl+Scroll to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
+    <div style="padding:16px 18px 12px;flex-shrink:0;overflow-y:auto;max-height:100vh">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#1565C0;text-transform:uppercase;margin-bottom:6px">Benefit 5 &middot; RS 218390</div>
+      <h2 style="margin-bottom:3px">Beat Area &mdash; Delivery Zone</h2>
+      <p class="p-sub" style="margin-bottom:8px">Delivery coverage km&sup2; per market zone. Existing = 1-day sales; Proposed = 2-day bundled sales.</p>
+      <div class="toggle-row" style="margin-bottom:8px">
+        <button class="t-btn active" id="a12-vv3" onclick="setA12View('v3')">Proposed (2-day)</button>
+        <button class="t-btn" id="a12-vex" onclick="setA12View('existing')">Existing (1-day)</button>
       </div>
-      <div class="bs-card" style="background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.35)">
-        <div class="bs-v" style="color:#4ade80">0</div>
-        <div class="bs-l" style="color:#94a3b8">Impure Salesmen<br/>V4 design</div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by zone</div>
+      <div class="filter-row" id="a12-zone-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:10px"></div>
+      <div class="kpi-r" style="grid-template-columns:1fr 1fr;margin-bottom:10px" id="p12-kpis"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
+        km&sup2; per delivery zone &mdash; <span style="color:#dc2626">Ex (1-day)</span> &nbsp; <span style="color:#7030A0">Prop (2-day)</span>
       </div>
-      <div class="bs-card" style="background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.35)">
-        <div class="bs-v" style="color:#60a5fa">100%</div>
-        <div class="bs-l" style="color:#94a3b8">Pure specialist<br/>coverage in V4</div>
+      <div id="p12-chart"></div>
+      <div style="margin-top:10px;padding:10px 12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;font-size:11px;color:#0c4a6e;line-height:1.6">
+        <div style="font-size:10px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">V4 Delivery Bundling (N+2)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:7px">
+          <div style="background:rgba(255,255,255,0.6);border-radius:6px;padding:6px 8px">
+            <div style="font-size:10px;font-weight:700;color:#0369a1;margin-bottom:2px">Day N &mdash; Group A</div>
+            <div style="font-size:11px;color:#374151">D+F+N &nbsp; D &nbsp; D+F &nbsp; F &nbsp; PP-A</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.6);border-radius:6px;padding:6px 8px">
+            <div style="font-size:10px;font-weight:700;color:#0369a1;margin-bottom:2px">Day N+1 &mdash; Group B</div>
+            <div style="font-size:11px;color:#374151">PP &nbsp; F+N &nbsp; N &nbsp; PP-B</div>
+          </div>
+        </div>
+        <div style="margin-bottom:5px">Delivery truck combines orders from both days on <strong>day N+2</strong> &mdash; one trip per zone covers 2 days of sales.</div>
+        <div style="border-top:1px solid #bae6fd;padding-top:5px;color:#374151">
+          Within-group pairs (D&thinsp;+&thinsp;PP-A, F+N&thinsp;+&thinsp;PP-B) visit the same outlets on the same day intentionally &mdash;
+          <strong>89.6%</strong> of D+F+N / PP pairs are on consecutive days &middot; <strong>100%</strong> of PP-A / PP-B pairs.
+        </div>
       </div>
-    </div>
-    <div style="font-size:11px;font-weight:700;color:#60a5fa;letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">Mixed-portfolio salesmen in existing design (sample of 57)</div>
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <thead>
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.15)">
-          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Salesman</th>
-          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">PLG Types Assigned</th>
-          <th style="padding:7px 6px;text-align:right;font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px">PLG Count</th>
-        </tr>
-      </thead>
-      <tbody id="p8-impure-tbl"></tbody>
-    </table>
-    <div style="margin-top:18px;padding:13px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:12px;color:#94a3b8;line-height:1.6">
-      <strong style="color:#e2e8f0">Why it matters:</strong> Mixed-portfolio salesmen divide attention across categories, reducing depth per PLG. V3 assigns each Salesman exactly one Sub-PLG &mdash; specialist knowledge, dedicated targets, higher hit rate.
     </div>
   </div>
 </div>
@@ -3809,7 +3809,7 @@ const slidesEl=document.getElementById('slides');
 const navDots=document.querySelectorAll('.dot');
 const navEl=document.getElementById('nav-dots');
 const TOTAL_SLIDES=12;
-const DARK_SLIDES=new Set([0,1,6,11]);
+const DARK_SLIDES=new Set([0,1,6,7]);
 
 const sbLogo=document.getElementById('sb-logo');
 function _updateLogoMode(idx){if(sbLogo)sbLogo.classList.toggle('on-dark',DARK_SLIDES.has(idx));}
