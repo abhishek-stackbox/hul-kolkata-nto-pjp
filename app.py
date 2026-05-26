@@ -1113,6 +1113,15 @@ try:
 except Exception:
     pass
 
+_KEEP = ['id','sub_id','sellers','seller_ids','plgs','outlets','value','truck','truck_color','cost','round_trip','centroid','hull']
+_delivery_data_slim = {}
+for _sc in ['Existing', 'Output 1']:
+    _delivery_data_slim[_sc] = {}
+    for _lim in ['Max 2 sellers', 'Max 3 sellers', 'Max 4 sellers']:
+        _delivery_data_slim[_sc][_lim] = {}
+        for _day in _delivery_data.get(_sc, {}).get(_lim, {}):
+            _delivery_data_slim[_sc][_lim][_day] = [{k: b[k] for k in _KEEP if k in b} for b in _delivery_data[_sc][_lim][_day]]
+
 DATA_BLOCK = (
     "const OUTLETS    = " + json.dumps(outlets)       + ";\n"
     "const RS_INFO    = " + json.dumps(rs_info)       + ";\n"
@@ -1145,6 +1154,7 @@ DATA_BLOCK = (
     "const BEAT_AREA        = " + json.dumps(beat_areas)       + ";\n"
     "const DELIVERY_BEATS_V4 = " + json.dumps(delivery_beats_v4) + ";\n"
     "const DELIVERY_ZONES  = " + json.dumps(delivery_zones)    + ";\n"
+    "const DELIVERY_DATA = " + json.dumps(_delivery_data_slim) + ";\n"
 )
 
 # ── HTML ───────────────────────────────────────────────────────────────────────
@@ -1791,6 +1801,47 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   </div>
 </div>
 
+<!-- SLIDE 13 · DELIVERY BEATS -->
+<div class="slide" id="slide-13">
+  <div class="map-wrap" id="l13-map"></div>
+  <div class="page-lbl">12 / 12 &middot; Delivery Beats &middot; RS 218390</div>
+  <div class="zoom-hint">Ctrl+Scroll to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
+    <div style="padding:16px 18px 12px;flex:1;min-height:0;overflow-y:auto">
+      <h2 style="margin-bottom:4px">Delivery Beats</h2>
+      <p class="p-sub" style="margin-bottom:10px">First-cut vehicle assignment &middot; RS 218390</p>
+      <div class="toggle-row" style="margin-bottom:10px">
+        <button class="t-btn active" id="db13-vex" onclick="setDB13View('existing')">Existing</button>
+        <button class="t-btn" id="db13-vv4" onclick="setDB13View('proposed')">Proposed (V4 Zones)</button>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Max sellers per beat</div>
+      <div class="toggle-row" style="margin-bottom:10px">
+        <button class="t-btn active" id="db13-m2" onclick="setDB13Limit('Max 2 sellers')">Max 2</button>
+        <button class="t-btn" id="db13-m3" onclick="setDB13Limit('Max 3 sellers')">Max 3</button>
+        <button class="t-btn" id="db13-m4" onclick="setDB13Limit('Max 4 sellers')">Max 4</button>
+      </div>
+      <div id="db13-day-section">
+        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by day</div>
+        <div class="filter-row" id="db13-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
+      </div>
+      <div id="db13-zone-section" style="display:none">
+        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by delivery zone</div>
+        <div class="filter-row" id="db13-zone-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
+      </div>
+      <div class="kpi-r" id="db13-kpis"></div>
+      <div id="db13-truck-legend" style="display:flex;gap:14px;margin:6px 0 10px;flex-wrap:wrap;font-size:11px"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Beat Summary</div>
+      <table class="dt-tbl" style="font-size:11px">
+        <thead><tr>
+          <th style="text-align:left" id="db13-col-lbl">Day</th>
+          <th>Beats</th><th>Outlets</th><th>3W</th><th>Ace</th><th>407</th><th>Cost</th>
+        </tr></thead>
+        <tbody id="db13-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 </div><!-- /#slides -->
 
 <img src="data:image/png;base64,__SB_LOGO__" id="sb-logo" alt="Stackbox" style="position:fixed;top:14px;left:16px;height:24px;pointer-events:none;z-index:1000;transition:filter 0.3s">
@@ -1808,6 +1859,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   <div class="dot" onclick="goTo(9)"></div>
   <div class="dot" onclick="goTo(10)"></div>
   <div class="dot" onclick="goTo(11)"></div>
+  <div class="dot" onclick="goTo(12)"></div>
 </div>
 
 <script>
@@ -3804,11 +3856,165 @@ function renderArea12(){
     +'<div style="font-size:10px;color:#9ca3af;margin-top:6px">&#9632; Ex (red) &nbsp;&#9632; Prop (zone color) &nbsp;% = change &nbsp;□― = zone boundary (dashed)</div>';
 }
 
+// SLIDE 13 - DELIVERY BEATS
+let _db13m, _db13lg;
+let _db13View='existing', _db13Limit='Max 2 sellers';
+let _db13DayF=null, _db13ZoneF=null;
+const _DB13_DAY=['','Mon','Tue','Wed','Thu','Fri','Sat'];
+const _DB13_TRUCK_C={'3 Wheeler':'#1565C0','Tata Ace':'#388e3c','407':'#c62828'};
+const _DB13_ZONE_C=['','#e91e63','#1565C0','#2e7d32','#e65100','#6a1b9a','#006064'];
+
+function initSlide13(){
+  if(_db13m)return;
+  const mapEl=document.getElementById('l13-map');
+  _db13m=L.map(mapEl,{zoomControl:true,preferCanvas:true}).setView([22.52,88.36],12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    {attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19,opacity:0.9}).addTo(_db13m);
+  _db13lg=L.layerGroup().addTo(_db13m);
+  setTimeout(()=>_db13m.invalidateSize(),200);
+  _buildDB13Chips();
+  renderDB13();
+}
+
+function setDB13View(v){
+  _db13View=v;_db13DayF=null;_db13ZoneF=null;
+  document.getElementById('db13-vex').classList.toggle('active',v==='existing');
+  document.getElementById('db13-vv4').classList.toggle('active',v==='proposed');
+  document.getElementById('db13-day-section').style.display=v==='existing'?'':'none';
+  document.getElementById('db13-zone-section').style.display=v==='proposed'?'':'none';
+  document.getElementById('db13-col-lbl').textContent=v==='existing'?'Day':'Zone';
+  _buildDB13Chips();
+  renderDB13();
+}
+
+function setDB13Limit(lim){
+  _db13Limit=lim;
+  ['Max 2 sellers','Max 3 sellers','Max 4 sellers'].forEach((l,i)=>{
+    document.getElementById(['db13-m2','db13-m3','db13-m4'][i]).classList.toggle('active',l===lim);
+  });
+  renderDB13();
+}
+
+function _buildDB13Chips(){
+  if(_db13View==='existing'){
+    const el=document.getElementById('db13-day-chips');
+    el.innerHTML='<button class="beat-chip'+(null===_db13DayF?' active':'')+'" onclick="_db13DayClick(null)">All</button>';
+    for(let d=1;d<=6;d++)el.innerHTML+='<button class="beat-chip'+(d===_db13DayF?' active':'')+'" onclick="_db13DayClick('+d+')">'+_DB13_DAY[d]+'</button>';
+  } else {
+    const el=document.getElementById('db13-zone-chips');
+    const zones=(DELIVERY_ZONES&&DELIVERY_ZONES.zones)||[];
+    el.innerHTML='<button class="beat-chip'+(null===_db13ZoneF?' active':'')+'" onclick="_db13ZoneClick(null)">All</button>';
+    zones.forEach(z=>{
+      const col=_DB13_ZONE_C[z.zone]||'#666';
+      el.innerHTML+='<button class="beat-chip'+(z.zone===_db13ZoneF?' active':'')+'" onclick="_db13ZoneClick('+z.zone+')" style="border-color:'+col+';'+(z.zone===_db13ZoneF?'background:'+col+';color:#fff;':'')+'">Z'+z.zone+' ('+_DB13_DAY[z.group_a_day]+'+'+_DB13_DAY[z.group_b_day]+')</button>';
+    });
+  }
+}
+
+function _db13DayClick(d){_db13DayF=d;_buildDB13Chips();renderDB13();}
+function _db13ZoneClick(z){_db13ZoneF=z;_buildDB13Chips();renderDB13();}
+
+function _db13GetBeats(){
+  if(!DELIVERY_DATA)return[];
+  const sc=_db13View==='existing'?'Existing':'Output 1';
+  const src=(DELIVERY_DATA[sc]||{})[_db13Limit]||{};
+  let beats=[];
+  if(_db13View==='existing'){
+    const days=_db13DayF?[String(_db13DayF)]:Object.keys(src);
+    days.forEach(d=>{(src[d]||[]).forEach(b=>beats.push({...b,_day:+d}));});
+  } else {
+    const zones=(DELIVERY_ZONES&&DELIVERY_ZONES.zones)||[];
+    const selZ=_db13ZoneF?zones.filter(z=>z.zone===_db13ZoneF):zones;
+    const daySet=new Set();
+    selZ.forEach(z=>{daySet.add(z.group_a_day);daySet.add(z.group_b_day);});
+    daySet.forEach(d=>{(src[String(d)]||[]).forEach(b=>beats.push({...b,_day:d}));});
+  }
+  return beats;
+}
+
+function renderDB13Map(){
+  if(!_db13lg)return;
+  _db13lg.clearLayers();
+  const zones=(DELIVERY_ZONES&&DELIVERY_ZONES.zones)||[];
+  if(_db13View==='proposed'){
+    const selZ=_db13ZoneF?zones.filter(z=>z.zone===_db13ZoneF):zones;
+    selZ.forEach(z=>{
+      if(!z.v4_hull||z.v4_hull.length<3)return;
+      const col=_DB13_ZONE_C[z.zone]||'#666';
+      L.polygon(z.v4_hull,{color:col,fillColor:col,fillOpacity:0.08,weight:2}).addTo(_db13lg);
+    });
+  }
+  const beats=_db13GetBeats();
+  beats.forEach(b=>{
+    if(!b.hull||b.hull.length<3)return;
+    let col;
+    if(_db13View==='proposed'){
+      const z=zones.find(z=>z.group_a_day===b._day||z.group_b_day===b._day);
+      col=z?(_DB13_ZONE_C[z.zone]||'#666'):'#666';
+    } else {
+      col=b.truck_color||_DB13_TRUCK_C[b.truck]||'#666';
+    }
+    L.polygon(b.hull,{color:col,fillColor:col,fillOpacity:0.2,weight:1.5}).addTo(_db13lg);
+  });
+}
+
+function renderDB13(){
+  if(!_db13m)return;
+  renderDB13Map();
+  renderDB13Panel();
+}
+
+function renderDB13Panel(){
+  const beats=_db13GetBeats();
+  const zones=(DELIVERY_ZONES&&DELIVERY_ZONES.zones)||[];
+
+  const totBeats=beats.length;
+  const totOutlets=beats.reduce((s,b)=>s+(b.outlets||0),0);
+  const totCost=beats.reduce((s,b)=>s+(b.cost||0),0);
+  const truckCt={'3 Wheeler':0,'Tata Ace':0,'407':0};
+  beats.forEach(b=>{if(b.truck in truckCt)truckCt[b.truck]++;});
+  document.getElementById('db13-kpis').innerHTML=
+    '<div class="kpi"><div class="kv">'+totBeats+'</div><div class="kl">Beats</div></div>'+
+    '<div class="kpi"><div class="kv">'+totOutlets+'</div><div class="kl">Outlets</div></div>'+
+    '<div class="kpi"><div class="kv">&#8377;'+totCost.toFixed(0)+'</div><div class="kl">Cost</div></div>';
+
+  document.getElementById('db13-truck-legend').innerHTML=
+    Object.entries(_DB13_TRUCK_C).map(([t,c])=>'<span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:2px;background:'+c+'"></span>'+t+' ('+truckCt[t]+')</span>').join('');
+
+  const tbody=document.getElementById('db13-tbody');
+  if(_db13View==='existing'){
+    const days=_db13DayF?[_db13DayF]:[1,2,3,4,5,6];
+    const sc='Existing';
+    const src=(DELIVERY_DATA[sc]||{})[_db13Limit]||{};
+    tbody.innerHTML=days.map(d=>{
+      const rows=(src[String(d)]||[]);
+      const nB=rows.length,nO=rows.reduce((s,b)=>s+(b.outlets||0),0);
+      const tc={'3 Wheeler':0,'Tata Ace':0,'407':0};
+      rows.forEach(b=>{if(b.truck in tc)tc[b.truck]++;});
+      const cost=rows.reduce((s,b)=>s+(b.cost||0),0);
+      return '<tr><td style="text-align:left;font-weight:600">'+_DB13_DAY[d]+'</td><td>'+nB+'</td><td>'+nO+'</td><td>'+tc['3 Wheeler']+'</td><td>'+tc['Tata Ace']+'</td><td>'+tc['407']+'</td><td>&#8377;'+cost.toFixed(0)+'</td></tr>';
+    }).join('');
+  } else {
+    const selZ=_db13ZoneF?zones.filter(z=>z.zone===_db13ZoneF):zones;
+    const src=(DELIVERY_DATA['Output 1']||{})[_db13Limit]||{};
+    tbody.innerHTML=selZ.map(z=>{
+      const days=[z.group_a_day,z.group_b_day];
+      const rows=days.flatMap(d=>(src[String(d)]||[]));
+      const nB=rows.length,nO=rows.reduce((s,b)=>s+(b.outlets||0),0);
+      const tc={'3 Wheeler':0,'Tata Ace':0,'407':0};
+      rows.forEach(b=>{if(b.truck in tc)tc[b.truck]++;});
+      const cost=rows.reduce((s,b)=>s+(b.cost||0),0);
+      const col=_DB13_ZONE_C[z.zone]||'#666';
+      return '<tr><td style="text-align:left;font-weight:600;color:'+col+'">Z'+z.zone+' ('+_DB13_DAY[z.group_a_day]+'+'+_DB13_DAY[z.group_b_day]+')</td><td>'+nB+'</td><td>'+nO+'</td><td>'+tc['3 Wheeler']+'</td><td>'+tc['Tata Ace']+'</td><td>'+tc['407']+'</td><td>&#8377;'+cost.toFixed(0)+'</td></tr>';
+    }).join('');
+  }
+}
+
 // ── NAVIGATION ─────────────────────────────────────────────────────────────────
 const slidesEl=document.getElementById('slides');
 const navDots=document.querySelectorAll('.dot');
 const navEl=document.getElementById('nav-dots');
-const TOTAL_SLIDES=12;
+const TOTAL_SLIDES=13;
 const DARK_SLIDES=new Set([0,1,6,7]);
 
 const sbLogo=document.getElementById('sb-logo');
@@ -3820,6 +4026,7 @@ slidesEl.addEventListener('scroll',()=>{
   navDots.forEach((d,i)=>d.classList.toggle('active',i===idx));
   navEl.classList.toggle('dark-mode',DARK_SLIDES.has(idx));
   _updateLogoMode(idx);
+  if(idx===12){setTimeout(()=>{initSlide13();if(_db13m)_db13m.invalidateSize();},150);}
 });
 _updateLogoMode(0);
 
@@ -3867,6 +4074,7 @@ const obs=new IntersectionObserver(entries=>{
     if(e.target.id==='slide-9'){initSlide9();}
     if(e.target.id==='slide-11'){renderSlide11();}
     if(e.target.id==='slide-12'){initSlide12();}
+    if(e.target.id==='slide-13'){initSlide13();}
   });
 },{threshold:0.25,root:slidesEl});
 document.querySelectorAll('.slide').forEach(s=>obs.observe(s));
