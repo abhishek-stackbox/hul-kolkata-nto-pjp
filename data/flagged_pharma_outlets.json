@@ -1,0 +1,26 @@
+[
+  {
+    "code":"HUL-20B420P15390",
+    "lat":22.58662,
+    "lon":88.32276,
+    "name":"Flawless Skin & Haire Care",
+    "classification":"HNB",
+    "moc":0.1,
+    "channel":"CHEMIST",
+    "channel_prog":"0",
+    "existing_rs_code":"20B420",
+    "existing_rs_name":"KSD"
+  },
+  {
+    "code":"HUL-20B774P684",
+    "lat":22.6015,
+    "lon":88.63047,
+    "name":"Arogya Medical Hall",
+    "classification":"HNB",
+    "moc":0,
+    "channel":"CHEMIST",
+    "channel_prog":"0",
+    "existing_rs_code":"20B774",
+    "existing_rs_name":"SREE BALAJI TRADERS"
+  }
+]

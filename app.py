@@ -1092,6 +1092,7 @@ benefit_stats = {
 }
 hull_rs_ex, hull_rs_prop, rs_dist_stats = load_rs_hulls()
 rs_overlap = load_rs_overlap()
+_flagged_pharma = _load_json("flagged_pharma_outlets") or []
 beat_distances   = load_beat_distances()
 beat_areas       = load_beat_areas()
 delivery_zones   = load_delivery_zones()
@@ -1155,6 +1156,7 @@ DATA_BLOCK = (
     "const DELIVERY_BEATS_V4 = " + json.dumps(delivery_beats_v4) + ";\n"
     "const DELIVERY_ZONES  = " + json.dumps(delivery_zones)    + ";\n"
     "const DELIVERY_DATA = " + json.dumps(_delivery_data_slim) + ";\n"
+    "const FLAGGED_PHARMA = " + json.dumps(_flagged_pharma) + ";\n"
 )
 
 # ── HTML ───────────────────────────────────────────────────────────────────────
@@ -2433,9 +2435,9 @@ function downloadProposed(){
   }
   const hdr=['Outlet Code','Outlet Name','Old RS Code','Old RS Name','New RS Code','New RS Name',
              'primarychannel','Classification','Channel Program','MOC',
-             'Old Dist (km)','New Dist (km)','Old Dist x MOC','New Dist x MOC'];
+             'Old Dist (km)','New Dist (km)','Old Dist x MOC','New Dist x MOC','Notes'];
   const terOutlets=OUTLETS.filter(o=>{const rs=RS_INFO[o[2]];return rs&&rs.type===curTerType;});
-  const rows=[hdr,...terOutlets.map(o=>{
+  const dataRows=terOutlets.map(o=>{
     const oldRS=RS_INFO[o[2]],newRS=RS_INFO[o[3]];
     const moc=o[6]||0;
     const oldD=(oldRS&&oldRS.lat&&oldRS.lon)?_hav(o[0],o[1],oldRS.lat,oldRS.lon):null;
@@ -2445,8 +2447,16 @@ function downloadProposed(){
            newRS?newRS.code:'',newRS?newRS.name:'',
            o[7]||'',o[5]||'',o[8]||'',moc,
            oldD!=null?oldD.toFixed(3):'',newD!=null?newD.toFixed(3):'',
-           oldD!=null?(oldD*moc).toFixed(3):'',newD!=null?(newD*moc).toFixed(3):''];
-  })];
+           oldD!=null?(oldD*moc).toFixed(3):'',newD!=null?(newD*moc).toFixed(3):'',''];
+  });
+  if(curTerType==='Pharma'&&FLAGGED_PHARMA&&FLAGGED_PHARMA.length){
+    FLAGGED_PHARMA.forEach(f=>{
+      dataRows.push([f.code,f.name,f.existing_rs_code,f.existing_rs_name,'','',
+                     f.channel||'',f.classification||'',f.channel_prog||'',f.moc||0,
+                     '','','','','VERIFY LOCATION - excluded from territory calculations']);
+    });
+  }
+  const rows=[hdr,...dataRows];
   const csv=rows.map(r=>r.map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')).join('\\r\\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
