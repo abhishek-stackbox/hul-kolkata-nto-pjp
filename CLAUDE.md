@@ -14,13 +14,16 @@ python3 -m streamlit run app.py --server.port 8510
 Repo: `~/projects/work/stackbox/forge-apps`, app at `apps/hul-kolkata/`
 Live at: `https://hul-kolkata.stackbox.tech`
 
-To deploy changes: copy updated `app.py` and `data/*.json` to `apps/hul-kolkata/`, commit, PR, squash merge.
+To deploy changes: copy updated `app.py` and `data/*.json` to `apps/hul-kolkata/`, commit, PR, merge.
+Note: forge-apps does NOT allow squash merge — use regular merge.
 Shortcut — pull latest from this repo's remote and sync:
 ```bash
 git pull
-cp app.py ../forge-apps/apps/hul-kolkata/app.py
-cp data/*.json ../forge-apps/apps/hul-kolkata/data/
+cp app.py ~/projects/work/stackbox/forge-apps/apps/hul-kolkata/app.py
+cp data/*.json ~/projects/work/stackbox/forge-apps/apps/hul-kolkata/data/
 ```
+
+**Local repo renamed:** was `hul-kolkata-nto-pjp`, now `hul-kolkata-app`.
 
 ## Source data (Google Drive)
 ```
@@ -41,39 +44,46 @@ All load functions cache to `data/*.json`. Source files are on Google Drive (not
 | `beats_390.json` / `beats_391.json` | Beats Excel changes |
 | `ex_beats_390.json` / `ex_beats_391.json` | Existing beats data changes |
 | `benefit_stats.json` | Hardcoded — edit directly in `load_benefits()` |
-| `rs_overlap.json` | RS hull data changes (computed from `hull_rs_ex` / `hull_rs_prop` via Shapely) |
+| `hull_rs_ex.json` / `hull_rs_prop.json` | outlets.json proposed assignments change |
+| `rs_overlap.json` | hull_rs_ex or hull_rs_prop change |
+| `rs_dist_stats.json` | outlets.json or rs_info lat/lon changes |
+| `flagged_pharma_outlets.json` | Manually maintained — pharma outlets with bad geocodes |
 
 ## JS data structures (in `DATA_BLOCK`)
-- `OUTLETS[i]` = `[lat, lon, rs_idx, new_rs_idx, outlet_name, classification, moc_2dp, primarychannel, channel_program]`
-- `RS_INFO[i]` = `{idx, code, name, type, lat, lon, color, rgb, outlet_count, proposed_count, moc, gen_n, gen_moc, ws_n, ws_moc}`
+- `OUTLETS[i]` = `[lat, lon, rs_idx, new_rs_idx, outlet_name, classification, moc_2dp, primarychannel, channel_program, outlet_code]`
+- `RS_INFO[i]` = `{idx, code, name, type, lat, lon, color, rgb, outlet_count, proposed_count, moc, proposed_moc, gained_n, gained_moc, lost_n, lost_moc, gen_n, gen_moc, ws_n, ws_moc}`
 - `BEATS_390[i]` = `[lat, lon, plg_idx, market_0idx, dse_idx]`
 - `DSE_INFO[i]` = `{idx, name}` (S001–S033 for 218390)
 - `EXCL_OUTLETS[i]` = `[lat, lon, outlet_name, rs_code, rs_lat, rs_lon, dist_km]`
 - `HULL_V3_390[i]` / `HULL_EX_390[i]` = `{plg, dse, market, points:[[lat,lon],...]}` (convex hulls)
 - `HULL_RS_EX[i]` / `HULL_RS_PROP[i]` = `{rs_idx, points:[[lat,lon],...]}` (RS-level distributor hulls)
-- `RS_OVERLAP` = `{General: {ex, prop}, Pharma: {ex, prop}}` — overlap % computed via Shapely
+- `RS_OVERLAP` = `{General: {ex: 9.8, prop: 3.8}, Pharma: {ex: 10.3, prop: 1.9}}` — overlap % computed via Shapely
 - `DSE_BALANCE_390[i]` = per-DSE balance metrics
 - `CONFLICTS_EX_390[i]` / `CONFLICTS_V3_390[i]` = outlet-day conflict pairs
+- `DELIVERY_DATA` = `{Existing, Output 1}` → `{Max 2/3/4 sellers}` → `{day '1'-'6'}` → array of beat objects `{id, sub_id, sellers, seller_ids, plgs, outlets, value, truck, truck_color, cost, round_trip, centroid, hull}`
+- `DELIVERY_ZONES` = `{zones: [{zone, group_a_day, group_b_day, v4_hull, ex_hull, v4_area, ex_area}]}` — 6 zones, each combining 2 adjacent market days for delivery on Day N+2
+- `FLAGGED_PHARMA` = pharma outlets excluded from all calculations (bad geocodes); appended to pharma CSV with "VERIFY LOCATION" note
 
-## Slides (12 total, nav position 0-indexed)
-`TOTAL_SLIDES=12`, `DARK_SLIDES=new Set([0,1,6,11])`
+## Slides (13 total, nav position 0-indexed)
+`TOTAL_SLIDES=13`, `DARK_SLIDES=new Set([0,1,6,7])`
 
 | Nav pos | Slide ID | Title | Label |
 |---|---|---|---|
 | 0 | slide-0 | Title / summary | (no label, dark) |
-| 1 | slide-summary | Key Benefits | 1/12, dark |
-| 2 | slide-3 | Duplicate Outlets | 2/12 |
-| 3 | slide-4 | High Density Clusters | 3/12 |
-| 4 | slide-1 | Outlets & Distributors | 4/12 |
-| 5 | slide-2 | Territory Overlaps | 5/12 |
-| 6 | slide-11 | PLG Rules | 6/12, dark |
-| 7 | slide-5 | Proposed Beats | 7/12 |
-| 8 | slide-9 | Beat Territories & Overlap | 8/12 |
-| 9 | slide-12 | Beat Area — Delivery Zone | 9/12 |
-| 10 | slide-7 | Benefit: Same-Day Conflicts | 10/12 |
-| 11 | slide-8 | Benefit: PLG Purity | 11/12, dark |
+| 1 | slide-summary | Key Benefits | 1/13, dark |
+| 2 | slide-1 | Outlets & Distributors | 2/13 |
+| 3 | slide-2 | Territory Overlaps | 3/13 |
+| 4 | slide-4 | High Density Clusters | 4/13 |
+| 5 | slide-3 | Duplicate Outlets | 5/13 |
+| 6 | slide-11 | PLG Rules | 6/13, dark |
+| 7 | slide-8 | Benefit: PLG Purity | 7/13, dark |
+| 8 | slide-5 | Proposed Beats | 8/13 |
+| 9 | slide-9 | Beat Territories & Overlap | 9/13 |
+| 10 | slide-12 | Beat Area — Delivery Zone | 10/13 |
+| 11 | slide-7 | Benefit: Same-Day Conflicts | 11/13 |
+| 12 | slide-13 | Delivery Beats | 12/13 |
 
-Slides removed: slide-6 (Delivery Beats) and slide-10 (Beat Balance / DSE Balance).
+Slides removed: slide-6 (Delivery Beats old) and slide-10 (Beat Balance / DSE Balance).
 
 ## Architecture gotchas
 
@@ -96,6 +106,18 @@ Slides removed: slide-6 (Delivery Beats) and slide-10 (Beat Balance / DSE Balanc
 **Beat Area bundling block:** uses Day N / Day N+1 / day N+2 (not "Day b"). Static HTML — does not change with view state.
 
 **`shapely` is a required dependency** — add to `requirements.txt` whenever `load_rs_overlap()` is present. Streamlit Cloud will fail with `ModuleNotFoundError` without it.
+
+**WebGL context limit:** Slides 1–7 use 6 MapLibre (WebGL) contexts. Browsers support ~8–16 but Chrome silently fails at 7+ in srcdoc iframes — `map.on('load')` never fires. Slides 9, 12, and 13 use Leaflet (canvas 2D) to avoid this. Never add a new MapLibre map after slide-7.
+
+**Delivery Beats slide (slide-13) uses Leaflet**, not MapLibre. `_db13m` is a Leaflet map; call `_db13m.invalidateSize()` not `_db13m.resize()`. Layer group `_db13lg` holds all beat polygons; call `_db13lg.clearLayers()` to reset.
+
+**Delivery beat sub_id deduplication:** Multi-seller beats produce multiple records with identical `outlets` count. Filter `sub_id === null || sub_id === 'a'` for unique outlet count. `sub_id=null` = single-seller beat; `sub_id='a'` = first sub-beat of multi-seller. Cost should sum ALL sub-beats (each is a separate vehicle trip). Display cost in K/L: `≥100 → X.XL`, `<100 → XXK` (unit = ₹1,000).
+
+**Delivery zone design:** 6 zones each pair 2 adjacent market days (Day N + N+1) for combined delivery on Day N+2. Each market day appears in exactly 2 zones (overlapping by design). KPI totals use a JS Set to deduplicate days — correct. Zone table rows intentionally show combined 2-day outlet counts.
+
+**Pharma territory remapping:** 316 outlets reassigned per `pharma_p2_output (1).xlsx`. Two outlets removed as location outliers (`HUL-20B420P15390`, `HUL-20B774P684`) — stored in `flagged_pharma_outlets.json`, appended to pharma CSV download with "VERIFY LOCATION" note. When pharma data changes: update `outlets.json`, recalculate `rs_info.json` proposed stats, delete `hull_rs_prop.json` + `rs_overlap.json` to force regeneration.
+
+**`downloadProposed()` filters by `curTerType`** — General and Pharma produce separate CSV files. Pharma CSV appends `FLAGGED_PHARMA` entries at the bottom with a Notes column.
 
 ## Canvas 2D overlay pattern
 ```javascript
