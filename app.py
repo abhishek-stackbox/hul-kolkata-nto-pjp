@@ -2434,7 +2434,8 @@ function downloadProposed(){
   const hdr=['Outlet Code','Outlet Name','Old RS Code','Old RS Name','New RS Code','New RS Name',
              'primarychannel','Classification','Channel Program','MOC',
              'Old Dist (km)','New Dist (km)','Old Dist x MOC','New Dist x MOC'];
-  const rows=[hdr,...OUTLETS.map(o=>{
+  const terOutlets=OUTLETS.filter(o=>{const rs=RS_INFO[o[2]];return rs&&rs.type===curTerType;});
+  const rows=[hdr,...terOutlets.map(o=>{
     const oldRS=RS_INFO[o[2]],newRS=RS_INFO[o[3]];
     const moc=o[6]||0;
     const oldD=(oldRS&&oldRS.lat&&oldRS.lon)?_hav(o[0],o[1],oldRS.lat,oldRS.lon):null;
@@ -2449,7 +2450,7 @@ function downloadProposed(){
   const csv=rows.map(r=>r.map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')).join('\\r\\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-  a.download='hul_kolkata_proposed_plan.csv';
+  a.download='hul_kolkata_'+curTerType.toLowerCase()+'_proposed_plan.csv';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 
@@ -3863,6 +3864,7 @@ let _db13DayF=null, _db13ZoneF=null;
 const _DB13_DAY=['','Mon','Tue','Wed','Thu','Fri','Sat'];
 const _DB13_TRUCK_C={'3 Wheeler':'#1565C0','Tata Ace':'#388e3c','407':'#c62828'};
 const _DB13_ZONE_C=['','#e91e63','#1565C0','#2e7d32','#e65100','#6a1b9a','#006064'];
+function _db13fmt(v){return v>=100?'&#8377;'+(v/100).toFixed(1)+'L':'&#8377;'+v.toFixed(0)+'K';}
 
 function initSlide13(){
   if(_db13m)return;
@@ -3944,7 +3946,7 @@ function renderDB13Map(){
       L.polygon(z.v4_hull,{color:col,fillColor:col,fillOpacity:0.08,weight:2}).addTo(_db13lg);
     });
   }
-  const beats=_db13GetBeats();
+  const beats=_db13GetBeats().filter(b=>(b.sub_id===null||b.sub_id==='a'));
   beats.forEach(b=>{
     if(!b.hull||b.hull.length<3)return;
     let col;
@@ -3966,17 +3968,18 @@ function renderDB13(){
 
 function renderDB13Panel(){
   const beats=_db13GetBeats();
+  const firstOnly=beats.filter(b=>(b.sub_id===null||b.sub_id==='a'));
   const zones=(DELIVERY_ZONES&&DELIVERY_ZONES.zones)||[];
 
-  const totBeats=beats.length;
-  const totOutlets=beats.reduce((s,b)=>s+(b.outlets||0),0);
+  const totBeats=firstOnly.length;
+  const totOutlets=firstOnly.reduce((s,b)=>s+(b.outlets||0),0);
   const totCost=beats.reduce((s,b)=>s+(b.cost||0),0);
   const truckCt={'3 Wheeler':0,'Tata Ace':0,'407':0};
   beats.forEach(b=>{if(b.truck in truckCt)truckCt[b.truck]++;});
   document.getElementById('db13-kpis').innerHTML=
     '<div class="kpi"><div class="kv">'+totBeats+'</div><div class="kl">Beats</div></div>'+
     '<div class="kpi"><div class="kv">'+totOutlets+'</div><div class="kl">Outlets</div></div>'+
-    '<div class="kpi"><div class="kv">&#8377;'+totCost.toFixed(0)+'</div><div class="kl">Cost</div></div>';
+    '<div class="kpi"><div class="kv">'+_db13fmt(totCost)+'</div><div class="kl">Cost/wk</div></div>';
 
   document.getElementById('db13-truck-legend').innerHTML=
     Object.entries(_DB13_TRUCK_C).map(([t,c])=>'<span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:2px;background:'+c+'"></span>'+t+' ('+truckCt[t]+')</span>').join('');
@@ -3988,11 +3991,12 @@ function renderDB13Panel(){
     const src=(DELIVERY_DATA[sc]||{})[_db13Limit]||{};
     tbody.innerHTML=days.map(d=>{
       const rows=(src[String(d)]||[]);
-      const nB=rows.length,nO=rows.reduce((s,b)=>s+(b.outlets||0),0);
+      const firstRows=rows.filter(b=>(b.sub_id===null||b.sub_id==='a'));
+      const nB=firstRows.length,nO=firstRows.reduce((s,b)=>s+(b.outlets||0),0);
       const tc={'3 Wheeler':0,'Tata Ace':0,'407':0};
       rows.forEach(b=>{if(b.truck in tc)tc[b.truck]++;});
       const cost=rows.reduce((s,b)=>s+(b.cost||0),0);
-      return '<tr><td style="text-align:left;font-weight:600">'+_DB13_DAY[d]+'</td><td>'+nB+'</td><td>'+nO+'</td><td>'+tc['3 Wheeler']+'</td><td>'+tc['Tata Ace']+'</td><td>'+tc['407']+'</td><td>&#8377;'+cost.toFixed(0)+'</td></tr>';
+      return '<tr><td style="text-align:left;font-weight:600">'+_DB13_DAY[d]+'</td><td>'+nB+'</td><td>'+nO+'</td><td>'+tc['3 Wheeler']+'</td><td>'+tc['Tata Ace']+'</td><td>'+tc['407']+'</td><td>'+_db13fmt(cost)+'</td></tr>';
     }).join('');
   } else {
     const selZ=_db13ZoneF?zones.filter(z=>z.zone===_db13ZoneF):zones;
@@ -4000,12 +4004,13 @@ function renderDB13Panel(){
     tbody.innerHTML=selZ.map(z=>{
       const days=[z.group_a_day,z.group_b_day];
       const rows=days.flatMap(d=>(src[String(d)]||[]));
-      const nB=rows.length,nO=rows.reduce((s,b)=>s+(b.outlets||0),0);
+      const firstRows=rows.filter(b=>(b.sub_id===null||b.sub_id==='a'));
+      const nB=firstRows.length,nO=firstRows.reduce((s,b)=>s+(b.outlets||0),0);
       const tc={'3 Wheeler':0,'Tata Ace':0,'407':0};
       rows.forEach(b=>{if(b.truck in tc)tc[b.truck]++;});
       const cost=rows.reduce((s,b)=>s+(b.cost||0),0);
       const col=_DB13_ZONE_C[z.zone]||'#666';
-      return '<tr><td style="text-align:left;font-weight:600;color:'+col+'">Z'+z.zone+' ('+_DB13_DAY[z.group_a_day]+'+'+_DB13_DAY[z.group_b_day]+')</td><td>'+nB+'</td><td>'+nO+'</td><td>'+tc['3 Wheeler']+'</td><td>'+tc['Tata Ace']+'</td><td>'+tc['407']+'</td><td>&#8377;'+cost.toFixed(0)+'</td></tr>';
+      return '<tr><td style="text-align:left;font-weight:600;color:'+col+'">Z'+z.zone+' ('+_DB13_DAY[z.group_a_day]+'+'+_DB13_DAY[z.group_b_day]+')</td><td>'+nB+'</td><td>'+nO+'</td><td>'+tc['3 Wheeler']+'</td><td>'+tc['Tata Ace']+'</td><td>'+tc['407']+'</td><td>'+_db13fmt(cost)+'</td></tr>';
     }).join('');
   }
 }
