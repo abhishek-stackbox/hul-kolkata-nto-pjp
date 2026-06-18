@@ -4940,7 +4940,7 @@ function _jdTrucks(){
         outlets_n: t.outlets,
         salesmen_n: (t.salesmen||[]).length,
         centroid: t.centroid,
-        positions: (t.members||[]).map(m=>m.centroid),
+        positions: t.positions || (t.members||[]).map(m=>m.centroid),
         visits: visits,
         outlet_codes: [],
       };
