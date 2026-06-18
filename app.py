@@ -1143,6 +1143,7 @@ _ex_dist         = _load_json("existing_distances_jun26")        or []
 _ex_delivery     = _load_json("existing_delivery_beats_jun26")   or []
 _ex_trucks       = _load_json("existing_truck_assignments_jun26") or []
 _plg_compare     = _load_json("plg_comparison_jun26") or {"rows":[],"totals":{}}
+_ex_beat_meta    = _load_json("existing_beat_meta_jun26") or []
 
 DATA_BLOCK = (
     "const OUTLETS    = " + json.dumps(outlets)       + ";\n"
@@ -1195,6 +1196,7 @@ DATA_BLOCK = (
     "const EX_DELIVERY_J26 = " + json.dumps(_ex_delivery)      + ";\n"
     "const EX_TRUCKS_J26   = " + json.dumps(_ex_trucks)        + ";\n"
     "const PLG_CMP_J26     = " + json.dumps(_plg_compare)       + ";\n"
+    "const EX_BEAT_META    = " + json.dumps(_ex_beat_meta)      + ";\n"
 )
 
 # ── HTML ───────────────────────────────────────────────────────────────────────
@@ -1499,7 +1501,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 1 · OUTLETS & DISTRIBUTORS -->
 <div class="slide" id="slide-1">
   <div class="map-wrap" id="map-1"></div>
-  <div class="page-lbl">2 / 18 &middot; Outlets &amp; Distributors</div>
+  <div class="page-lbl">2 / 19 &middot; Outlets &amp; Distributors</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Outlets &amp; Distributors</h2>
@@ -1535,7 +1537,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 2 · TERRITORY OVERLAPS -->
 <div class="slide" id="slide-2">
   <div class="map-wrap" id="map-2"></div>
-  <div class="page-lbl">3 / 18 &middot; Territory Overlaps</div>
+  <div class="page-lbl">3 / 19 &middot; Territory Overlaps</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Territory Overlaps</h2>
@@ -1572,7 +1574,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 4 · HIGH DENSITY CLUSTERS (position 3) -->
 <div class="slide" id="slide-4">
   <div class="map-wrap" id="map-4"></div>
-  <div class="page-lbl">4 / 18 &middot; High Density Clusters</div>
+  <div class="page-lbl">4 / 19 &middot; High Density Clusters</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>High Density Clusters</h2>
@@ -1597,7 +1599,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 3 · DUPLICATE OUTLETS (position 2) -->
 <div class="slide" id="slide-3">
   <div class="map-wrap" id="map-3"></div>
-  <div class="page-lbl">5 / 18 &middot; Duplicate Outlets</div>
+  <div class="page-lbl">5 / 19 &middot; Duplicate Outlets</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;">
     <h2>Duplicate Outlets</h2>
@@ -1612,7 +1614,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
 <!-- SLIDE 11 · PLG RULES (position 3) -->
 <div class="slide info-slide" id="slide-11" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%);overflow-y:auto">
-  <div class="page-lbl">6 / 18 &middot; PLG Rules &middot; RS 218390</div>
+  <div class="page-lbl">6 / 19 &middot; PLG Rules &middot; RS 218390</div>
   <div style="max-width:980px;margin:0 auto;padding:32px 28px;color:white">
     <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:8px">Reference &middot; RS 218390</div>
     <h2 style="font-size:26px;font-weight:800;color:white;margin-bottom:4px">New PLG Assignment Rules</h2>
@@ -1646,7 +1648,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
 <!-- SLIDE 8 · PLG PURITY -->
 <div class="slide info-slide" id="slide-8" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%)">
-  <div class="page-lbl">7 / 18 &middot; PLG Purity &middot; RS 218390</div>
+  <div class="page-lbl">7 / 19 &middot; PLG Purity &middot; RS 218390</div>
   <div style="max-width:860px;margin:0 auto;padding:44px 28px;color:white">
     <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:12px">Benefit 2 &middot; RS 218390</div>
     <h2 style="font-size:32px;font-weight:800;margin-bottom:8px;color:white">PLG Purity</h2>
@@ -1685,7 +1687,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 5 · BEATS -->
 <div class="slide" id="slide-5" style="background:white">
   <div class="map-wrap" id="map-5"></div>
-  <div class="page-lbl">8 / 18 &middot; Beats &middot; RS 218390 &amp; 218391</div>
+  <div class="page-lbl">8 / 19 &middot; Beats &middot; RS 218390 &amp; 218391</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -1732,7 +1734,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 9 · JACCARD TERRITORIES (position 5) -->
 <div class="slide" id="slide-9">
   <div class="map-wrap" id="l9-map"></div>
-  <div class="page-lbl">9 / 18 &middot; Beat Territories &middot; RS 218390</div>
+  <div class="page-lbl">9 / 19 &middot; Beat Territories &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -1764,7 +1766,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 7 · SAME-DAY CONFLICTS -->
 <div class="slide" id="slide-7">
   <div class="map-wrap" id="map-7"></div>
-  <div class="page-lbl">10 / 18 &middot; Same-Day Conflicts &middot; RS 218390</div>
+  <div class="page-lbl">10 / 19 &middot; Same-Day Conflicts &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Same-Day Multi-Salesman Visits</h2>
@@ -1801,7 +1803,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 12 · BEAT AREA PER DAY -->
 <div class="slide" id="slide-12">
   <div class="map-wrap" id="l12-map"></div>
-  <div class="page-lbl">11 / 18 &middot; Beat Area per Day &middot; RS 218390</div>
+  <div class="page-lbl">11 / 19 &middot; Beat Area per Day &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
     <div style="padding:16px 18px 12px;flex-shrink:0;overflow-y:auto;max-height:100vh">
@@ -1844,7 +1846,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 13 · DELIVERY BEATS -->
 <div class="slide" id="slide-13">
   <div class="map-wrap" id="l13-map"></div>
-  <div class="page-lbl">12 / 18 &middot; Delivery Beats &middot; RS 218390</div>
+  <div class="page-lbl">12 / 19 &middot; Delivery Beats &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
     <div style="padding:16px 18px 12px;flex:1;min-height:0;overflow-y:auto">
@@ -1882,6 +1884,39 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   </div>
 </div>
 
+<!-- SLIDE EXBEAT · Existing Beats Explorer (218390 + 20B801, ME BEAT) -->
+<div class="slide" id="slide-exbeat" style="background:white">
+  <div class="map-wrap" id="map-exbeat"></div>
+  <div class="page-lbl">13 / 19 &middot; Existing Beats Explorer &middot; RS 218390 + 20B801</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
+    <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
+      <h2 style="margin-bottom:4px">Existing Beats — 218390 + 20B801 (ME BEAT)</h2>
+      <p class="p-sub" style="margin-bottom:8px">Multi-select filters: Day, PLG, Salesman, Beat. Outlets shown on map.</p>
+      <div class="kpi-r" id="exb-kpis"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Color by</div>
+      <div class="toggle-row" style="margin-bottom:8px">
+        <button class="t-btn active" id="exb-cb-plg" onclick="exbSetCB('plg')">PLG</button>
+        <button class="t-btn" id="exb-cb-day" onclick="exbSetCB('day')">Day</button>
+        <button class="t-btn" id="exb-cb-beat" onclick="exbSetCB('beat')">Beat</button>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by Day (multi)</div>
+      <div class="filter-row" id="exb-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by PLG (multi)</div>
+      <div class="filter-row" id="exb-plg-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by Salesman (multi, RSSP)</div>
+      <input type="text" id="exb-dse-search" placeholder="Type to filter salesmen..." style="width:100%;padding:6px;border:1px solid #e5e7eb;border-radius:4px;font-size:11px;margin-bottom:4px" oninput="exbRenderDseList()">
+      <div id="exb-dse-list" style="max-height:140px;overflow-y:auto;border:1px solid #f3f4f6;border-radius:4px;padding:4px;margin-bottom:8px;font-size:11px"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by Beat (multi, geographic name)</div>
+      <input type="text" id="exb-beat-search" placeholder="Type to filter beats..." style="width:100%;padding:6px;border:1px solid #e5e7eb;border-radius:4px;font-size:11px;margin-bottom:4px" oninput="exbRenderBeatList()">
+      <div id="exb-beat-list" style="max-height:200px;overflow-y:auto;border:1px solid #f3f4f6;border-radius:4px;padding:4px;font-size:11px"></div>
+      <div style="margin-top:10px;border-top:1px solid #e5e7eb;padding-top:8px">
+        <button class="dl-btn" onclick="exbClearFilters()" style="background:#6b7280">Clear All Filters</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- SLIDE JUN26-INTRO · Section divider for Jun 2026 work -->
 <div class="slide info-slide" id="slide-jun26-intro" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%);display:flex;flex-direction:column;justify-content:center;padding:40px 48px;overflow-y:auto">
   <div style="max-width:900px;margin:0 auto;text-align:center;color:#fff;">
@@ -1894,16 +1929,15 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
       <div><div style="font-size:36px;font-weight:600;color:#fff">7,103</div><div style="font-size:13px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase">working outlets</div></div>
       <div><div style="font-size:36px;font-weight:600;color:#fff">16</div><div style="font-size:13px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase">PLG buckets</div></div>
       <div><div style="font-size:36px;font-weight:600;color:#fff">105</div><div style="font-size:13px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase">salesmen</div></div>
-      <div><div style="font-size:36px;font-weight:600;color:#10b981">154</div><div style="font-size:13px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase">unintended same-day visits</div></div>
     </div>
-    <div style="margin-top:34px;color:#94a3b8;font-size:14px">Slides 14–18 cover the merged Jun 2026 design</div>
+    <div style="margin-top:34px;color:#94a3b8;font-size:14px">Slides 15–18 cover the merged Jun 2026 design</div>
   </div>
 </div>
 
 <!-- SLIDE JUN26 · ALIGNED BEATS (218390 + 20B801 merged, Jun 2026) -->
 <div class="slide" id="slide-jun26" style="background:white">
   <div class="map-wrap" id="map-jun26"></div>
-  <div class="page-lbl">14 / 18 &middot; Aligned Beats &middot; Jun 2026 &middot; RS 218390 + 20B801</div>
+  <div class="page-lbl">15 / 19 &middot; Aligned Beats &middot; Jun 2026 &middot; RS 218390 + 20B801</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -1937,7 +1971,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE JUN26-CHANGES · Outlet & Visit Reduction Breakdown -->
 <div class="slide" id="slide-jun26-changes" style="background:#f9fafb">
   <div style="position:absolute;inset:0;overflow-y:auto;padding:50px 60px 100px;box-sizing:border-box">
-  <div class="page-lbl">15 / 18 &middot; Outlet &amp; Visit Reduction &middot; Jun 2026</div>
+  <div class="page-lbl">16 / 19 &middot; Outlet &amp; Visit Reduction &middot; Jun 2026</div>
   <div style="max-width:1280px;width:100%;margin:0 auto">
     <h1 style="font-size:26px;font-weight:300;color:#0f172a;margin:0 0 2px">Where did the outlet changes come from?</h1>
     <div style="font-size:13px;color:#64748b;margin-bottom:14px">RS 218390 + 20B801 merged, ME BEAT existing vs Jun 2026 proposed</div>
@@ -2029,7 +2063,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE JUN26-TERR · Beat Territories (Jun 2026) -->
 <div class="slide" id="slide-jun26-terr">
   <div class="map-wrap" id="map-jun26-terr"></div>
-  <div class="page-lbl">16 / 18 &middot; Beat Territories &middot; Jun 2026</div>
+  <div class="page-lbl">17 / 19 &middot; Beat Territories &middot; Jun 2026</div>
   <div class="zoom-hint">Ctrl+Scroll to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -2055,7 +2089,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE JUN26-DEL · Delivery Beats &amp; Truck Assignment (Jun 2026) -->
 <div class="slide" id="slide-jun26-del">
   <div class="map-wrap" id="map-jun26-del"></div>
-  <div class="page-lbl">17 / 18 &middot; Delivery Beats &middot; Jun 2026</div>
+  <div class="page-lbl">18 / 19 &middot; Delivery Beats &middot; Jun 2026</div>
   <div class="zoom-hint">Ctrl+Scroll to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -2067,6 +2101,16 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
         <button class="t-btn" id="jd-view-exist" onclick="jdSetView('existing')">Existing (2 salesmen, D+1)</button>
       </div>
       <div class="kpi-r" id="jd-kpis"></div>
+      <div id="jd-selection-bar" style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:6px 10px;margin:6px 0;font-size:11px;color:#6b7280;min-height:28px;display:flex;align-items:center;justify-content:space-between">
+        <span id="jd-sel-text">No trips selected</span>
+        <a href="javascript:void(0)" onclick="jdClearSelected()" id="jd-sel-clear" style="color:#dc2626;cursor:pointer;display:none">Clear</a>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Color by</div>
+      <div class="toggle-row" style="margin-bottom:8px">
+        <button class="t-btn active" id="jd-cb-tt" onclick="jdSetCB('truck-type')">Truck type</button>
+        <button class="t-btn" id="jd-cb-truck" onclick="jdSetCB('truck')">Truck no</button>
+        <button class="t-btn" id="jd-cb-beat" onclick="jdSetCB('beat')">Beat in Truck</button>
+      </div>
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Filter by Delivery Day</div>
       <div class="filter-row" id="jd-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
       <div id="jd-truck-legend" style="display:flex;gap:14px;margin:6px 0 10px;flex-wrap:wrap;font-size:11px"></div>
@@ -2079,10 +2123,10 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
       </table>
       <div id="jd-trip-table" style="max-height:400px;overflow-y:auto"></div>
       <div style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px">
-        <button class="dl-btn" onclick="jdDownload()" style="background:#7030A0">
-          &#8595; Download Per-Beat CSV</button>
-        <button class="dl-btn" onclick="jdDownloadTrucks()" style="background:#1565C0;margin-top:6px">
-          &#8595; Download Truck Trips CSV</button>
+        <button class="dl-btn" onclick="jdOpenDownload('proposed')" style="background:#7030A0">
+          &#8595; Download Delivery Detail (Proposed)</button>
+        <button class="dl-btn" onclick="jdOpenDownload('existing')" style="background:#1565C0;margin-top:6px">
+          &#8595; Download Delivery Detail (Existing)</button>
       </div>
     </div>
   </div>
@@ -2111,6 +2155,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   <div class="dot" onclick="goTo(15)"></div>
   <div class="dot" onclick="goTo(16)"></div>
   <div class="dot" onclick="goTo(17)"></div>
+  <div class="dot" onclick="goTo(18)"></div>
 </div>
 
 <script>
@@ -4274,6 +4319,213 @@ function renderDB13Panel(){
   }
 }
 
+// ── SLIDE EXBEAT · Existing Beats Explorer ──────────────────────────────────
+let _exbm, _exblg;
+let _exbDays = new Set();      // empty = all
+let _exbPLGs = new Set();      // empty = all
+let _exbDSEs = new Set();      // empty = all (DSE idx)
+let _exbBeats = new Set();     // empty = all (beat key plg|dse|market)
+let _exbCB = 'plg';
+const _EXB_DAY = ['Mon','Tue','Wed','Thu','Fri','Sat'];
+const _EXB_DAY_COL = ['#1565C0','#388e3c','#e65100','#6a1b9a','#c62828','#00838f'];
+
+function initSlideEXB(){
+  if(_exbm) return;
+  _exbm = L.map('map-exbeat',{zoomControl:true,preferCanvas:true}).setView([22.52,88.36],12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    {attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19,opacity:0.9}).addTo(_exbm);
+  _exblg = L.layerGroup().addTo(_exbm);
+  setTimeout(()=>_exbm.invalidateSize(),200);
+  _exbBuildDayChips();
+  _exbBuildPLGChips();
+  exbRenderDseList();
+  exbRenderBeatList();
+  renderEXB();
+}
+function _exbBuildDayChips(){
+  const el = document.getElementById('exb-day-chips');
+  const items = [{v:null,l:'All',c:'#1565C0'},
+    ...[0,1,2,3,4,5].map(d=>({v:d,l:_EXB_DAY[d],c:_EXB_DAY_COL[d]}))];
+  el.innerHTML = items.map(it=>{
+    const isA = it.v===null ? _exbDays.size===0 : _exbDays.has(it.v);
+    return '<button class="beat-chip'+(isA?' active':'')+'" '
+      +'style="'+(isA?'background:'+it.c+';color:white;border-color:'+it.c+';':'border-color:'+it.c+'40;')+'" '
+      +'onclick="exbToggleDay('+JSON.stringify(it.v)+')">'+it.l+'</button>';
+  }).join('');
+}
+function _exbBuildPLGChips(){
+  const el = document.getElementById('exb-plg-chips');
+  const allOn = _exbPLGs.size===0;
+  let h = '<button class="beat-chip'+(allOn?' active':'')+'" '
+    +'style="'+(allOn?'background:#1565C0;color:white;border-color:#1565C0;':'')+'" '
+    +'onclick="exbClearPLGs()">All</button>';
+  EX_PLG_J26.forEach(p=>{
+    const isA = _exbPLGs.has(p.idx);
+    h += '<button class="beat-chip'+(isA?' active':'')+'" '
+      +'style="'+(isA?'background:'+p.color+';color:white;border-color:'+p.color+';':'border-color:'+p.color+'40;')+'" '
+      +'onclick="exbTogglePLG('+p.idx+')">'+p.name+'</button>';
+  });
+  el.innerHTML = h;
+}
+function exbToggleDay(v){
+  if(v===null){ _exbDays.clear(); } else {
+    v = parseInt(v);
+    if(_exbDays.has(v)) _exbDays.delete(v); else _exbDays.add(v);
+  }
+  _exbBuildDayChips(); exbRenderDseList(); exbRenderBeatList(); renderEXB();
+}
+function exbTogglePLG(i){
+  i = parseInt(i);
+  if(_exbPLGs.has(i)) _exbPLGs.delete(i); else _exbPLGs.add(i);
+  _exbBuildPLGChips(); exbRenderDseList(); exbRenderBeatList(); renderEXB();
+}
+function exbClearPLGs(){
+  _exbPLGs.clear(); _exbDSEs.clear(); _exbBeats.clear();
+  _exbBuildPLGChips(); exbRenderDseList(); exbRenderBeatList(); renderEXB();
+}
+function exbClearFilters(){
+  _exbDays.clear(); _exbPLGs.clear(); _exbDSEs.clear(); _exbBeats.clear();
+  _exbBuildDayChips(); _exbBuildPLGChips();
+  document.getElementById('exb-dse-search').value='';
+  document.getElementById('exb-beat-search').value='';
+  exbRenderDseList(); exbRenderBeatList(); renderEXB();
+}
+function exbSetCB(mode){
+  _exbCB = mode;
+  document.getElementById('exb-cb-plg').classList.toggle('active', mode==='plg');
+  document.getElementById('exb-cb-day').classList.toggle('active', mode==='day');
+  document.getElementById('exb-cb-beat').classList.toggle('active', mode==='beat');
+  renderEXB();
+}
+function exbToggleDse(i){
+  i = parseInt(i);
+  if(_exbDSEs.has(i)) _exbDSEs.delete(i); else _exbDSEs.add(i);
+  exbRenderDseList(); exbRenderBeatList(); renderEXB();
+}
+function exbRenderDseList(){
+  const el = document.getElementById('exb-dse-list');
+  if(!el) return;
+  const search = (document.getElementById('exb-dse-search').value || '').toLowerCase();
+  // Only show DSEs that match current PLG/Day filters
+  const allDays = _exbDays.size===0;
+  const allPLGs = _exbPLGs.size===0;
+  const validDseIdx = new Set();
+  EX_BEATS_J26.forEach(b=>{
+    const [lat,lon,pi,m,di] = b;
+    if(!allDays && !_exbDays.has(m)) return;
+    if(!allPLGs && !_exbPLGs.has(pi)) return;
+    validDseIdx.add(di);
+  });
+  // Build display: PLG · RSSP (unique RSSP after stripping RS prefix)
+  const items = [];
+  EX_DSE_J26.forEach(d=>{
+    if(!validDseIdx.has(d.idx)) return;
+    const sep = d.name.indexOf(':');
+    const plgName = d.name.substring(0,sep);
+    const rssp = d.name.substring(sep+1);
+    const label = plgName + ' · ' + rssp;
+    if(search && !label.toLowerCase().includes(search)) return;
+    items.push({idx:d.idx, label:label});
+  });
+  items.sort((a,b)=>a.label.localeCompare(b.label));
+  if(items.length===0){ el.innerHTML='<div style="color:#9ca3af;padding:6px">No salesmen match filters</div>'; return; }
+  el.innerHTML = items.map(it=>{
+    const chk = _exbDSEs.has(it.idx);
+    return '<label style="display:flex;align-items:center;gap:6px;padding:2px 4px;cursor:pointer">'
+      +'<input type="checkbox" '+(chk?'checked':'')+' onchange="exbToggleDse('+it.idx+')">'
+      +'<span style="font-size:11px">'+it.label+'</span></label>';
+  }).join('');
+}
+function exbToggleBeat(key){
+  if(_exbBeats.has(key)) _exbBeats.delete(key); else _exbBeats.add(key);
+  exbRenderBeatList(); renderEXB();
+}
+function exbRenderBeatList(){
+  const el = document.getElementById('exb-beat-list');
+  if(!el) return;
+  const search = (document.getElementById('exb-beat-search').value || '').toLowerCase();
+  const allDays = _exbDays.size===0;
+  const allPLGs = _exbPLGs.size===0;
+  const allDSEs = _exbDSEs.size===0;
+  // Group beat_meta into unique geo names (deduplicate across day/PLG/DSE)
+  const seen = new Map();  // key = plg|dse|market → meta
+  EX_BEAT_META.forEach(m=>{
+    if(!allDays && !_exbDays.has(m.market)) return;
+    if(!allPLGs && !_exbPLGs.has(m.plg)) return;
+    if(!allDSEs && !_exbDSEs.has(m.dse)) return;
+    const key = m.plg+'|'+m.dse+'|'+m.market;
+    if(!seen.has(key)) seen.set(key, m);
+  });
+  const items = Array.from(seen.values());
+  // Optionally filter by search
+  const filtered = search ? items.filter(m=>(m.name+' '+m.geo).toLowerCase().includes(search)) : items;
+  // Sort: by geo name, then PLG, then day
+  filtered.sort((a,b)=>{
+    const c = (a.geo||'').localeCompare(b.geo||'');
+    if(c) return c;
+    const pa = EX_PLG_J26[a.plg]?.name || '';
+    const pb = EX_PLG_J26[b.plg]?.name || '';
+    const pc = pa.localeCompare(pb);
+    if(pc) return pc;
+    return a.market - b.market;
+  });
+  if(filtered.length===0){ el.innerHTML='<div style="color:#9ca3af;padding:6px">No beats match filters</div>'; return; }
+  el.innerHTML = filtered.slice(0,500).map(m=>{
+    const key = m.plg+'|'+m.dse+'|'+m.market;
+    const chk = _exbBeats.has(key);
+    const plgName = EX_PLG_J26[m.plg]?.name || '?';
+    const dayName = _EXB_DAY[m.market] || '?';
+    return '<label style="display:flex;align-items:center;gap:6px;padding:2px 4px;cursor:pointer">'
+      +'<input type="checkbox" '+(chk?'checked':'')+' onchange="exbToggleBeat(\\''+key+'\\')">'
+      +'<span style="font-size:11px"><b>'+m.name+'</b> · '+plgName+' · '+dayName+' · '+m.outlets+' outlets</span></label>';
+  }).join('') + (filtered.length>500 ? '<div style="color:#9ca3af;padding:4px;font-size:10px">Showing 500 of '+filtered.length+' — narrow filters to see more</div>' : '');
+}
+function renderEXB(){
+  if(!_exblg) return;
+  _exblg.clearLayers();
+  const allDays = _exbDays.size===0;
+  const allPLGs = _exbPLGs.size===0;
+  const allDSEs = _exbDSEs.size===0;
+  const allBeats = _exbBeats.size===0;
+  // Hash beat name colors so we can color by beat
+  function strColor(s){ let h=0; for(let i=0;i<s.length;i++) h=((h<<5)-h)+s.charCodeAt(i); const hue=Math.abs(h)%360; return 'hsl('+hue+',60%,45%)'; }
+  // Build a quick (plg, dse, market) → beat-meta key map for color/filter
+  const metaMap = new Map();
+  EX_BEAT_META.forEach(m=>{
+    metaMap.set(m.plg+'|'+m.dse+'|'+m.market, m);
+  });
+  let nOutlets = 0;
+  const visibleBeats = new Set();
+  EX_BEATS_J26.forEach(b=>{
+    const [lat,lon,pi,mk,di] = b;
+    if(!allDays && !_exbDays.has(mk)) return;
+    if(!allPLGs && !_exbPLGs.has(pi)) return;
+    if(!allDSEs && !_exbDSEs.has(di)) return;
+    const beatKey = pi+'|'+di+'|'+mk;
+    if(!allBeats && !_exbBeats.has(beatKey)) return;
+    visibleBeats.add(beatKey);
+    let col;
+    if(_exbCB==='day') col = _EXB_DAY_COL[mk];
+    else if(_exbCB==='beat'){ const m = metaMap.get(beatKey); col = m ? strColor(m.geo||'') : '#999'; }
+    else col = EX_PLG_J26[pi]?.color || '#666';
+    const meta = metaMap.get(beatKey);
+    const dseObj = EX_DSE_J26[di] || {};
+    const dseShort = (dseObj.name && dseObj.name.indexOf(':')>=0) ? dseObj.name.split(':',2)[1] : (dseObj.name||'?');
+    const tip = '<b>'+(meta?.geo||'—')+'</b><br>'
+      + (EX_PLG_J26[pi]?.name||'?')+' · '+dseShort+' · '+_EXB_DAY[mk]
+      + (meta? '<br>'+meta.name : '');
+    L.circleMarker([lat,lon],{radius:3,color:col,fillColor:col,fillOpacity:0.75,weight:0})
+      .bindTooltip(tip,{sticky:true,direction:'top'}).addTo(_exblg);
+    nOutlets++;
+  });
+  const nBeats = visibleBeats.size;
+  const nPlgs = (allPLGs?EX_PLG_J26.length:_exbPLGs.size);
+  document.getElementById('exb-kpis').innerHTML =
+    '<div class="kpi"><div class="kpi-v">'+nOutlets.toLocaleString()+'</div><div class="kpi-l">visits shown</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+nBeats+'</div><div class="kpi-l">beats</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+nPlgs+'</div><div class="kpi-l">PLGs</div></div>';
+}
+
 // ── SLIDE JUN26 · Aligned Beats Overview (mirror of slide-5 layout) ─────────
 let _j26m, _j26lg;
 let _j26DayF=null;
@@ -4508,7 +4760,11 @@ function renderJ26(){
     if(!allDSE && !_j26DSE.has(di))return;
     if(_j26DayF!==null && _j26DayF!==m)return;
     const col=(_j26CB==='day')?_J26_DAY_COL[m]:D.PLG[pi].color;
-    L.circleMarker([lat,lon],{radius:3,color:col,fillColor:col,fillOpacity:0.7,weight:0}).addTo(_j26lg);
+    const dseObj = D.DSE[di] || {};
+    const dseShort = (dseObj.name && dseObj.name.indexOf(':')>=0) ? dseObj.name.split(':',2)[1] : (dseObj.name||'?');
+    const tip = '<b>'+D.PLG[pi].name+'</b> · '+dseShort+' · '+_J26_DAY[m+1];
+    L.circleMarker([lat,lon],{radius:3,color:col,fillColor:col,fillOpacity:0.7,weight:0})
+      .bindTooltip(tip,{sticky:true,direction:'top'}).addTo(_j26lg);
     n++;
   });
   const plgN=allPLG?D.PLG.length:_j26PLG.size;
@@ -4768,7 +5024,11 @@ function renderJT(){
     if(_jtDayF!==null && h.market!==_jtDayF)return;
     if(!h.points || h.points.length<3)return;
     const col=D.PLG[h.plg].color;
-    L.polygon(h.points,{color:col,fillColor:col,fillOpacity:0.12,weight:1.5}).addTo(_jtlg);
+    const dseObj = D.DSE[h.dse] || {};
+    const dseShort = (dseObj.name && dseObj.name.indexOf(':')>=0) ? dseObj.name.split(':',2)[1] : (dseObj.name||'?');
+    const tip = '<b>'+D.PLG[h.plg].name+'</b> · '+dseShort+' · '+_J26_DAY[h.market+1];
+    L.polygon(h.points,{color:col,fillColor:col,fillOpacity:0.12,weight:1.5})
+      .bindTooltip(tip,{sticky:true,direction:'top'}).addTo(_jtlg);
     n++;
   });
   // Headline KPIs from precomputed totals (avg km/day + avg pairwise overlap %)
@@ -4919,6 +5179,17 @@ let _jdDayF=null;
 let _jdTruckF=null;
 let _jdView='proposed';
 const _JD_COL={'3 Wheeler':'#1565C0','Tata Ace':'#388e3c','Split':'#c62828','Split (>1.5L)':'#c62828'};
+let _jdCB='truck-type';  // 'truck-type' | 'truck' | 'beat'
+function _jdHash(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h)+s.charCodeAt(i);return Math.abs(h);}
+function _jdColorFor(s){const hue=_jdHash(s||'')%360;return 'hsl('+hue+',65%,45%)';}
+function jdSetCB(mode){
+  _jdCB=mode;
+  ['cb-tt','cb-truck','cb-beat'].forEach(id=>{
+    const el=document.getElementById('jd-'+id);
+    if(el) el.classList.toggle('active', id==='cb-tt'?(mode==='truck-type'):id==='cb-truck'?(mode==='truck'):(mode==='beat'));
+  });
+  renderJD();
+}
 
 // Return trucks in a normalised shape (existing data has different field names)
 function _jdTrucks(){
@@ -5019,20 +5290,60 @@ function renderJD(){
     if(!_jdTruckTypes.has(t.truck)) return false;
     return true;
   });
+  function truckColor(t){
+    if(_jdCB==='truck')      return _jdColorFor(t.id);
+    if(_jdCB==='beat')       return _jdColorFor((t.beat||'')+'|'+t.id);
+    return _JD_COL[t.truck]||'#666';
+  }
+  function beatColor(t, v){
+    // color-by-beat-within-truck: each (PLG, DSE, day) gets its own hue
+    return _jdColorFor(t.id+'|'+v.plg+'|'+v.dse+'|'+v.day);
+  }
+  // Compose a tooltip string for an outlet visit
+  function _outletTip(t, v){
+    return '<b>'+t.id+'</b> · '+t.truck+' · '+_J26_DAY[t.delivery_day]+' deliv<br>'
+      + v.plg.toUpperCase()+' · '+v.dse+' · '+_J26_DAY[v.day]+' visit<br>'
+      + 'Beat: '+(t.beat||'—');
+  }
+  function _truckTip(t){
+    const vs = t.visits.map(v=>v.plg.toUpperCase()+'/'+v.dse+'/'+_J26_DAY[v.day]).join(', ');
+    return '<b>'+t.id+'</b> · '+t.truck+'<br>'
+      + 'Deliv: '+_J26_DAY[t.delivery_day]+'<br>'
+      + 'Beat: '+(t.beat||'—')+'<br>'
+      + t.salesmen_n+' salesman'+(t.salesmen_n>1?'en':'')+' · '+t.outlets_n+' outlets · '+t.total_value.toFixed(2)+'L<br>'
+      + vs;
+  }
   // If any trip selected, only show those trips' outlet markers
   if(_jdSelected.size>0){
     filt.forEach(t=>{
       if(!_jdSelected.has(t.id))return;
-      const col=_JD_COL[t.truck]||'#666';
-      (t.positions||[]).forEach(p=>{
-        L.circleMarker(p,{radius:5,color:col,fillColor:col,fillOpacity:0.85,weight:1}).addTo(_jdlg);
-      });
+      if(_jdCB==='beat'){
+        let idx=0;
+        (t.visits||[]).forEach(v=>{
+          const n=v.outlets;
+          const col=beatColor(t, v);
+          const tip=_outletTip(t, v);
+          for(let i=0;i<n && idx<t.positions.length;i++,idx++){
+            const p=t.positions[idx];
+            L.circleMarker(p,{radius:5,color:col,fillColor:col,fillOpacity:0.85,weight:1})
+              .bindTooltip(tip,{sticky:true,direction:'top'}).addTo(_jdlg);
+          }
+        });
+      } else {
+        const col=truckColor(t);
+        const tip=_truckTip(t);
+        (t.positions||[]).forEach(p=>{
+          L.circleMarker(p,{radius:5,color:col,fillColor:col,fillOpacity:0.85,weight:1})
+            .bindTooltip(tip,{sticky:true,direction:'top'}).addTo(_jdlg);
+        });
+      }
     });
   } else {
     // Show truck centroids
     filt.forEach(t=>{
-      const col=_JD_COL[t.truck]||'#666';
-      L.circleMarker(t.centroid,{radius:Math.max(4,Math.sqrt(t.outlets_n)*1.2),color:col,fillColor:col,fillOpacity:0.6,weight:1}).addTo(_jdlg);
+      const col=truckColor(t);
+      L.circleMarker(t.centroid,{radius:Math.max(4,Math.sqrt(t.outlets_n)*1.2),color:col,fillColor:col,fillOpacity:0.6,weight:1})
+        .bindTooltip(_truckTip(t),{sticky:true,direction:'top'}).addTo(_jdlg);
     });
   }
   const totalVal=filt.reduce((s,t)=>s+t.total_value,0);
@@ -5064,13 +5375,30 @@ function renderJD(){
     '<div class="kpi"><div class="kpi-v">'+filt.length+'</div><div class="kpi-l">trucks (filtered)</div></div>'
     +'<div class="kpi"><div class="kpi-v">'+totalOutlets.toLocaleString()+'</div><div class="kpi-l">outlets</div></div>'
     +'<div class="kpi"><div class="kpi-v">'+totalVal.toFixed(1)+'L</div><div class="kpi-l">value</div></div>'
-    +cmpHTML
-    +(selN>0?'<div class="kpi" style="border-left:3px solid #1565C0"><div class="kpi-v">'+selN+'</div><div class="kpi-l">selected (' +selOutlets+' outlets, '+selVal.toFixed(1)+'L)</div></div>':'');
+    +cmpHTML;
+  // Update fixed-height selection bar (no layout shift)
+  const sb = document.getElementById('jd-sel-bar') || document.getElementById('jd-selection-bar');
+  if(sb){
+    const txt = document.getElementById('jd-sel-text');
+    const clr = document.getElementById('jd-sel-clear');
+    if(selN > 0){
+      sb.style.background = '#dbeafe';
+      sb.style.borderColor = '#93c5fd';
+      sb.style.color = '#1e40af';
+      txt.innerHTML = '<b>'+selN+'</b> trip'+(selN>1?'s':'')+' selected · <b>'+selOutlets+'</b> outlets · <b>'+selVal.toFixed(2)+'L</b>';
+      clr.style.display = 'inline';
+    } else {
+      sb.style.background = '#f3f4f6';
+      sb.style.borderColor = '#e5e7eb';
+      sb.style.color = '#6b7280';
+      txt.textContent = 'No trips selected — click a row to highlight on map';
+      clr.style.display = 'none';
+    }
+  }
   document.getElementById('jd-truck-legend').innerHTML=
     '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:'+_JD_COL["3 Wheeler"]+';border-radius:50%;display:inline-block"></span>3 Wheeler &le;0.6L</span>'
     +'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:'+_JD_COL["Tata Ace"]+';border-radius:50%;display:inline-block"></span>Tata Ace 0.6&ndash;1.5L</span>'
-    +'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:'+_JD_COL["Split"]+';border-radius:50%;display:inline-block"></span>Split &gt;1.5L</span>'
-    +(selN>0?'&nbsp;&nbsp;<a href="javascript:jdClearSelected()" style="color:#dc2626;cursor:pointer">Clear selection</a>':'');
+    +'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:'+_JD_COL["Split"]+';border-radius:50%;display:inline-block"></span>Split &gt;1.5L</span>';
   // Per-day summary
   const byDay={1:[],2:[],3:[],4:[],5:[],6:[]};
   filt.forEach(t=>{if(byDay[t.delivery_day])byDay[t.delivery_day].push(t);});
@@ -5139,37 +5467,36 @@ function jdToggleAllTrips(){
   renderJD();
 }
 
-function jdDownloadTrucks(){
-  const trucks=_jdTrucks();
-  // Wide CSV — one row per truck with visit details concatenated
-  const rows=[['trip_id','delivery_day','truck_type','salesmen_n','outlets_n','total_value_lakhs',
-               'visits','outlet_codes','centroid_lat','centroid_lon']];
-  trucks.forEach(t=>{
-    const visits=t.visits.map(v=>v.plg.toUpperCase()+'|'+v.dse+'|'+_J26_DAY[v.day]+'|'+v.value.toFixed(2)).join(' ; ');
-    const codes=(t.outlet_codes||[]).join('|');
-    rows.push([t.id, _J26_DAY[t.delivery_day], t.truck, t.salesmen_n, t.outlets_n, t.total_value,
-               '"'+visits+'"', '"'+codes+'"', t.centroid[0], t.centroid[1]]);
-  });
-  const csv=rows.map(r=>r.join(',')).join('\\n');
-  const blob=new Blob([csv],{type:'text/csv'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download='truck_trips_jun26.csv'; a.click();
-  URL.revokeObjectURL(url);
-}
-
-function jdDownload(){
-  const beats=(DELIVERY_JUN26&&DELIVERY_JUN26.beats)||[];
-  const rows=[['plg','dse','day','outlets','value_lakhs','truck','centroid_lat','centroid_lon']];
-  beats.forEach(b=>{
-    rows.push([b.plg,b.dse,_J26_DAY[b.day],b.outlets,b.value,b.truck,b.centroid[0],b.centroid[1]]);
-  });
-  const csv=rows.map(r=>r.join(',')).join('\\n');
-  const blob=new Blob([csv],{type:'text/csv'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download='delivery_beats_jun26.csv'; a.click();
-  URL.revokeObjectURL(url);
+// Trigger a browser download for the delivery-detail Excel. The slide is
+// rendered inside a srcdoc iframe (relative URLs resolve to about:srcdoc, and
+// window.open from a sandboxed srcdoc gets blocked), so we inject an
+// <a download> into the TOP document and click it programmatically.
+function jdOpenDownload(view){
+  const fn = view === 'existing'
+    ? 'delivery_detail_existing.xlsx'
+    : 'delivery_detail_proposed.xlsx';
+  try{
+    const topWin = window.top || window.parent || window;
+    const topDoc = topWin.document;
+    const origin = topWin.location.origin || window.location.origin;
+    const url = origin + '/app/static/' + fn;
+    const a = topDoc.createElement('a');
+    a.href = url;
+    a.download = fn;
+    a.style.display = 'none';
+    topDoc.body.appendChild(a);
+    a.click();
+    setTimeout(()=>topDoc.body.removeChild(a), 200);
+  }catch(e){
+    // Fallback: try same-doc anchor (won't escape iframe but better than nothing)
+    const a = document.createElement('a');
+    a.href = '/app/static/' + fn;
+    a.download = fn;
+    a.target = '_top';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>document.body.removeChild(a), 200);
+  }
 }
 
 function j26Download(){
@@ -5192,8 +5519,8 @@ function j26Download(){
 const slidesEl=document.getElementById('slides');
 const navDots=document.querySelectorAll('.dot');
 const navEl=document.getElementById('nav-dots');
-const TOTAL_SLIDES=18;
-const DARK_SLIDES=new Set([0,1,6,7,13]);
+const TOTAL_SLIDES=19;
+const DARK_SLIDES=new Set([0,1,6,7,14]);
 
 const sbLogo=document.getElementById('sb-logo');
 function _updateLogoMode(idx){if(sbLogo)sbLogo.classList.toggle('on-dark',DARK_SLIDES.has(idx));}
@@ -5253,6 +5580,7 @@ const obs=new IntersectionObserver(entries=>{
     if(e.target.id==='slide-11'){renderSlide11();}
     if(e.target.id==='slide-12'){initSlide12();}
     if(e.target.id==='slide-13'){initSlide13();}
+    if(e.target.id==='slide-exbeat'){initSlideEXB();setTimeout(()=>{if(_exbm)_exbm.invalidateSize();},150);}
     if(e.target.id==='slide-jun26'){initSlideJun26();setTimeout(()=>{if(_j26m)_j26m.invalidateSize();},150);}
     if(e.target.id==='slide-jun26-terr' ){initSlideJT();  setTimeout(()=>{if(_jtm) _jtm.invalidateSize();},150);}
     // slide-jun26-zones removed
