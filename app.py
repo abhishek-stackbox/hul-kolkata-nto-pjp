@@ -4418,7 +4418,17 @@ function renderJ26(){
     n++;
   });
   const plgN=allPLG?D.PLG.length:_j26PLG.size;
-  const dseN=allDSE?D.DSE.length:_j26DSE.size;
+  // Unique salesman count — strip "PLG:" prefix and dedupe (existing has multi-PLG salesmen)
+  function uniqRsspCount(dseSrc, selSet){
+    const uniq = new Set();
+    dseSrc.forEach(d=>{
+      if(selSet && selSet.size>0 && !selSet.has(d.idx)) return;
+      const rssp = d.name.includes(':') ? d.name.split(':',2)[1] : d.name;
+      uniq.add(rssp);
+    });
+    return uniq.size;
+  }
+  const dseN = uniqRsspCount(D.DSE, allDSE ? null : _j26DSE);
   // Avg distance per day for current view (used for both KPI + comparison delta)
   function avgPerDayFor(distArr){
     let tot=0, cnt=0;
