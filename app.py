@@ -1142,6 +1142,7 @@ _ex_hull         = _load_json("existing_hull_jun26")             or []
 _ex_dist         = _load_json("existing_distances_jun26")        or []
 _ex_delivery     = _load_json("existing_delivery_beats_jun26")   or []
 _ex_trucks       = _load_json("existing_truck_assignments_jun26") or []
+_plg_compare     = _load_json("plg_comparison_jun26") or {"rows":[],"totals":{}}
 
 DATA_BLOCK = (
     "const OUTLETS    = " + json.dumps(outlets)       + ";\n"
@@ -1193,6 +1194,7 @@ DATA_BLOCK = (
     "const EX_DIST_J26     = " + json.dumps(_ex_dist)          + ";\n"
     "const EX_DELIVERY_J26 = " + json.dumps(_ex_delivery)      + ";\n"
     "const EX_TRUCKS_J26   = " + json.dumps(_ex_trucks)        + ";\n"
+    "const PLG_CMP_J26     = " + json.dumps(_plg_compare)       + ";\n"
 )
 
 # ── HTML ───────────────────────────────────────────────────────────────────────
@@ -1975,8 +1977,6 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
       <div class="kpi-r" id="jd-kpis"></div>
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Filter by Delivery Day</div>
       <div class="filter-row" id="jd-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by Truck Type</div>
-      <div class="filter-row" id="jd-truck-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
       <div id="jd-truck-legend" style="display:flex;gap:14px;margin:6px 0 10px;flex-wrap:wrap;font-size:11px"></div>
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Per-day Summary</div>
       <table class="dt-tbl" style="font-size:11px;margin-bottom:10px">
@@ -4650,7 +4650,7 @@ function renderJT(){
   const D=_jtd();
   if(_jtPLGNone){document.getElementById('jt-kpis').innerHTML='<div class="kpi"><div class="kpi-v">0</div><div class="kpi-l">beats</div></div>';return;}
   const allPLG=_jtPLG.size===0, allDSE=_jtDSE.size===0;
-  let n=0, totArea=0;
+  let n=0;
   D.HULL.forEach(h=>{
     if(!allPLG && !_jtPLG.has(h.plg))return;
     if(!allDSE && !_jtDSE.has(h.dse))return;
@@ -4658,133 +4658,84 @@ function renderJT(){
     if(!h.points || h.points.length<3)return;
     const col=D.PLG[h.plg].color;
     L.polygon(h.points,{color:col,fillColor:col,fillOpacity:0.12,weight:1.5}).addTo(_jtlg);
-    totArea += _hullAreaKm(h.points);
     n++;
   });
-  // Comparison: aggregate hull area across full opposing dataset (when no filters)
+  // Headline KPIs from precomputed totals (avg km/day + avg pairwise overlap %)
+  const T = (PLG_CMP_J26 && PLG_CMP_J26.totals) || {};
+  const exKm = T.ex_km, prKm = T.pr_km;
+  const exOv = T.ex_overlap_pct, prOv = T.pr_overlap_pct;
   let cmpHTML='';
-  if(allPLG && allDSE){
-    const otherHull = _jtView==='proposed' ? EX_HULL_J26 : HULL_JUN26;
-    let oArea=0;
-    otherHull.forEach(h=>{
-      if(_jtDayF!==null && h.market!==_jtDayF)return;
-      if(!h.points || h.points.length<3)return;
-      oArea += _hullAreaKm(h.points);
-    });
-    if(oArea>0){
-      const delta = (_jtView==='proposed') ? (oArea - totArea) : (totArea - oArea);
-      const ref   = (_jtView==='proposed') ? oArea : totArea;
-      const pct = (delta/ref)*100;
-      const sign = delta>=0 ? '↓' : '↑';
-      const col = delta>=0 ? '#15803d' : '#b91c1c';
-      const lbl = _jtView==='proposed' ? ('vs existing ('+oArea.toFixed(0)+' km²)') : ('proposed = '+oArea.toFixed(0)+' km²');
-      cmpHTML = '<div class="kpi"><div class="kpi-v" style="color:'+col+'">'+sign+' '+Math.abs(pct).toFixed(0)+'%</div>'
-        +'<div class="kpi-l">'+lbl+'</div></div>';
-    }
+  if(exKm!=null && prKm!=null){
+    const delta = exKm - prKm;
+    const pct = (delta/exKm)*100;
+    const sign = delta>=0 ? '↓' : '↑';
+    const col = delta>=0 ? '#15803d' : '#b91c1c';
+    cmpHTML += '<div class="kpi"><div class="kpi-v" style="color:'+col+'">'+sign+' '+Math.abs(pct).toFixed(0)+'%</div>'
+      +'<div class="kpi-l">km/day '+exKm.toFixed(1)+' → '+prKm.toFixed(1)+'</div></div>';
+  }
+  if(exOv!=null && prOv!=null){
+    const delta = exOv - prOv;
+    const pct = (delta/exOv)*100;
+    const sign = delta>=0 ? '↓' : '↑';
+    const col = delta>=0 ? '#15803d' : '#b91c1c';
+    cmpHTML += '<div class="kpi"><div class="kpi-v" style="color:'+col+'">'+sign+' '+Math.abs(pct).toFixed(0)+'%</div>'
+      +'<div class="kpi-l">avg overlap '+exOv.toFixed(2)+'% → '+prOv.toFixed(2)+'%</div></div>';
   }
   document.getElementById('jt-kpis').innerHTML=
     '<div class="kpi"><div class="kpi-v">'+n+'</div><div class="kpi-l">beats shown</div></div>'
     +'<div class="kpi"><div class="kpi-v">'+(allPLG?D.PLG.length:_jtPLG.size)+'</div><div class="kpi-l">PLGs</div></div>'
-    +'<div class="kpi"><div class="kpi-v">'+totArea.toFixed(0)+'</div><div class="kpi-l">km² total hull area</div></div>'
     +cmpHTML;
   _renderJTTables();
 }
 
-// Per-PLG distance + hull-area tables (mirror slide 9 layout)
+// Per-PLG comparison tables — Ex PLG → Prop PLG mapping (mirror slide 9 layout)
 function _renderJTTables(){
-  const D=_jtd();
-  // Build per-PLG stats: { plg → {beats, outletsAvg, distAvgKm, areaAvg, areaTotal} }
-  const stats={};
-  D.PLG.forEach(p=>stats[p.idx]={name:p.name, beats:0, distSum:0, areaSum:0});
-  // Distances (per beat, day-filtered)
-  const distSrc = _jtView==='existing' ? EX_DIST_J26 : DIST_JUN26;
-  distSrc.forEach(dd=>{
-    if(_jtDayF!==null && dd.market!==_jtDayF) return;
-    if(!stats[dd.plg]) return;
-    stats[dd.plg].distSum += dd.distance_km;
-    stats[dd.plg].beats   += 1;
-  });
-  // Hull areas
-  D.HULL.forEach(h=>{
-    if(_jtDayF!==null && h.market!==_jtDayF)return;
-    if(!stats[h.plg]) return;
-    stats[h.plg].areaSum += _hullAreaKm(h.points||[]);
-  });
-  // Build comparison totals (other view)
-  const otherDist = _jtView==='existing' ? DIST_JUN26 : EX_DIST_J26;
-  const otherHull = _jtView==='existing' ? HULL_JUN26 : EX_HULL_J26;
-  let oDist=0, oBeats=0, oArea=0;
-  otherDist.forEach(dd=>{
-    if(_jtDayF!==null && dd.market!==_jtDayF)return;
-    oDist += dd.distance_km; oBeats++;
-  });
-  otherHull.forEach(h=>{
-    if(_jtDayF!==null && h.market!==_jtDayF)return;
-    oArea += _hullAreaKm(h.points||[]);
-  });
-  const curDist = Object.values(stats).reduce((s,r)=>s+r.distSum,0);
-  const curBeats= Object.values(stats).reduce((s,r)=>s+r.beats,0);
-  const curArea = Object.values(stats).reduce((s,r)=>s+r.areaSum,0);
-  const curAvg  = curBeats>0 ? curDist/curBeats : 0;
-  const otherAvg= oBeats>0 ? oDist/oBeats : 0;
+  const rows = (PLG_CMP_J26 && PLG_CMP_J26.rows) || [];
+  const T    = (PLG_CMP_J26 && PLG_CMP_J26.totals) || {};
+  const fmt = v => v==null ? '&mdash;' : v.toFixed(2);
+  const fmtKm = v => v==null ? '&mdash;' : v.toFixed(1)+' km';
+  const fmtPct = v => v==null ? '&mdash;' : v.toFixed(2)+'%';
 
-  // Distance table
-  const distRows = D.PLG.map(p=>{
-    const s=stats[p.idx];
-    if(s.beats===0) return '';
-    const avg = (s.distSum/s.beats);
-    return '<tr><td style="text-align:left">'+p.name+'</td>'
-      +'<td>'+s.beats+'</td>'
-      +'<td>'+avg.toFixed(1)+'</td></tr>';
-  }).filter(Boolean).join('');
-  const distLbl = _jtView==='existing' ? 'Existing' : 'Proposed';
-  const cmpLbl  = _jtView==='existing' ? 'Proposed' : 'Existing';
-  const distDelta = otherAvg>0 ? ((_jtView==='existing'?(curAvg-otherAvg):(otherAvg-curAvg))/Math.max(otherAvg,curAvg))*100 : 0;
-  const distSign = distDelta>=0 ? '↓' : '↑';
-  const distCol  = distDelta>=0 ? '#15803d' : '#b91c1c';
-  const distTotalRow = otherAvg>0
-    ? '<tr style="font-weight:700;background:#f9fafb"><td style="text-align:left">TOTAL ('+distLbl+')</td>'
-      +'<td>'+curBeats+'</td><td>'+curAvg.toFixed(1)+'</td></tr>'
-      +'<tr style="color:#9ca3af"><td style="text-align:left">'+cmpLbl+' (other view)</td>'
-      +'<td>'+oBeats+'</td><td>'+otherAvg.toFixed(1)+'</td></tr>'
-      +'<tr><td style="text-align:left;color:'+distCol+';font-weight:700">Δ vs '+cmpLbl+'</td>'
-      +'<td colspan="2" style="color:'+distCol+';font-weight:700">'+distSign+' '+Math.abs(distDelta).toFixed(0)+'%</td></tr>'
-    : '';
-
+  // ── Distance table ────────────────────────────────────────────────────────
+  let distHtml = rows.map(r=>{
+    const d = (r.ex_km!=null && r.pr_km!=null) ? (r.pr_km - r.ex_km) : null;
+    const col = d==null ? '#6b7280' : d<0 ? '#16a34a' : '#dc2626';
+    return '<tr><td style="text-align:left">'+r.ex_plg+' &rarr; <b>'+r.pr_plg+'</b></td>'
+      +'<td>'+fmtKm(r.ex_km)+'</td><td>'+fmtKm(r.pr_km)+'</td>'
+      +'<td style="color:'+col+'">'+(d==null?'&mdash;':(d<0?'':'+')+d.toFixed(1))+'</td></tr>';
+  }).join('');
+  const dDelta = (T.ex_km!=null && T.pr_km!=null) ? (T.pr_km - T.ex_km) : null;
+  const dCol = dDelta==null ? '#6b7280' : dDelta<0 ? '#16a34a' : '#dc2626';
+  const dTotalRow = '<tr style="font-weight:700;background:#f9fafb"><td style="text-align:left">TOTAL (avg/beat)</td>'
+    +'<td>'+fmtKm(T.ex_km)+'</td><td>'+fmtKm(T.pr_km)+'</td>'
+    +'<td style="color:'+dCol+'">'+(dDelta==null?'&mdash;':(dDelta<0?'':'+')+dDelta.toFixed(1))+'</td></tr>';
   document.getElementById('jt-dist-table').innerHTML =
-    '<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 2px">Round-trip Distance (km/day)</div>'
-    +'<div style="font-size:10px;color:#9ca3af;margin-bottom:4px">OSRM route depot → outlets → depot, per salesman per market day</div>'
+    '<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 2px">Round-trip Distance (km/day per beat)</div>'
+    +'<div style="font-size:10px;color:#9ca3af;margin-bottom:4px">OSRM /trip depot &rarr; outlets &rarr; depot, same depot for both views</div>'
     +'<table class="dt-tbl" style="width:100%"><thead><tr>'
-    +'<th style="text-align:left">PLG ('+distLbl+')</th><th>Beats</th><th>Avg km/day</th>'
-    +'</tr></thead><tbody>'+distTotalRow+distRows+'</tbody></table>';
+    +'<th style="text-align:left">Ex PLG &rarr; Prop</th><th>Existing</th><th>Proposed</th><th>&Delta;</th>'
+    +'</tr></thead><tbody>'+dTotalRow+distHtml+'</tbody></table>';
 
-  // Hull area table
-  const areaRows = D.PLG.map(p=>{
-    const s=stats[p.idx];
-    if(s.beats===0) return '';
-    return '<tr><td style="text-align:left">'+p.name+'</td>'
-      +'<td>'+s.beats+'</td>'
-      +'<td>'+s.areaSum.toFixed(0)+'</td>'
-      +'<td>'+(s.areaSum/s.beats).toFixed(1)+'</td></tr>';
-  }).filter(Boolean).join('');
-  const areaDelta = oArea>0 ? ((_jtView==='existing'?(curArea-oArea):(oArea-curArea))/Math.max(oArea,curArea))*100 : 0;
-  const areaSign = areaDelta>=0 ? '↓' : '↑';
-  const areaCol  = areaDelta>=0 ? '#15803d' : '#b91c1c';
-  const areaTotalRow = oArea>0
-    ? '<tr style="font-weight:700;background:#f9fafb"><td style="text-align:left">TOTAL ('+distLbl+')</td>'
-      +'<td>'+curBeats+'</td><td>'+curArea.toFixed(0)+'</td><td>'+(curBeats>0?(curArea/curBeats).toFixed(1):'–')+'</td></tr>'
-      +'<tr style="color:#9ca3af"><td style="text-align:left">'+cmpLbl+' (other view)</td>'
-      +'<td>'+oBeats+'</td><td>'+oArea.toFixed(0)+'</td><td>'+(oBeats>0?(oArea/oBeats).toFixed(1):'–')+'</td></tr>'
-      +'<tr><td style="text-align:left;color:'+areaCol+';font-weight:700">Δ vs '+cmpLbl+'</td>'
-      +'<td colspan="3" style="color:'+areaCol+';font-weight:700">'+areaSign+' '+Math.abs(areaDelta).toFixed(0)+'%</td></tr>'
-    : '';
-
+  // ── Hull overlap table ────────────────────────────────────────────────────
+  let ovHtml = rows.map(r=>{
+    const d = (r.ex_overlap_pct!=null && r.pr_overlap_pct!=null)
+      ? (r.pr_overlap_pct - r.ex_overlap_pct) : null;
+    const col = d==null ? '#6b7280' : d<0 ? '#16a34a' : '#dc2626';
+    return '<tr><td style="text-align:left">'+r.ex_plg+' &rarr; <b>'+r.pr_plg+'</b></td>'
+      +'<td>'+fmtPct(r.ex_overlap_pct)+'</td><td>'+fmtPct(r.pr_overlap_pct)+'</td>'
+      +'<td style="color:'+col+'">'+(d==null?'&mdash;':(d<0?'':'+')+d.toFixed(2)+'%')+'</td></tr>';
+  }).join('');
+  const oDelta = (T.ex_overlap_pct!=null && T.pr_overlap_pct!=null) ? (T.pr_overlap_pct - T.ex_overlap_pct) : null;
+  const oCol = oDelta==null ? '#6b7280' : oDelta<0 ? '#16a34a' : '#dc2626';
+  const oTotalRow = '<tr style="font-weight:700;background:#f9fafb"><td style="text-align:left">TOTAL (avg pairwise)</td>'
+    +'<td>'+fmtPct(T.ex_overlap_pct)+'</td><td>'+fmtPct(T.pr_overlap_pct)+'</td>'
+    +'<td style="color:'+oCol+'">'+(oDelta==null?'&mdash;':(oDelta<0?'':'+')+oDelta.toFixed(2)+'%')+'</td></tr>';
   document.getElementById('jt-area-table').innerHTML =
-    '<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 2px">Hull Area (km²)</div>'
-    +'<div style="font-size:10px;color:#9ca3af;margin-bottom:4px">Convex hull around each (PLG, salesman, day). Lower total = less geographic spread / less overlap.</div>'
+    '<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 2px">Avg Pairwise Hull Overlap (%)</div>'
+    +'<div style="font-size:10px;color:#9ca3af;margin-bottom:4px">Avg Jaccard overlap between same-PLG hulls. Lower = more disjoint territories</div>'
     +'<table class="dt-tbl" style="width:100%"><thead><tr>'
-    +'<th style="text-align:left">PLG ('+distLbl+')</th><th>Beats</th><th>Total km²</th><th>Avg km²/beat</th>'
-    +'</tr></thead><tbody>'+areaTotalRow+areaRows+'</tbody></table>';
+    +'<th style="text-align:left">Ex PLG &rarr; Prop</th><th>Existing</th><th>Proposed</th><th>&Delta;</th>'
+    +'</tr></thead><tbody>'+oTotalRow+ovHtml+'</tbody></table>';
 }
 
 // ── SLIDE JUN26-DELIVERY ZONES (mirror of slide 11 Beat Area per Day) ────────
@@ -4901,7 +4852,7 @@ function initSlideJD(){
     {attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19,opacity:0.9}).addTo(_jdm);
   _jdlg=L.layerGroup().addTo(_jdm);
   setTimeout(()=>_jdm.invalidateSize(),200);
-  _buildJDChips(); _buildJDTruckChips(); renderJD();
+  _buildJDChips(); renderJD();
 }
 function _buildJDChips(){
   const el=document.getElementById('jd-day-chips');
