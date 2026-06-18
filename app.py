@@ -4217,14 +4217,15 @@ function _j26PLGGroup(p){
   return 'normal';
 }
 
-// Map: PLG idx → list of DSEs (view-aware)
+// Map: PLG idx → list of DSEs (view-aware, case-insensitive PLG match)
 function _j26DSEsByPLG(){
   const D=_j26d();
   const m={};
   D.PLG.forEach(p=>m[p.idx]=[]);
   D.DSE.forEach(d=>{
     const sep=d.name.indexOf(':');
-    const plgName=d.name.substring(0,sep);
+    if(sep<0) return;
+    const plgName=d.name.substring(0,sep).toLowerCase();
     const dseShort=d.name.substring(sep+1);
     const plgIdx=D.PLG.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_')===plgName);
     if(plgIdx>=0)m[plgIdx].push({idx:d.idx,short:dseShort,name:d.name});
@@ -4418,17 +4419,23 @@ function renderJ26(){
     n++;
   });
   const plgN=allPLG?D.PLG.length:_j26PLG.size;
-  // Unique salesman count — strip "PLG:" prefix and dedupe (existing has multi-PLG salesmen)
-  function uniqRsspCount(dseSrc, selSet){
-    const uniq = new Set();
-    dseSrc.forEach(d=>{
-      if(selSet && selSet.size>0 && !selSet.has(d.idx)) return;
-      const rssp = d.name.includes(':') ? d.name.split(':',2)[1] : d.name;
-      uniq.add(rssp);
-    });
-    return uniq.size;
+  // Salesman count: proposed has per-PLG S001..S00N (one PLG = one person), so each entry is unique;
+  // existing has shared RSSP codes across PLGs (one person serves DETS+FNB+NUTS), so dedupe by RSSP.
+  function countSalesmen(dseSrc, selSet, view){
+    if(view==='existing'){
+      const uniq = new Set();
+      dseSrc.forEach(d=>{
+        if(selSet && selSet.size>0 && !selSet.has(d.idx)) return;
+        const rssp = d.name.includes(':') ? d.name.split(':',2)[1] : d.name;
+        uniq.add(rssp);
+      });
+      return uniq.size;
+    }
+    // proposed — count entries (each PLG-specific S00N is a distinct person)
+    if(!selSet || selSet.size===0) return dseSrc.length;
+    return selSet.size;
   }
-  const dseN = uniqRsspCount(D.DSE, allDSE ? null : _j26DSE);
+  const dseN = countSalesmen(D.DSE, allDSE ? null : _j26DSE, _j26View);
   // Avg distance per day for current view (used for both KPI + comparison delta)
   function avgPerDayFor(distArr){
     let tot=0, cnt=0;
@@ -4443,7 +4450,7 @@ function renderJ26(){
   const curAvg = avgPerDayFor(D.DIST);
   const distStr = curAvg===null ? '–'
     : (_j26DayF!==null ? curAvg.toFixed(1) + ' km' : curAvg.toFixed(1) + ' km/day');
-  const distLbl = _j26DayF!==null ? _J26_DAY[_j26DayF+1] + ' round trip avg' : 'round trip avg/day';
+  const distLbl = _j26DayF!==null ? _J26_DAY[_j26DayF+1] + ' in-beat avg' : 'in-beat km/day avg';
 
   // Comparison delta — proposed vs existing (only when both data sets have values for the same filter)
   let cmpHTML = '';
@@ -4574,7 +4581,8 @@ function _buildJTTree(){
   D.PLG.forEach(p=>dsesByPLG[p.idx]=[]);
   D.DSE.forEach(d=>{
     const sep=d.name.indexOf(':');
-    const plgName=d.name.substring(0,sep);
+    if(sep<0) return;
+    const plgName=d.name.substring(0,sep).toLowerCase();
     const dseShort=d.name.substring(sep+1);
     const plgIdx=D.PLG.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_')===plgName);
     if(plgIdx>=0)dsesByPLG[plgIdx].push({idx:d.idx,short:dseShort,name:d.name});
@@ -4720,8 +4728,8 @@ function _renderJTTables(){
     +'<td>'+fmtKm(T.ex_km)+'</td><td>'+fmtKm(T.pr_km)+'</td>'
     +'<td style="color:'+dCol+'">'+(dDelta==null?'&mdash;':(dDelta<0?'':'+')+dDelta.toFixed(1))+'</td></tr>';
   document.getElementById('jt-dist-table').innerHTML =
-    '<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 2px">Round-trip Distance (km/day per beat)</div>'
-    +'<div style="font-size:10px;color:#9ca3af;margin-bottom:4px">OSRM /trip depot &rarr; outlets &rarr; depot, same depot for both views</div>'
+    '<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 2px">In-Beat Distance (km/market day)</div>'
+    +'<div style="font-size:10px;color:#9ca3af;margin-bottom:4px">Route through outlets only (no depot legs) — what the salesman drives within their beat</div>'
     +'<table class="dt-tbl" style="width:100%"><thead><tr>'
     +'<th style="text-align:left">Ex PLG &rarr; Prop</th><th>Existing</th><th>Proposed</th><th>&Delta;</th>'
     +'</tr></thead><tbody>'+dTotalRow+distHtml+'</tbody></table>';
