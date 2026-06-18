@@ -1499,7 +1499,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 1 · OUTLETS & DISTRIBUTORS -->
 <div class="slide" id="slide-1">
   <div class="map-wrap" id="map-1"></div>
-  <div class="page-lbl">2 / 16 &middot; Outlets &amp; Distributors</div>
+  <div class="page-lbl">2 / 18 &middot; Outlets &amp; Distributors</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Outlets &amp; Distributors</h2>
@@ -1535,7 +1535,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 2 · TERRITORY OVERLAPS -->
 <div class="slide" id="slide-2">
   <div class="map-wrap" id="map-2"></div>
-  <div class="page-lbl">3 / 16 &middot; Territory Overlaps</div>
+  <div class="page-lbl">3 / 18 &middot; Territory Overlaps</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Territory Overlaps</h2>
@@ -1572,7 +1572,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 4 · HIGH DENSITY CLUSTERS (position 3) -->
 <div class="slide" id="slide-4">
   <div class="map-wrap" id="map-4"></div>
-  <div class="page-lbl">4 / 16 &middot; High Density Clusters</div>
+  <div class="page-lbl">4 / 18 &middot; High Density Clusters</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>High Density Clusters</h2>
@@ -1597,7 +1597,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 3 · DUPLICATE OUTLETS (position 2) -->
 <div class="slide" id="slide-3">
   <div class="map-wrap" id="map-3"></div>
-  <div class="page-lbl">5 / 16 &middot; Duplicate Outlets</div>
+  <div class="page-lbl">5 / 18 &middot; Duplicate Outlets</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;">
     <h2>Duplicate Outlets</h2>
@@ -1612,7 +1612,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
 <!-- SLIDE 11 · PLG RULES (position 3) -->
 <div class="slide info-slide" id="slide-11" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%);overflow-y:auto">
-  <div class="page-lbl">6 / 16 &middot; PLG Rules &middot; RS 218390</div>
+  <div class="page-lbl">6 / 18 &middot; PLG Rules &middot; RS 218390</div>
   <div style="max-width:980px;margin:0 auto;padding:32px 28px;color:white">
     <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:8px">Reference &middot; RS 218390</div>
     <h2 style="font-size:26px;font-weight:800;color:white;margin-bottom:4px">New PLG Assignment Rules</h2>
@@ -1646,7 +1646,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
 <!-- SLIDE 8 · PLG PURITY -->
 <div class="slide info-slide" id="slide-8" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%)">
-  <div class="page-lbl">7 / 16 &middot; PLG Purity &middot; RS 218390</div>
+  <div class="page-lbl">7 / 18 &middot; PLG Purity &middot; RS 218390</div>
   <div style="max-width:860px;margin:0 auto;padding:44px 28px;color:white">
     <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:12px">Benefit 2 &middot; RS 218390</div>
     <h2 style="font-size:32px;font-weight:800;margin-bottom:8px;color:white">PLG Purity</h2>
@@ -1685,7 +1685,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 5 · BEATS -->
 <div class="slide" id="slide-5" style="background:white">
   <div class="map-wrap" id="map-5"></div>
-  <div class="page-lbl">8 / 16 &middot; Beats &middot; RS 218390 &amp; 218391</div>
+  <div class="page-lbl">8 / 18 &middot; Beats &middot; RS 218390 &amp; 218391</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -1732,7 +1732,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 9 · JACCARD TERRITORIES (position 5) -->
 <div class="slide" id="slide-9">
   <div class="map-wrap" id="l9-map"></div>
-  <div class="page-lbl">9 / 16 &middot; Beat Territories &middot; RS 218390</div>
+  <div class="page-lbl">9 / 18 &middot; Beat Territories &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -1764,7 +1764,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 7 · SAME-DAY CONFLICTS -->
 <div class="slide" id="slide-7">
   <div class="map-wrap" id="map-7"></div>
-  <div class="page-lbl">10 / 16 &middot; Same-Day Conflicts &middot; RS 218390</div>
+  <div class="page-lbl">10 / 18 &middot; Same-Day Conflicts &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Same-Day Multi-Salesman Visits</h2>
@@ -1801,7 +1801,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 12 · BEAT AREA PER DAY -->
 <div class="slide" id="slide-12">
   <div class="map-wrap" id="l12-map"></div>
-  <div class="page-lbl">11 / 16 &middot; Beat Area per Day &middot; RS 218390</div>
+  <div class="page-lbl">11 / 18 &middot; Beat Area per Day &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
     <div style="padding:16px 18px 12px;flex-shrink:0;overflow-y:auto;max-height:100vh">
@@ -1844,7 +1844,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 13 · DELIVERY BEATS -->
 <div class="slide" id="slide-13">
   <div class="map-wrap" id="l13-map"></div>
-  <div class="page-lbl">12 / 16 &middot; Delivery Beats &middot; RS 218390</div>
+  <div class="page-lbl">12 / 18 &middot; Delivery Beats &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
     <div style="padding:16px 18px 12px;flex:1;min-height:0;overflow-y:auto">
@@ -1896,14 +1896,14 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
       <div><div style="font-size:36px;font-weight:600;color:#fff">105</div><div style="font-size:13px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase">salesmen</div></div>
       <div><div style="font-size:36px;font-weight:600;color:#10b981">154</div><div style="font-size:13px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase">unintended same-day visits</div></div>
     </div>
-    <div style="margin-top:34px;color:#94a3b8;font-size:14px">Slides 14–17 cover the merged Jun 2026 design</div>
+    <div style="margin-top:34px;color:#94a3b8;font-size:14px">Slides 14–18 cover the merged Jun 2026 design</div>
   </div>
 </div>
 
 <!-- SLIDE JUN26 · ALIGNED BEATS (218390 + 20B801 merged, Jun 2026) -->
 <div class="slide" id="slide-jun26" style="background:white">
   <div class="map-wrap" id="map-jun26"></div>
-  <div class="page-lbl">14 / 16 &middot; Aligned Beats &middot; Jun 2026 &middot; RS 218390 + 20B801</div>
+  <div class="page-lbl">14 / 18 &middot; Aligned Beats &middot; Jun 2026 &middot; RS 218390 + 20B801</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -1934,10 +1934,102 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   </div>
 </div>
 
+<!-- SLIDE JUN26-CHANGES · Outlet & Visit Reduction Breakdown -->
+<div class="slide" id="slide-jun26-changes" style="background:#f9fafb">
+  <div style="position:absolute;inset:0;overflow-y:auto;padding:50px 60px 100px;box-sizing:border-box">
+  <div class="page-lbl">15 / 18 &middot; Outlet &amp; Visit Reduction &middot; Jun 2026</div>
+  <div style="max-width:1280px;width:100%;margin:0 auto">
+    <h1 style="font-size:26px;font-weight:300;color:#0f172a;margin:0 0 2px">Where did the outlet changes come from?</h1>
+    <div style="font-size:13px;color:#64748b;margin-bottom:14px">RS 218390 + 20B801 merged, ME BEAT existing vs Jun 2026 proposed</div>
+
+    <!-- Headline KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.7px">Outlets</div>
+        <div style="margin-top:6px"><span style="font-size:28px;font-weight:700;color:#374151">8,091</span> <span style="font-size:14px;color:#94a3b8">&rarr;</span> <span style="font-size:32px;font-weight:700;color:#0f172a">7,103</span></div>
+        <div style="color:#16a34a;font-weight:700;font-size:16px;margin-top:4px">&darr; 988 (12.2%)</div>
+      </div>
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.7px">Visits / week</div>
+        <div style="margin-top:6px"><span style="font-size:28px;font-weight:700;color:#374151">18,988</span> <span style="font-size:14px;color:#94a3b8">&rarr;</span> <span style="font-size:32px;font-weight:700;color:#0f172a">15,731</span></div>
+        <div style="color:#16a34a;font-weight:700;font-size:16px;margin-top:4px">&darr; 3,257 (17.2%)</div>
+      </div>
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.7px">Avg visits / outlet</div>
+        <div style="margin-top:6px"><span style="font-size:28px;font-weight:700;color:#374151">2.35</span> <span style="font-size:14px;color:#94a3b8">&rarr;</span> <span style="font-size:32px;font-weight:700;color:#0f172a">2.21</span></div>
+        <div style="color:#16a34a;font-weight:700;font-size:16px;margin-top:4px">&darr; 0.14 (5.8%)</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <!-- Outlet changes table -->
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px">
+        <h3 style="margin:0 0 8px;color:#0f172a;font-size:16px">Outlet Reconciliation</h3>
+        <table class="dt-tbl" style="width:100%;font-size:13px">
+          <thead><tr>
+            <th style="text-align:left">Change</th><th>Outlets</th><th>Note</th>
+          </tr></thead>
+          <tbody>
+            <tr><td style="text-align:left;font-weight:600">Starting (ME BEAT)</td><td><b>8,091</b></td><td style="text-align:left;color:#64748b">218390: 7,384 &middot; 20B801: 707</td></tr>
+            <tr style="color:#dc2626"><td style="text-align:left">&minus; Pre-removed by client</td><td>&minus;635</td><td style="text-align:left;color:#64748b">DUMMY / inactive (not in working file)</td></tr>
+            <tr style="color:#dc2626"><td style="text-align:left">&minus; Wholesale (WS) beats</td><td>&minus;248</td><td style="text-align:left;color:#64748b">Excluded from redesign</td></tr>
+            <tr style="color:#dc2626"><td style="text-align:left">&minus; Moved to RS 218391 (OTR)</td><td>&minus;143</td><td style="text-align:left;color:#64748b">Outstanding-receivables transfer</td></tr>
+            <tr style="color:#dc2626"><td style="text-align:left">&minus; Confirmed duplicates</td><td>&minus;93</td><td style="text-align:left;color:#64748b">Same physical store, two codes</td></tr>
+            <tr style="color:#16a34a"><td style="text-align:left">+ New outlets added</td><td>+131</td><td style="text-align:left;color:#64748b">Not in ME BEAT, in master</td></tr>
+            <tr style="background:#f9fafb;font-weight:700;color:#0f172a"><td style="text-align:left">Working count (Proposed)</td><td><b>7,103</b></td><td style="text-align:left;color:#64748b">Δ net &minus;988 outlets</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Visit changes table -->
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px">
+        <h3 style="margin:0 0 8px;color:#0f172a;font-size:16px">Visit Reduction Drivers</h3>
+        <table class="dt-tbl" style="width:100%;font-size:13px">
+          <thead><tr>
+            <th style="text-align:left">Driver</th><th>Visits</th><th>Share</th>
+          </tr></thead>
+          <tbody>
+            <tr><td style="text-align:left;font-weight:600">Starting visits (existing)</td><td><b>18,988</b></td><td></td></tr>
+            <tr style="color:#dc2626"><td style="text-align:left">&minus; Outlet count reduction</td><td>&minus;2,319</td><td style="color:#dc2626;font-weight:700">71%</td></tr>
+            <tr style="color:#dc2626"><td style="text-align:left">&minus; Visit-frequency consolidation</td><td>&minus;938</td><td style="color:#dc2626;font-weight:700">29%</td></tr>
+            <tr style="background:#f9fafb;font-weight:700;color:#0f172a"><td style="text-align:left">Total reduction</td><td><b>&minus;3,257</b></td><td>100%</td></tr>
+            <tr style="background:#f9fafb;font-weight:700;color:#0f172a"><td style="text-align:left">Proposed visits</td><td><b>15,731</b></td><td></td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:12px;font-size:12px;color:#64748b;line-height:1.5">
+          <b>Outlet-driven (71%):</b> 988 removed outlets × 2.35 existing avg visits.<br/>
+          <b>Frequency-driven (29%):</b> Rule 9/10 consolidates 3-visit outlets to 2 visits (D+F+N | PP); F+N collapse merges some F + N pairs.
+        </div>
+      </div>
+    </div>
+
+    <!-- Visit distribution histogram -->
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-top:14px">
+      <h3 style="margin:0 0 8px;color:#0f172a;font-size:16px">Outlets by Visit Count</h3>
+      <table class="dt-tbl" style="width:100%;font-size:13px">
+        <thead><tr>
+          <th style="text-align:left">Visits / outlet</th><th>Existing</th><th>Proposed</th><th>Δ</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="text-align:left;font-weight:600">1 visit</td><td>2,257</td><td>435</td><td style="color:#16a34a;font-weight:700">&minus;1,822</td></tr>
+          <tr><td style="text-align:left;font-weight:600">2 visits</td><td>1,980</td><td><span style="color:#0369a1;font-weight:700">5,710</span></td><td style="color:#dc2626;font-weight:700">+3,730</td></tr>
+          <tr><td style="text-align:left;font-weight:600">3 visits</td><td>2,789</td><td>16</td><td style="color:#16a34a;font-weight:700">&minus;2,773</td></tr>
+          <tr><td style="text-align:left;font-weight:600">4 visits</td><td>921</td><td>882</td><td style="color:#94a3b8">&minus;39</td></tr>
+          <tr><td style="text-align:left;font-weight:600">5 visits</td><td>144</td><td>60</td><td style="color:#16a34a">&minus;84</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:10px;font-size:12px;color:#64748b;line-height:1.5">
+        The big shift: <b>3-visit outlets (-2,773) and 1-visit outlets (-1,822) consolidated into 2-visit (+3,730)</b> — driven by Rule 9/10 which sends most outlets to a single D+F+N visit + a PP visit. 4 and 5-visit categories stay roughly stable (premium PP-A/PP-B outlets and OFM channel stores).
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
 <!-- SLIDE JUN26-TERR · Beat Territories (Jun 2026) -->
 <div class="slide" id="slide-jun26-terr">
   <div class="map-wrap" id="map-jun26-terr"></div>
-  <div class="page-lbl">15 / 16 &middot; Beat Territories &middot; Jun 2026</div>
+  <div class="page-lbl">16 / 18 &middot; Beat Territories &middot; Jun 2026</div>
   <div class="zoom-hint">Ctrl+Scroll to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -1963,7 +2055,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE JUN26-DEL · Delivery Beats &amp; Truck Assignment (Jun 2026) -->
 <div class="slide" id="slide-jun26-del">
   <div class="map-wrap" id="map-jun26-del"></div>
-  <div class="page-lbl">16 / 16 &middot; Delivery Beats &middot; Jun 2026</div>
+  <div class="page-lbl">17 / 18 &middot; Delivery Beats &middot; Jun 2026</div>
   <div class="zoom-hint">Ctrl+Scroll to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -2018,6 +2110,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   <div class="dot" onclick="goTo(14)"></div>
   <div class="dot" onclick="goTo(15)"></div>
   <div class="dot" onclick="goTo(16)"></div>
+  <div class="dot" onclick="goTo(17)"></div>
 </div>
 
 <script>
@@ -5099,7 +5192,7 @@ function j26Download(){
 const slidesEl=document.getElementById('slides');
 const navDots=document.querySelectorAll('.dot');
 const navEl=document.getElementById('nav-dots');
-const TOTAL_SLIDES=17;
+const TOTAL_SLIDES=18;
 const DARK_SLIDES=new Set([0,1,6,7,13]);
 
 const sbLogo=document.getElementById('sb-logo');
