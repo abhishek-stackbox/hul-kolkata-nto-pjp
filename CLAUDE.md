@@ -51,6 +51,8 @@ All load functions cache to `data/*.json`. Source files are on Google Drive (not
 | `beats_jun26.json` / `plg_info_jun26.json` / `dse_info_jun26.json` / `hull_jun26.json` / `conflicts_jun26.json` / `delivery_zones_jun26.json` / `distances_jun26.json` | Aligned P5 output changes — regenerate via `build_jun26_app_data.py` in salesBeatGuru/HUL-KOLKATA/218390/ |
 | `delivery_beats_jun26.json` | Aligned P5 + sales values change — regenerate via `build_jun26_delivery_data.py` |
 | `truck_assignments_jun26.json` | Delivery pairing strategy changes — regenerate via `build_truck_assignments.py` |
+| `existing_*_jun26.json` (7 files: beats, plg_info, dse_info, hull, distances, delivery_beats, truck_assignments) | ME BEAT SERVICE PLG changes — regenerate via `build_existing_app_data.py` |
+| `plg_comparison_jun26.json` | Existing/Proposed beat data changes — regenerate via `build_plg_comparison.py` (shapely required) |
 
 ## JS data structures (in `DATA_BLOCK`)
 - `OUTLETS[i]` = `[lat, lon, rs_idx, new_rs_idx, outlet_name, classification, moc_2dp, primarychannel, channel_program, outlet_code]`
@@ -67,34 +69,51 @@ All load functions cache to `data/*.json`. Source files are on Google Drive (not
 - `DELIVERY_ZONES` = `{zones: [{zone, group_a_day, group_b_day, v4_hull, ex_hull, v4_area, ex_area}]}` — 6 zones, each combining 2 adjacent market days for delivery on Day N+2
 - `FLAGGED_PHARMA` = pharma outlets excluded from all calculations (bad geocodes); appended to pharma CSV with "VERIFY LOCATION" note
 
-## Slides (17 total, nav position 0-indexed)
-`TOTAL_SLIDES=17`, `DARK_SLIDES=new Set([0,1,6,7,13])`
+## Slides (18 total, nav position 0-indexed)
+`TOTAL_SLIDES=18`, `DARK_SLIDES=new Set([0,1,6,7,13])`. **18 `<div class="dot">` nodes** in `#nav-dots` (one per slide).
 
 | Nav pos | Slide ID | Title | Label |
 |---|---|---|---|
 | 0 | slide-0 | Title / summary | (no label, dark) |
-| 1 | slide-summary | Key Benefits | 1/17, dark |
-| 2 | slide-1 | Outlets & Distributors | 2/17 |
-| 3 | slide-2 | Territory Overlaps | 3/17 |
-| 4 | slide-4 | High Density Clusters | 4/17 |
-| 5 | slide-3 | Duplicate Outlets | 5/17 |
-| 6 | slide-11 | PLG Rules | 6/17, dark |
-| 7 | slide-8 | Benefit: PLG Purity | 7/17, dark |
-| 8 | slide-5 | Proposed Beats | 8/17 |
-| 9 | slide-9 | Beat Territories & Overlap | 9/17 |
-| 10 | slide-12 | Beat Area — Delivery Zone | 10/17 |
-| 11 | slide-7 | Benefit: Same-Day Conflicts | 11/17 |
-| 12 | slide-13 | Delivery Beats | 12/17 |
-| 13 | slide-jun26-intro | Jun2026 redesign intro | 13/17, dark |
-| 14 | slide-jun26 | Aligned Beats (per-DSE round-trip km) | 14/17 |
-| 15 | slide-jun26-terr | Beat Territories — Jun2026 | 15/17 |
-| 16 | slide-jun26-del | Delivery Beats + Truck Trips (Jun2026) | 16/17 |
+| 1 | slide-summary | Key Benefits | 1/18, dark |
+| 2 | slide-1 | Outlets & Distributors | 2/18 |
+| 3 | slide-2 | Territory Overlaps | 3/18 |
+| 4 | slide-4 | High Density Clusters | 4/18 |
+| 5 | slide-3 | Duplicate Outlets | 5/18 |
+| 6 | slide-11 | PLG Rules | 6/18, dark |
+| 7 | slide-8 | Benefit: PLG Purity | 7/18, dark |
+| 8 | slide-5 | Proposed Beats | 8/18 |
+| 9 | slide-9 | Beat Territories & Overlap (218390 V3) | 9/18 |
+| 10 | slide-12 | Beat Area — Delivery Zone | 10/18 |
+| 11 | slide-7 | Benefit: Same-Day Conflicts | 11/18 |
+| 12 | slide-13 | Delivery Beats (218390 V3) | 12/18 |
+| 13 | slide-jun26-intro | Jun2026 redesign intro | 13/18, dark |
+| 14 | slide-jun26 | Aligned Beats (in-beat km/day per DSE) | 14/18 |
+| 15 | slide-jun26-changes | Outlet & Visit Reduction breakdown | 15/18 |
+| 16 | slide-jun26-terr | Beat Territories — Jun2026 (Existing vs Proposed toggle) | 16/18 |
+| 17 | slide-jun26-del | Delivery Beats + Truck Trips (Jun2026, Existing vs Proposed toggle) | 17/18 |
 
-Slides removed: slide-6 (Delivery Beats old), slide-10 (Beat Balance), slide-jun26-zones (geo-zones, removed June 2026).
+Slides removed: slide-6 (Delivery Beats old), slide-10 (Beat Balance), slide-jun26-zones (geo-zones, removed Jun 2026).
 
 ### Jun2026 slide internals
-- **Slide 14 (Aligned Beats):** PLG tree on left with per-salesman row showing road-distance label. Label = `X km` for selected day, `X km/day avg` for "All days" (i.e., 6-day mean). Day-chip click rebuilds the PLG tree so per-DSE labels refresh — see `j26SetDay()`.
-- **Slide 16 (Delivery + Trucks):** truck-type filter is **chips** (All / 3 Wheeler / Tata Ace / Split). Trip table has master checkbox in header + per-row checkboxes (`jdToggleAllTrips()`). 407 truck excluded (WS only, not in redesign scope).
+- **Slide 14 (Aligned Beats):** PLG tree on left with per-salesman row showing in-beat km/day. Existing/Proposed toggle chip rebuilds tree on change. Salesman count is RS-namespaced for existing (218390 and 20B801 both use SMN001–8) so total = 115 existing / 100 proposed.
+- **Slide 15 (Outlet & Visit Reduction):** Light-background info slide. KPIs (outlets / visits / avg visits per outlet) + outlet reconciliation table + visit-driver decomposition (71% from outlet count, 29% from frequency consolidation) + visits-per-outlet histogram. Layout uses `position:absolute;inset:0;overflow-y:auto;padding:50px 60px 100px` because `.slide` is `overflow:hidden`.
+- **Slide 16 (Beat Territories):** Mirrors slide 9 — Ex PLG → Prop mapping tables for Distance + Avg Pairwise Hull Overlap %. Overlap is cross-day (same salesman across days also counted). OFM 4 variants collapsed into single "OFM (rotating)" row; D+PP-A + F+N+PP-B collapsed into "UNIGLOW+UNICARE".
+- **Slide 17 (Delivery + Trucks):** Existing assumes 2-salesman + D+1 delivery; truck-type chips removed (`_jdTruckTypes` initialized to all). Trip table has master checkbox + per-row checkboxes. 407 truck excluded.
+
+### Distance metric (slides 14, 16)
+- **In-beat km/day** = OSRM route through outlets only, no depot legs. Matches slide 9's `chain_km`.
+- Proposed: verlauf `Distance` field (StepDistance through outlets, excludes BranchToMarketDistance + MarketToBranchDistance).
+- Existing: OSRM `/trip` `source=first&destination=last&roundtrip=false` through outlets, no depot.
+- For round-trip metrics, use OSRM `/trip` `source=first&roundtrip=true` with depot at `(22.51632, 88.30063)` — back-solved from verlauf BranchToMarketDistance.
+
+### Overlap metric (slide 16)
+- **Cross-day hull overlap** per PLG. For each beat A in PLG: `area(A ∩ union(other same-PLG beats)) / area(A)`. Mean over all beats.
+- Multi-PLG collapsed rows (OFM, UNIGLOW): compute per PLG-index separately and weight-average, otherwise the intentional outlet overlap across PLG variants (D+PP-A and F+N+PP-B visit same outlets) inflates to ~100%.
+
+### Existing/Proposed comparison data
+- Existing data scoped to RS 218390 + 20B801. ME BEAT SERVICE PLG has **duplicate rows** — must `drop_duplicates(['Outlet HUL Code','PLG','RSSP Code','Servicing Day'])` (~9,892 dupes).
+- RSSP codes are **not globally unique** — 218390 and 20B801 both use SMN00001..SMN00008. Namespace as `<RS>_<RSSP>` before deduping.
 
 ## Architecture gotchas
 
