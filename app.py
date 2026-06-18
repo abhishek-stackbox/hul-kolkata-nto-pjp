@@ -1123,6 +1123,17 @@ for _sc in ['Existing', 'Output 1']:
         for _day in _delivery_data.get(_sc, {}).get(_lim, {}):
             _delivery_data_slim[_sc][_lim][_day] = [{k: b[k] for k in _KEEP if k in b} for b in _delivery_data[_sc][_lim][_day]]
 
+# Jun2026 aligned beats — written by salesBeatGuru/HUL-KOLKATA/218390/build_jun26_app_data.py
+_jun26_beats     = _load_json("beats_jun26")            or []
+_jun26_plg       = _load_json("plg_info_jun26")         or []
+_jun26_dse       = _load_json("dse_info_jun26")         or []
+_jun26_hull      = _load_json("hull_jun26")             or []
+_jun26_conflicts = _load_json("conflicts_jun26")        or []
+_jun26_zones     = _load_json("delivery_zones_jun26")   or {}
+_jun26_delivery  = _load_json("delivery_beats_jun26")   or {}
+_jun26_trucks    = _load_json("truck_assignments_jun26") or {}
+_jun26_dist      = _load_json("distances_jun26") or []
+
 DATA_BLOCK = (
     "const OUTLETS    = " + json.dumps(outlets)       + ";\n"
     "const RS_INFO    = " + json.dumps(rs_info)       + ";\n"
@@ -1157,6 +1168,15 @@ DATA_BLOCK = (
     "const DELIVERY_ZONES  = " + json.dumps(delivery_zones)    + ";\n"
     "const DELIVERY_DATA = " + json.dumps(_delivery_data_slim) + ";\n"
     "const FLAGGED_PHARMA = " + json.dumps(_flagged_pharma) + ";\n"
+    "const BEATS_JUN26     = " + json.dumps(_jun26_beats)     + ";\n"
+    "const PLG_JUN26       = " + json.dumps(_jun26_plg)       + ";\n"
+    "const DSE_JUN26       = " + json.dumps(_jun26_dse)       + ";\n"
+    "const HULL_JUN26      = " + json.dumps(_jun26_hull)      + ";\n"
+    "const CONFLICTS_JUN26 = " + json.dumps(_jun26_conflicts) + ";\n"
+    "const ZONES_JUN26     = " + json.dumps(_jun26_zones)     + ";\n"
+    "const DELIVERY_JUN26  = " + json.dumps(_jun26_delivery)  + ";\n"
+    "const TRUCKS_JUN26    = " + json.dumps(_jun26_trucks)    + ";\n"
+    "const DIST_JUN26      = " + json.dumps(_jun26_dist)      + ";\n"
 )
 
 # ── HTML ───────────────────────────────────────────────────────────────────────
@@ -1461,7 +1481,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 1 · OUTLETS & DISTRIBUTORS -->
 <div class="slide" id="slide-1">
   <div class="map-wrap" id="map-1"></div>
-  <div class="page-lbl">2 / 12 &middot; Outlets &amp; Distributors</div>
+  <div class="page-lbl">2 / 16 &middot; Outlets &amp; Distributors</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Outlets &amp; Distributors</h2>
@@ -1497,7 +1517,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 2 · TERRITORY OVERLAPS -->
 <div class="slide" id="slide-2">
   <div class="map-wrap" id="map-2"></div>
-  <div class="page-lbl">3 / 12 &middot; Territory Overlaps</div>
+  <div class="page-lbl">3 / 16 &middot; Territory Overlaps</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Territory Overlaps</h2>
@@ -1534,7 +1554,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 4 · HIGH DENSITY CLUSTERS (position 3) -->
 <div class="slide" id="slide-4">
   <div class="map-wrap" id="map-4"></div>
-  <div class="page-lbl">4 / 12 &middot; High Density Clusters</div>
+  <div class="page-lbl">4 / 16 &middot; High Density Clusters</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>High Density Clusters</h2>
@@ -1559,7 +1579,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 3 · DUPLICATE OUTLETS (position 2) -->
 <div class="slide" id="slide-3">
   <div class="map-wrap" id="map-3"></div>
-  <div class="page-lbl">5 / 12 &middot; Duplicate Outlets</div>
+  <div class="page-lbl">5 / 16 &middot; Duplicate Outlets</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;">
     <h2>Duplicate Outlets</h2>
@@ -1574,7 +1594,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
 <!-- SLIDE 11 · PLG RULES (position 3) -->
 <div class="slide info-slide" id="slide-11" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%);overflow-y:auto">
-  <div class="page-lbl">6 / 12 &middot; PLG Rules &middot; RS 218390</div>
+  <div class="page-lbl">6 / 16 &middot; PLG Rules &middot; RS 218390</div>
   <div style="max-width:980px;margin:0 auto;padding:32px 28px;color:white">
     <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:8px">Reference &middot; RS 218390</div>
     <h2 style="font-size:26px;font-weight:800;color:white;margin-bottom:4px">New PLG Assignment Rules</h2>
@@ -1608,7 +1628,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
 <!-- SLIDE 8 · PLG PURITY -->
 <div class="slide info-slide" id="slide-8" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%)">
-  <div class="page-lbl">7 / 12 &middot; PLG Purity &middot; RS 218390</div>
+  <div class="page-lbl">7 / 16 &middot; PLG Purity &middot; RS 218390</div>
   <div style="max-width:860px;margin:0 auto;padding:44px 28px;color:white">
     <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#60a5fa;text-transform:uppercase;margin-bottom:12px">Benefit 2 &middot; RS 218390</div>
     <h2 style="font-size:32px;font-weight:800;margin-bottom:8px;color:white">PLG Purity</h2>
@@ -1647,7 +1667,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 5 · BEATS -->
 <div class="slide" id="slide-5" style="background:white">
   <div class="map-wrap" id="map-5"></div>
-  <div class="page-lbl">8 / 12 &middot; Beats &middot; RS 218390 &amp; 218391</div>
+  <div class="page-lbl">8 / 16 &middot; Beats &middot; RS 218390 &amp; 218391</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -1694,7 +1714,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 9 · JACCARD TERRITORIES (position 5) -->
 <div class="slide" id="slide-9">
   <div class="map-wrap" id="l9-map"></div>
-  <div class="page-lbl">9 / 12 &middot; Beat Territories &middot; RS 218390</div>
+  <div class="page-lbl">9 / 16 &middot; Beat Territories &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
@@ -1726,7 +1746,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 7 · SAME-DAY CONFLICTS -->
 <div class="slide" id="slide-7">
   <div class="map-wrap" id="map-7"></div>
-  <div class="page-lbl">10 / 12 &middot; Same-Day Conflicts &middot; RS 218390</div>
+  <div class="page-lbl">10 / 16 &middot; Same-Day Conflicts &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel">
     <h2>Same-Day Multi-Salesman Visits</h2>
@@ -1763,7 +1783,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 12 · BEAT AREA PER DAY -->
 <div class="slide" id="slide-12">
   <div class="map-wrap" id="l12-map"></div>
-  <div class="page-lbl">11 / 12 &middot; Beat Area per Day &middot; RS 218390</div>
+  <div class="page-lbl">11 / 16 &middot; Beat Area per Day &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
     <div style="padding:16px 18px 12px;flex-shrink:0;overflow-y:auto;max-height:100vh">
@@ -1806,7 +1826,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE 13 · DELIVERY BEATS -->
 <div class="slide" id="slide-13">
   <div class="map-wrap" id="l13-map"></div>
-  <div class="page-lbl">12 / 12 &middot; Delivery Beats &middot; RS 218390</div>
+  <div class="page-lbl">12 / 16 &middot; Delivery Beats &middot; RS 218390</div>
   <div class="zoom-hint">Ctrl+Scroll to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
     <div style="padding:16px 18px 12px;flex:1;min-height:0;overflow-y:auto">
@@ -1844,6 +1864,106 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   </div>
 </div>
 
+<!-- SLIDE JUN26-INTRO · Section divider for Jun 2026 work -->
+<div class="slide info-slide" id="slide-jun26-intro" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%);display:flex;flex-direction:column;justify-content:center;padding:40px 48px;overflow-y:auto">
+  <div style="max-width:900px;margin:0 auto;text-align:center;color:#fff;">
+    <div style="font-size:13px;font-weight:700;letter-spacing:6px;color:#60a5fa;margin-bottom:14px;text-transform:uppercase">— Section II —</div>
+    <h1 style="font-size:54px;font-weight:300;letter-spacing:1px;line-height:1.1;margin:0 0 12px;color:#fff">Jun 2026 Beat Redesign</h1>
+    <div style="font-size:20px;font-weight:300;color:#cbd5e1;margin-bottom:36px">
+      RS 218390 + 20B801 merged &middot; OFM &amp; UNIGLOW+UNICARE specialist channels &middot; mirror-aligned for delivery bundling
+    </div>
+    <div style="display:flex;justify-content:center;gap:42px;flex-wrap:wrap;margin-top:24px">
+      <div><div style="font-size:36px;font-weight:600;color:#fff">7,103</div><div style="font-size:13px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase">working outlets</div></div>
+      <div><div style="font-size:36px;font-weight:600;color:#fff">16</div><div style="font-size:13px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase">PLG buckets</div></div>
+      <div><div style="font-size:36px;font-weight:600;color:#fff">105</div><div style="font-size:13px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase">salesmen</div></div>
+      <div><div style="font-size:36px;font-weight:600;color:#10b981">154</div><div style="font-size:13px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase">unintended same-day visits</div></div>
+    </div>
+    <div style="margin-top:34px;color:#94a3b8;font-size:14px">Slides 14–17 cover the merged Jun 2026 design</div>
+  </div>
+</div>
+
+<!-- SLIDE JUN26 · ALIGNED BEATS (218390 + 20B801 merged, Jun 2026) -->
+<div class="slide" id="slide-jun26" style="background:white">
+  <div class="map-wrap" id="map-jun26"></div>
+  <div class="page-lbl">14 / 16 &middot; Aligned Beats &middot; Jun 2026 &middot; RS 218390 + 20B801</div>
+  <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
+    <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
+      <h2 style="margin-bottom:4px">Jun 2026 Aligned Beats</h2>
+      <p class="p-sub" style="margin-bottom:8px">Merged 218390+20B801 &middot; OFM split Mon/Wed/Fri vs Tue/Thu/Sat &middot; mirror-aligned for delivery bundling</p>
+      <div class="kpi-r" id="j26-kpis"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Color by</div>
+      <div class="toggle-row" style="margin-bottom:8px">
+        <button class="t-btn active" id="j26-cb-plg" onclick="j26SetCB('plg')">PLG</button>
+        <button class="t-btn" id="j26-cb-day" onclick="j26SetCB('day')">Day</button>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by Day</div>
+      <div class="filter-row" id="j26-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 5px">Filter by PLG &amp; Salesman</div>
+      <div id="j26-plg-tree"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px">Same-Day Multi-Visits (vs prior designs)</div>
+      <div id="j26-conflict-summary" style="font-size:11px;color:#374151"></div>
+      <div style="margin-top:10px;border-top:1px solid #e5e7eb;padding-top:8px">
+        <button class="dl-btn" onclick="j26Download()" style="background:#7030A0">
+          &#8595; Download Aligned Beats CSV</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE JUN26-TERR · Beat Territories (Jun 2026) -->
+<div class="slide" id="slide-jun26-terr">
+  <div class="map-wrap" id="map-jun26-terr"></div>
+  <div class="page-lbl">15 / 16 &middot; Beat Territories &middot; Jun 2026</div>
+  <div class="zoom-hint">Ctrl+Scroll to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
+    <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
+      <h2 style="margin-bottom:4px">Beat Territories &amp; Overlap</h2>
+      <p class="p-sub" style="margin-bottom:8px">Convex hull per PLG-salesman-day</p>
+      <div class="kpi-r" id="jt-kpis"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Filter by Day</div>
+      <div class="filter-row" id="jt-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by PLG &amp; Salesman</div>
+      <div id="jt-plg-list" style="flex:1;overflow-y:auto;font-size:11px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- (Slide 16 "Beat Area per Day Jun 2026" removed per user request) -->
+
+<!-- SLIDE JUN26-DEL · Delivery Beats &amp; Truck Assignment (Jun 2026) -->
+<div class="slide" id="slide-jun26-del">
+  <div class="map-wrap" id="map-jun26-del"></div>
+  <div class="page-lbl">16 / 16 &middot; Delivery Beats &middot; Jun 2026</div>
+  <div class="zoom-hint">Ctrl+Scroll to zoom</div>
+  <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
+    <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
+      <h2 style="margin-bottom:4px">Delivery Beats</h2>
+      <p class="p-sub" style="margin-bottom:8px">Truck assignment based on per-visit beat value</p>
+      <div class="kpi-r" id="jd-kpis"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Filter by Delivery Day</div>
+      <div class="filter-row" id="jd-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by Truck Type</div>
+      <div class="filter-row" id="jd-truck-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
+      <div id="jd-truck-legend" style="display:flex;gap:14px;margin:6px 0 10px;flex-wrap:wrap;font-size:11px"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Per-day Summary</div>
+      <table class="dt-tbl" style="font-size:11px;margin-bottom:10px">
+        <thead><tr>
+          <th style="text-align:left">Deliv Day</th><th>Trucks</th><th>Outlets</th><th>Value (L)</th><th>3W</th><th>Ace</th><th>Split</th>
+        </tr></thead>
+        <tbody id="jd-tbody"></tbody>
+      </table>
+      <div id="jd-trip-table" style="max-height:400px;overflow-y:auto"></div>
+      <div style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px">
+        <button class="dl-btn" onclick="jdDownload()" style="background:#7030A0">
+          &#8595; Download Per-Beat CSV</button>
+        <button class="dl-btn" onclick="jdDownloadTrucks()" style="background:#1565C0;margin-top:6px">
+          &#8595; Download Truck Trips CSV</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </div><!-- /#slides -->
 
 <img src="data:image/png;base64,__SB_LOGO__" id="sb-logo" alt="Stackbox" style="position:fixed;top:14px;left:16px;height:24px;pointer-events:none;z-index:1000;transition:filter 0.3s">
@@ -1862,6 +1982,10 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   <div class="dot" onclick="goTo(10)"></div>
   <div class="dot" onclick="goTo(11)"></div>
   <div class="dot" onclick="goTo(12)"></div>
+  <div class="dot" onclick="goTo(13)"></div>
+  <div class="dot" onclick="goTo(14)"></div>
+  <div class="dot" onclick="goTo(15)"></div>
+  <div class="dot" onclick="goTo(16)"></div>
 </div>
 
 <script>
@@ -4025,12 +4149,669 @@ function renderDB13Panel(){
   }
 }
 
+// ── SLIDE JUN26 · Aligned Beats Overview (mirror of slide-5 layout) ─────────
+let _j26m, _j26lg;
+let _j26DayF=null;
+let _j26PLG=new Set();          // selected PLG indices (empty + !None = all)
+let _j26PLGNone=false;          // true = no PLGs selected (deselect-all)
+let _j26DSE=new Set();          // selected DSE indices (empty + !None = all)
+let _j26Expanded=new Set();     // expanded PLG indices in tree
+let _j26CB='plg';
+const _J26_DAY=['','Mon','Tue','Wed','Thu','Fri','Sat'];
+const _J26_DAY_COL=['#1565C0','#388e3c','#e65100','#6a1b9a','#c62828','#00838f'];
+
+// Categorize PLGs into Normal / OFM / UNIGLOW for tree sections
+function _j26PLGGroup(p){
+  if(p.name.startsWith('OFM-')) return 'ofm';
+  if(p.name==='D+PP-A'||p.name==='F+N+PP-B') return 'uni';
+  return 'normal';
+}
+
+// Map: PLG idx → list of DSEs
+function _j26DSEsByPLG(){
+  const m={};
+  PLG_JUN26.forEach(p=>m[p.idx]=[]);
+  DSE_JUN26.forEach(d=>{
+    const sep=d.name.indexOf(':');
+    const plgName=d.name.substring(0,sep);
+    const dseShort=d.name.substring(sep+1);
+    const plgIdx=PLG_JUN26.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_')===plgName);
+    if(plgIdx>=0)m[plgIdx].push({idx:d.idx,short:dseShort,name:d.name});
+  });
+  return m;
+}
+
+function initSlideJun26(){
+  if(_j26m)return;
+  _j26m=L.map('map-jun26',{zoomControl:true,preferCanvas:true}).setView([22.52,88.36],12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    {attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19,opacity:0.9}).addTo(_j26m);
+  _j26lg=L.layerGroup().addTo(_j26m);
+  setTimeout(()=>_j26m.invalidateSize(),200);
+  _j26BuildChips();
+  _j26BuildTree();
+  renderJ26();
+}
+
+function _j26BuildChips(){
+  const el=document.getElementById('j26-day-chips');
+  const items=[{v:null,l:'All',c:null},
+    {v:0,l:'Mon',c:_J26_DAY_COL[0]},{v:1,l:'Tue',c:_J26_DAY_COL[1]},
+    {v:2,l:'Wed',c:_J26_DAY_COL[2]},{v:3,l:'Thu',c:_J26_DAY_COL[3]},
+    {v:4,l:'Fri',c:_J26_DAY_COL[4]},{v:5,l:'Sat',c:_J26_DAY_COL[5]}];
+  el.innerHTML=items.map(it=>{
+    const isA=it.v===_j26DayF;
+    const col=_j26CB==='day'&&it.c?it.c:'#1565C0';
+    return '<button class="beat-chip'+(isA?' active':'')+'" data-d="'+it.v+'" '
+      +'style="'+(isA?'background:'+col+';color:white;border-color:'+col+';':
+                   _j26CB==='day'&&it.c?'border-color:'+it.c+'40;':'')+'" '
+      +'onclick="j26SetDay(this.dataset.d)">'+it.l+'</button>';
+  }).join('');
+}
+function j26SetDay(v){_j26DayF=(v==='null')?null:parseInt(v);_j26BuildChips();_j26BuildTree();renderJ26();}
+
+function _j26BuildTree(){
+  const dsesByPLG=_j26DSEsByPLG();
+  const groups={normal:[],ofm:[],uni:[]};
+  PLG_JUN26.forEach(p=>{groups[_j26PLGGroup(p)].push(p);});
+
+  // Compute checkbox state for a PLG
+  function plgCbState(p){
+    if(_j26PLGNone) return '';
+    const allPLG=_j26PLG.size===0;
+    const isPLGSel=allPLG||_j26PLG.has(p.idx);
+    if(!isPLGSel) return '';
+    const dses=dsesByPLG[p.idx]||[];
+    if(!dses.length) return 'on';
+    const allDseSelected=_j26DSE.size===0;
+    if(allDseSelected) return 'on';
+    const onCount=dses.filter(d=>_j26DSE.has(d.idx)).length;
+    if(onCount===0) return '';
+    if(onCount===dses.length) return 'on';
+    return 'partial';
+  }
+
+  function plgRow(p){
+    const cbCls=plgCbState(p);
+    const isOpen=_j26Expanded.has(p.idx);
+    const isSel=cbCls==='on'||cbCls==='partial';
+    const dses=dsesByPLG[p.idx]||[];
+    const cnt=dses.length;
+    const dot='<div class="plg-dot" style="background:'+p.color+'"></div>';
+    const dseListHtml=isSel?dses.map(d=>{
+      const dseAllOn=_j26DSE.size===0;
+      const chk=dseAllOn||_j26DSE.has(d.idx);
+      // Distance: when "All" days selected → average per day; specific day → that day's km
+      let distKm = 0, distCnt = 0;
+      DIST_JUN26.forEach(ddd=>{
+        if(ddd.plg !== p.idx) return;
+        if(ddd.dse !== d.idx) return;
+        if(_j26DayF !== null && ddd.market !== _j26DayF) return;
+        distKm += ddd.distance_km; distCnt++;
+      });
+      let distLabel = '';
+      if(distCnt > 0){
+        if(_j26DayF !== null){
+          distLabel = distKm.toFixed(1) + ' km';
+        } else {
+          // Average per day = total / number-of-days-with-beats
+          distLabel = (distKm / distCnt).toFixed(1) + ' km/day avg';
+        }
+        distLabel = '<span style="margin-left:auto;padding:0 6px;font-size:10px;color:#6b7280;font-weight:600">'
+          + distLabel + '</span>';
+      }
+      return '<div class="dse-item" data-i="'+d.idx+'" onclick="j26ToggleDSE(this.dataset.i)">'
+        +'<div class="dse-cb'+(chk?' on':'')+'"></div>'
+        +'<span class="dse-label">'+d.short+'</span>'+distLabel+'</div>';
+    }).join(''):'';
+    return '<div class="plg-item'+(isSel?' sel':'')+'">'
+      +'<div class="plg-row">'
+      +'<div class="plg-cb '+cbCls+'" data-i="'+p.idx+'" onclick="j26TogglePLG(this.dataset.i)"></div>'
+      +(_j26CB==='plg'?dot:'')
+      +'<span class="plg-name">'+p.name+'</span>'
+      +'<span class="plg-cnt">'+cnt+' Salesm'+(cnt===1?'an':'en')+'</span>'
+      +(isSel&&cnt>0?'<span class="plg-chev'+(isOpen?' open':'')+'" data-i="'+p.idx+'" onclick="j26ToggleExpand(this.dataset.i,event)">&#9660;</span>':'')
+      +'</div>'
+      +(isSel&&cnt>0&&isOpen?'<div class="dse-list open">'+dseListHtml+'</div>':'')
+      +'</div>';
+  }
+
+  const allOn=!_j26PLGNone && _j26PLG.size===0;
+  const allPartial=!_j26PLGNone && _j26PLG.size>0;
+  const allCb=allOn?'on':(allPartial?'partial':'');
+  let html='<div class="plg-tree">'
+    +'<div class="plg-all-row'+((allOn||allPartial)?' sel':'')+'" onclick="j26ClearPLGs()">'
+    +'<div class="plg-cb '+allCb+'"></div>'
+    +'<span class="plg-name" style="color:'+((allOn||allPartial)?'#1565C0':'#374151')+'">All PLGs</span>'
+    +'</div>';
+  groups.normal.forEach(p=>html+=plgRow(p));
+  if(groups.ofm.length){html+='<div class="plg-tree-sec ofm">OFM</div>';groups.ofm.forEach(p=>html+=plgRow(p));}
+  if(groups.uni.length){html+='<div class="plg-tree-sec uni">UNIGLOW+UNICARE</div>';groups.uni.forEach(p=>html+=plgRow(p));}
+  html+='</div>';
+  document.getElementById('j26-plg-tree').innerHTML=html;
+}
+
+function j26TogglePLG(i){
+  i=parseInt(i);
+  const all=PLG_JUN26.map(p=>p.idx);
+  if(_j26PLGNone){
+    _j26PLGNone=false;
+    _j26PLG=new Set([i]);
+  } else if(_j26PLG.size===0){
+    // currently "All on" — switch to subset = all except this
+    _j26PLG=new Set(all.filter(x=>x!==i));
+    if(_j26PLG.size===0)_j26PLGNone=true;
+  } else if(_j26PLG.has(i)){
+    _j26PLG.delete(i);
+    if(_j26PLG.size===0)_j26PLGNone=true;
+  } else {
+    _j26PLG.add(i);
+    if(_j26PLG.size===all.length)_j26PLG.clear();
+  }
+  _j26DSE.clear();
+  _j26BuildTree(); renderJ26();
+}
+function j26ClearPLGs(){
+  // 3-state cycle: All on → All off → All on
+  if(!_j26PLGNone && _j26PLG.size===0){
+    _j26PLGNone=true;
+    _j26PLG.clear();
+  } else {
+    _j26PLGNone=false;
+    _j26PLG.clear();
+    _j26DSE.clear();
+  }
+  _j26BuildTree(); renderJ26();
+}
+function j26ToggleExpand(i, ev){
+  if(ev)ev.stopPropagation();
+  i=parseInt(i);
+  if(_j26Expanded.has(i))_j26Expanded.delete(i); else _j26Expanded.add(i);
+  _j26BuildTree();
+}
+function j26ToggleDSE(i){
+  i=parseInt(i);
+  if(_j26DSE.has(i))_j26DSE.delete(i); else _j26DSE.add(i);
+  _j26BuildTree(); renderJ26();
+}
+function j26SetCB(mode){
+  _j26CB=mode;
+  document.getElementById('j26-cb-plg').classList.toggle('active',mode==='plg');
+  document.getElementById('j26-cb-day').classList.toggle('active',mode==='day');
+  _j26BuildChips(); _j26BuildTree(); renderJ26();
+}
+
+function renderJ26(){
+  if(!_j26lg)return;
+  _j26lg.clearLayers();
+  if(_j26PLGNone){
+    document.getElementById('j26-kpis').innerHTML=
+      '<div class="kpi"><div class="kpi-v">0</div><div class="kpi-l">visits</div></div>'
+      +'<div class="kpi"><div class="kpi-v">0</div><div class="kpi-l">PLGs</div></div>'
+      +'<div class="kpi"><div class="kpi-v">0</div><div class="kpi-l">salesmen</div></div>';
+    _renderJ26ConflictSummary();
+    return;
+  }
+  const allPLG=_j26PLG.size===0;
+  const allDSE=_j26DSE.size===0;
+  let n=0;
+  BEATS_JUN26.forEach(b=>{
+    const [lat,lon,pi,m,di]=b;
+    if(!allPLG && !_j26PLG.has(pi))return;
+    if(!allDSE && !_j26DSE.has(di))return;
+    if(_j26DayF!==null && _j26DayF!==m)return;
+    const col=(_j26CB==='day')?_J26_DAY_COL[m]:PLG_JUN26[pi].color;
+    L.circleMarker([lat,lon],{radius:3,color:col,fillColor:col,fillOpacity:0.7,weight:0}).addTo(_j26lg);
+    n++;
+  });
+  const plgN=allPLG?PLG_JUN26.length:_j26PLG.size;
+  const dseN=allDSE?DSE_JUN26.length:_j26DSE.size;
+  // Round-trip road distance per (PLG,DSE,day) beat — show total OR average
+  let totDist=0, distCnt=0;
+  DIST_JUN26.forEach(dd=>{
+    if(!allPLG && !_j26PLG.has(dd.plg))return;
+    if(!allDSE && !_j26DSE.has(dd.dse))return;
+    if(_j26DayF!==null && dd.market!==_j26DayF)return;
+    totDist += dd.distance_km; distCnt++;
+  });
+  // Day filtered → show that day's km (or avg if multiple beats); All → avg per day
+  const distStr = distCnt===0 ? '–'
+    : (_j26DayF!==null ? (totDist/distCnt).toFixed(1) + ' km' : (totDist/distCnt).toFixed(1) + ' km/day');
+  const distLbl = _j26DayF!==null ? _J26_DAY[_j26DayF+1] + ' round trip avg' : 'round trip avg/day';
+  document.getElementById('j26-kpis').innerHTML=
+    '<div class="kpi"><div class="kpi-v">'+n.toLocaleString()+'</div><div class="kpi-l">visits</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+plgN+'</div><div class="kpi-l">PLGs</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+dseN+'</div><div class="kpi-l">salesmen</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+distStr+'</div><div class="kpi-l">'+distLbl+'</div></div>';
+  _renderJ26ConflictSummary();
+}
+
+function _renderJ26ConflictSummary(){
+  const el=document.getElementById('j26-conflict-summary');
+  if(!CONFLICTS_JUN26)return;
+  const total=CONFLICTS_JUN26.length;
+  el.innerHTML=
+    '<table class="dt-tbl" style="font-size:11px;width:100%"><thead><tr>'
+    +'<th style="text-align:left">Design</th><th>Same-day visits</th>'
+    +'</tr></thead><tbody>'
+    +'<tr><td style="text-align:left">Existing 218390</td><td>5,436</td></tr>'
+    +'<tr><td style="text-align:left">V3 (P4 design)</td><td>1,722</td></tr>'
+    +'<tr><td style="text-align:left">V3 + market opt</td><td>~180</td></tr>'
+    +'<tr><td style="text-align:left">V4 (specialist)</td><td>675</td></tr>'
+    +'<tr style="background:#dcfce7;font-weight:600"><td style="text-align:left">Jun 2026 (aligned)</td><td style="color:#059669">'+total+'</td></tr>'
+    +'</tbody></table>';
+}
+
+// ── SLIDE JUN26-TERRITORIES (mirror of slide 9 + slide 13 tree filter) ────────
+let _jtm, _jtlg;
+let _jtDayF=null;
+let _jtPLG=new Set();
+let _jtPLGNone=false;
+let _jtDSE=new Set();
+let _jtExpanded=new Set();
+function initSlideJT(){
+  if(_jtm)return;
+  _jtm=L.map('map-jun26-terr',{zoomControl:true,preferCanvas:true}).setView([22.52,88.36],12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    {attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19,opacity:0.9}).addTo(_jtm);
+  _jtlg=L.layerGroup().addTo(_jtm);
+  setTimeout(()=>_jtm.invalidateSize(),200);
+  _buildJTChips(); _buildJTTree(); renderJT();
+}
+function _buildJTChips(){
+  const el=document.getElementById('jt-day-chips');
+  const items=[{v:null,l:'All',c:'#1565C0'},...[0,1,2,3,4,5].map(d=>({v:d,l:_J26_DAY[d+1],c:_J26_DAY_COL[d]}))];
+  el.innerHTML=items.map(it=>{
+    const isA=it.v===_jtDayF;
+    return '<button class="beat-chip'+(isA?' active':'')+'" '
+      +'style="'+(isA?'background:'+it.c+';color:white;border-color:'+it.c+';':'border-color:'+it.c+'40;')+'" '
+      +'onclick="_jtDay('+JSON.stringify(it.v)+')">'+it.l+'</button>';
+  }).join('');
+}
+function _jtDay(d){_jtDayF=d;_buildJTChips();renderJT();}
+function _buildJTTree(){
+  const dsesByPLG=_j26DSEsByPLG();
+  const groups={normal:[],ofm:[],uni:[]};
+  PLG_JUN26.forEach(p=>{groups[_j26PLGGroup(p)].push(p);});
+  function plgCb(p){
+    if(_jtPLGNone)return '';
+    const allPLG=_jtPLG.size===0;
+    const isSel=allPLG||_jtPLG.has(p.idx);
+    if(!isSel)return '';
+    const ds=dsesByPLG[p.idx]||[];
+    if(!ds.length)return 'on';
+    if(_jtDSE.size===0)return 'on';
+    const on=ds.filter(d=>_jtDSE.has(d.idx)).length;
+    if(on===0)return ''; if(on===ds.length)return 'on'; return 'partial';
+  }
+  function plgItem(p){
+    const cb=plgCb(p), isSel=cb==='on'||cb==='partial';
+    const isOpen=_jtExpanded.has(p.idx);
+    const ds=dsesByPLG[p.idx]||[];
+    const cnt=ds.length;
+    const dseHtml=isSel?ds.map(d=>{
+      const chk=_jtDSE.size===0||_jtDSE.has(d.idx);
+      return '<div class="dse-item" data-i="'+d.idx+'" onclick="_jtToggleDSE(this.dataset.i)">'
+        +'<div class="dse-cb'+(chk?' on':'')+'"></div>'
+        +'<span class="dse-label">'+d.short+'</span></div>';
+    }).join(''):'';
+    return '<div class="plg-item'+(isSel?' sel':'')+'">'
+      +'<div class="plg-row">'
+      +'<div class="plg-cb '+cb+'" data-i="'+p.idx+'" onclick="_jtTogglePLG(this.dataset.i)"></div>'
+      +'<div class="plg-dot" style="background:'+p.color+'"></div>'
+      +'<span class="plg-name">'+p.name+'</span>'
+      +'<span class="plg-cnt">'+cnt+'</span>'
+      +(isSel&&cnt>0?'<span class="plg-chev'+(isOpen?' open':'')+'" data-i="'+p.idx+'" onclick="_jtToggleExpand(this.dataset.i,event)">&#9660;</span>':'')
+      +'</div>'
+      +(isSel&&cnt>0&&isOpen?'<div class="dse-list open">'+dseHtml+'</div>':'')
+      +'</div>';
+  }
+  const allOn=!_jtPLGNone && _jtPLG.size===0;
+  const allPartial=!_jtPLGNone && _jtPLG.size>0;
+  const allCb=allOn?'on':(allPartial?'partial':'');
+  let html='<div class="plg-tree">'
+    +'<div class="plg-all-row'+((allOn||allPartial)?' sel':'')+'" onclick="_jtClearPLGs()">'
+    +'<div class="plg-cb '+allCb+'"></div>'
+    +'<span class="plg-name" style="color:'+((allOn||allPartial)?'#1565C0':'#374151')+'">All PLGs</span>'
+    +'</div>';
+  groups.normal.forEach(p=>html+=plgItem(p));
+  if(groups.ofm.length){html+='<div class="plg-tree-sec ofm">OFM</div>';groups.ofm.forEach(p=>html+=plgItem(p));}
+  if(groups.uni.length){html+='<div class="plg-tree-sec uni">UNIGLOW+UNICARE</div>';groups.uni.forEach(p=>html+=plgItem(p));}
+  html+='</div>';
+  document.getElementById('jt-plg-list').innerHTML=html;
+}
+function _jtTogglePLG(i){
+  i=parseInt(i);
+  const all=PLG_JUN26.map(p=>p.idx);
+  if(_jtPLGNone){_jtPLGNone=false;_jtPLG=new Set([i]);}
+  else if(_jtPLG.size===0){_jtPLG=new Set(all.filter(x=>x!==i));if(_jtPLG.size===0)_jtPLGNone=true;}
+  else if(_jtPLG.has(i)){_jtPLG.delete(i);if(_jtPLG.size===0)_jtPLGNone=true;}
+  else {_jtPLG.add(i);if(_jtPLG.size===all.length)_jtPLG.clear();}
+  _jtDSE.clear();
+  _buildJTTree(); renderJT();
+}
+function _jtClearPLGs(){
+  if(!_jtPLGNone && _jtPLG.size===0){_jtPLGNone=true;_jtPLG.clear();}
+  else {_jtPLGNone=false;_jtPLG.clear();_jtDSE.clear();}
+  _buildJTTree(); renderJT();
+}
+function _jtToggleExpand(i,ev){
+  if(ev)ev.stopPropagation();
+  i=parseInt(i);
+  if(_jtExpanded.has(i))_jtExpanded.delete(i); else _jtExpanded.add(i);
+  _buildJTTree();
+}
+function _jtToggleDSE(i){
+  i=parseInt(i);
+  if(_jtDSE.has(i))_jtDSE.delete(i); else _jtDSE.add(i);
+  _buildJTTree(); renderJT();
+}
+function renderJT(){
+  if(!_jtlg)return;
+  _jtlg.clearLayers();
+  if(_jtPLGNone){document.getElementById('jt-kpis').innerHTML='<div class="kpi"><div class="kpi-v">0</div><div class="kpi-l">beats</div></div>';return;}
+  const allPLG=_jtPLG.size===0, allDSE=_jtDSE.size===0;
+  let n=0;
+  HULL_JUN26.forEach(h=>{
+    if(!allPLG && !_jtPLG.has(h.plg))return;
+    if(!allDSE && !_jtDSE.has(h.dse))return;
+    if(_jtDayF!==null && h.market!==_jtDayF)return;
+    if(!h.points || h.points.length<3)return;
+    const col=PLG_JUN26[h.plg].color;
+    L.polygon(h.points,{color:col,fillColor:col,fillOpacity:0.12,weight:1.5}).addTo(_jtlg);
+    n++;
+  });
+  document.getElementById('jt-kpis').innerHTML=
+    '<div class="kpi"><div class="kpi-v">'+n+'</div><div class="kpi-l">beats shown</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+(allPLG?PLG_JUN26.length:_jtPLG.size)+'</div><div class="kpi-l">PLGs</div></div>';
+}
+
+// ── SLIDE JUN26-DELIVERY ZONES (mirror of slide 11 Beat Area per Day) ────────
+let _jzm, _jzlg;
+let _jzZoneF=null;
+const _JZ_COL=['','#e91e63','#1565C0','#2e7d32','#e65100','#6a1b9a','#006064'];
+function initSlideJZ(){
+  if(_jzm)return;
+  _jzm=L.map('map-jun26-zones',{zoomControl:true,preferCanvas:true}).setView([22.52,88.36],12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    {attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19,opacity:0.9}).addTo(_jzm);
+  _jzlg=L.layerGroup().addTo(_jzm);
+  setTimeout(()=>_jzm.invalidateSize(),200);
+  _jzBuildChips(); renderJZ();
+}
+function _jzBuildChips(){
+  const el=document.getElementById('jz-zone-chips');
+  const zones=(ZONES_JUN26&&ZONES_JUN26.zones)||[];
+  let html='<button class="beat-chip'+(null===_jzZoneF?' active':'')+'" '
+    +'style="'+(null===_jzZoneF?'background:#1565C0;color:white;border-color:#1565C0;':'')+'" '
+    +'onclick="_jzZone(null)">All</button>';
+  zones.forEach(z=>{
+    const col=_JZ_COL[z.zone]||'#666';
+    const isA=z.zone===_jzZoneF;
+    html+='<button class="beat-chip'+(isA?' active':'')+'" '
+      +'style="'+(isA?'background:'+col+';color:white;border-color:'+col+';':'border-color:'+col+'40;')+'" '
+      +'onclick="_jzZone('+z.zone+')">Z'+z.zone+' ('+_J26_DAY[z.group_a_day]+'+'+_J26_DAY[z.group_b_day]+')</button>';
+  });
+  el.innerHTML=html;
+}
+function _jzZone(z){_jzZoneF=z;_jzBuildChips();renderJZ();}
+function renderJZ(){
+  if(!_jzlg)return;
+  _jzlg.clearLayers();
+  const zones=(ZONES_JUN26&&ZONES_JUN26.zones)||[];
+  const selZones=_jzZoneF?zones.filter(z=>z.zone===_jzZoneF):zones;
+  selZones.forEach(z=>{
+    const col=_JZ_COL[z.zone]||'#666';
+    if(z.v4_hull&&z.v4_hull.length>=3)
+      L.polygon(z.v4_hull,{color:col,fillColor:col,fillOpacity:0.10,weight:2}).addTo(_jzlg);
+  });
+  // KPIs
+  const totalArea=selZones.reduce((s,z)=>s+(z.v4_area||0),0);
+  const avgArea=selZones.length?totalArea/selZones.length:0;
+  document.getElementById('jz-kpis').innerHTML=
+    '<div class="kpi"><div class="kpi-v">'+selZones.length+'</div><div class="kpi-l">zones</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+totalArea.toFixed(1)+'</div><div class="kpi-l">total km&sup2;</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+avgArea.toFixed(1)+'</div><div class="kpi-l">avg / zone</div></div>'
+    +'<div class="kpi"><div class="kpi-v">2</div><div class="kpi-l">days/zone</div></div>';
+  // Bar chart of zone areas
+  const maxA=Math.max(...zones.map(z=>z.v4_area||0),1);
+  const chart=document.getElementById('jz-chart');
+  chart.innerHTML=zones.map(z=>{
+    const col=_JZ_COL[z.zone]||'#666';
+    const w=(z.v4_area||0)/maxA*100;
+    const isA=null===_jzZoneF||z.zone===_jzZoneF;
+    return '<div style="display:flex;align-items:center;gap:6px;margin:3px 0;font-size:11px;opacity:'+(isA?1:0.35)+'">'
+      +'<div style="width:56px;color:'+col+';font-weight:600">Z'+z.zone+' '+_J26_DAY[z.group_a_day]+'+'+_J26_DAY[z.group_b_day]+'</div>'
+      +'<div style="flex:1;background:#f3f4f6;border-radius:4px;overflow:hidden;height:14px;position:relative">'
+      +'<div style="background:'+col+';width:'+w+'%;height:100%"></div>'
+      +'</div>'
+      +'<div style="width:50px;text-align:right">'+(z.v4_area||0).toFixed(1)+' km&sup2;</div>'
+      +'</div>';
+  }).join('');
+}
+
+// ── SLIDE JUN26-DELIVERY BEATS ───────────────────────────────────────────────
+let _jdm, _jdlg;
+let _jdDayF=null;
+let _jdTruckF=null;
+const _JD_COL={'3 Wheeler':'#1565C0','Tata Ace':'#388e3c','Split':'#c62828','Split (>1.5L)':'#c62828'};
+function initSlideJD(){
+  if(_jdm)return;
+  _jdm=L.map('map-jun26-del',{zoomControl:true,preferCanvas:true}).setView([22.52,88.36],12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    {attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19,opacity:0.9}).addTo(_jdm);
+  _jdlg=L.layerGroup().addTo(_jdm);
+  setTimeout(()=>_jdm.invalidateSize(),200);
+  _buildJDChips(); _buildJDTruckChips(); renderJD();
+}
+function _buildJDChips(){
+  const el=document.getElementById('jd-day-chips');
+  const items=[{v:null,l:'All',c:'#1565C0'},...[1,2,3,4,5,6].map(d=>({v:d,l:_J26_DAY[d],c:_J26_DAY_COL[d-1]}))];
+  el.innerHTML=items.map(it=>{
+    const isA=it.v===_jdDayF;
+    return '<button class="beat-chip'+(isA?' active':'')+'" '
+      +'style="'+(isA?'background:'+it.c+';color:white;border-color:'+it.c+';':'border-color:'+it.c+'40;')+'" '
+      +'onclick="_jdDay('+JSON.stringify(it.v)+')">'+it.l+'</button>';
+  }).join('');
+}
+let _jdSelected=new Set();
+let _jdTruckTypes=new Set(['3 Wheeler','Tata Ace','Split']);   // visible truck types
+function _jdDay(d){_jdDayF=d;_jdSelected.clear();_buildJDChips();renderJD();}
+function _jdTruckFilter(t){_jdTruckF=t;_jdSelected.clear();_buildJDTruckChips();renderJD();}
+function jdToggleTrip(id){
+  if(_jdSelected.has(id))_jdSelected.delete(id); else _jdSelected.add(id);
+  renderJD();
+}
+function jdClearSelected(){_jdSelected.clear();renderJD();}
+function jdToggleTruckType(t){
+  if(_jdTruckTypes.has(t))_jdTruckTypes.delete(t); else _jdTruckTypes.add(t);
+  _buildJDTruckChips();renderJD();
+}
+function jdToggleAllTruckTypes(){
+  const all = ['3 Wheeler','Tata Ace','Split'];
+  if(_jdTruckTypes.size === all.length) _jdTruckTypes.clear();
+  else _jdTruckTypes = new Set(all);
+  _buildJDTruckChips();renderJD();
+}
+function _buildJDTruckChips(){
+  const el=document.getElementById('jd-truck-chips');
+  if(!el)return;
+  const types=['3 Wheeler','Tata Ace','Split'];
+  let h='<button class="beat-chip'+(_jdTruckTypes.size===types.length?' active':'')+'" '
+    +'style="'+(_jdTruckTypes.size===types.length?'background:#1565C0;color:white;border-color:#1565C0;':'')+'" '
+    +'onclick="jdToggleAllTruckTypes()">All</button>';
+  types.forEach(t=>{
+    const c=_JD_COL[t]||'#666';
+    const isA=_jdTruckTypes.has(t);
+    h+='<button class="beat-chip'+(isA?' active':'')+'" '
+      +'style="'+(isA?'background:'+c+';color:white;border-color:'+c+';':'border-color:'+c+'40;')+'" '
+      +'onclick="jdToggleTruckType('+JSON.stringify(t)+')">'+t+'</button>';
+  });
+  el.innerHTML=h;
+}
+function renderJD(){
+  if(!_jdlg)return;
+  _jdlg.clearLayers();
+  const trucks=(TRUCKS_JUN26&&TRUCKS_JUN26.trucks)||[];
+  const filt=trucks.filter(t=>{
+    if(_jdDayF!==null && t.delivery_day!==_jdDayF) return false;
+    if(!_jdTruckTypes.has(t.truck)) return false;
+    return true;
+  });
+  // If any trip selected, only show those trips' outlet markers
+  if(_jdSelected.size>0){
+    filt.forEach(t=>{
+      if(!_jdSelected.has(t.id))return;
+      const col=_JD_COL[t.truck]||'#666';
+      (t.positions||[]).forEach(p=>{
+        L.circleMarker(p,{radius:5,color:col,fillColor:col,fillOpacity:0.85,weight:1}).addTo(_jdlg);
+      });
+    });
+  } else {
+    // Show truck centroids
+    filt.forEach(t=>{
+      const col=_JD_COL[t.truck]||'#666';
+      L.circleMarker(t.centroid,{radius:Math.max(4,Math.sqrt(t.outlets_n)*1.2),color:col,fillColor:col,fillOpacity:0.6,weight:1}).addTo(_jdlg);
+    });
+  }
+  const totalVal=filt.reduce((s,t)=>s+t.total_value,0);
+  const totalOutlets=filt.reduce((s,t)=>s+(t.outlets_n||0),0);
+  const selN=_jdSelected.size;
+  const selVal=trucks.filter(t=>_jdSelected.has(t.id)).reduce((s,t)=>s+t.total_value,0);
+  const selOutlets=trucks.filter(t=>_jdSelected.has(t.id)).reduce((s,t)=>s+t.outlets_n,0);
+  document.getElementById('jd-kpis').innerHTML=
+    '<div class="kpi"><div class="kpi-v">'+filt.length+'</div><div class="kpi-l">trucks (filtered)</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+totalOutlets.toLocaleString()+'</div><div class="kpi-l">outlets</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+totalVal.toFixed(1)+'L</div><div class="kpi-l">value</div></div>'
+    +(selN>0?'<div class="kpi" style="border-left:3px solid #1565C0"><div class="kpi-v">'+selN+'</div><div class="kpi-l">selected (' +selOutlets+' outlets, '+selVal.toFixed(1)+'L)</div></div>':'');
+  document.getElementById('jd-truck-legend').innerHTML=
+    '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:'+_JD_COL["3 Wheeler"]+';border-radius:50%;display:inline-block"></span>3 Wheeler &le;0.6L</span>'
+    +'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:'+_JD_COL["Tata Ace"]+';border-radius:50%;display:inline-block"></span>Tata Ace 0.6&ndash;1.5L</span>'
+    +'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:'+_JD_COL["Split"]+';border-radius:50%;display:inline-block"></span>Split &gt;1.5L</span>'
+    +(selN>0?'&nbsp;&nbsp;<a href="javascript:jdClearSelected()" style="color:#dc2626;cursor:pointer">Clear selection</a>':'');
+  // Per-day summary
+  const byDay={1:[],2:[],3:[],4:[],5:[],6:[]};
+  filt.forEach(t=>{if(byDay[t.delivery_day])byDay[t.delivery_day].push(t);});
+  document.getElementById('jd-tbody').innerHTML=Object.keys(byDay).map(d=>{
+    const arr=byDay[d];
+    if(!arr.length)return '';
+    const tc={'3 Wheeler':0,'Tata Ace':0,'Split':0};
+    arr.forEach(t=>{if(tc[t.truck]!==undefined)tc[t.truck]++;});
+    const outletsSum=arr.reduce((s,t)=>s+t.outlets_n,0);
+    const valSum=arr.reduce((s,t)=>s+t.total_value,0);
+    return '<tr><td style="text-align:left;font-weight:600">'+_J26_DAY[d]+'</td><td>'+arr.length
+      +'</td><td>'+outletsSum+'</td><td>'+valSum.toFixed(1)+'</td><td>'
+      +tc['3 Wheeler']+'</td><td>'+tc['Tata Ace']+'</td><td>'+tc['Split']+'</td></tr>';
+  }).join('');
+  // Trip detail table — checkboxes for selection
+  const trip=document.getElementById('jd-trip-table');
+  if(trip){
+    const rows=filt.slice();
+    const visIds=new Set(rows.map(t=>t.id));
+    const selVisible=rows.filter(t=>_jdSelected.has(t.id)).length;
+    const allCk = (selVisible===rows.length && rows.length>0);
+    const noneCk = (selVisible===0);
+    trip.innerHTML=
+      '<table class="dt-tbl" style="font-size:10px;width:100%"><thead><tr>'
+      +'<th style="text-align:center;width:24px"><input type="checkbox" id="jd-master-cb" '
+        +(allCk?'checked':'')+' onchange="jdToggleAllTrips()" title="Select / deselect all visible trips"></th>'
+      +'<th style="text-align:left">#</th><th style="text-align:left">Deliv</th>'
+      +'<th style="text-align:left">Salesmen (PLG &middot; DSE &middot; Day)</th>'
+      +'<th>Outlets</th><th>Value</th><th>Truck</th>'
+      +'</tr></thead><tbody>'
+      +rows.slice(0,600).map(t=>{
+        const c=_JD_COL[t.truck]||'#666';
+        const isSel=_jdSelected.has(t.id);
+        const visitsHtml=t.visits.map(v=>
+          '<span style="display:inline-block;background:#f3f4f6;border-radius:3px;padding:1px 4px;margin:1px 2px 1px 0">'
+          +v.plg.toUpperCase()+'&middot;'+v.dse+'&middot;'+_J26_DAY[v.day]
+          +(v.value>0?' &middot; <b>'+v.value.toFixed(2)+'</b>':'')
+          +'</span>'
+        ).join('');
+        return '<tr'+(isSel?' style="background:#dbeafe"':'')+'>'
+          +'<td style="text-align:center"><input type="checkbox" '+(isSel?'checked':'')
+          +' onchange="jdToggleTrip(\\''+t.id+'\\')"></td>'
+          +'<td style="text-align:left;font-weight:600">'+t.id+'</td>'
+          +'<td style="text-align:left;font-weight:600">'+_J26_DAY[t.delivery_day]+'</td>'
+          +'<td style="text-align:left">'+visitsHtml+'</td>'
+          +'<td>'+t.outlets_n+'</td>'
+          +'<td>'+t.total_value.toFixed(2)+'L</td>'
+          +'<td style="color:'+c+';font-weight:600">'+t.truck+'</td></tr>';
+      }).join('')+'</tbody></table>'
+      +(rows.length>600?'<div style="color:#9ca3af;font-size:10px;padding:4px">Showing 600 of '+rows.length+' — download CSV for full list</div>':'');
+    const m=document.getElementById('jd-master-cb');
+    if(m && !allCk && !noneCk) m.indeterminate=true;
+  }
+}
+function jdToggleAllTrips(){
+  // Determine current filt
+  const trucks=(TRUCKS_JUN26&&TRUCKS_JUN26.trucks)||[];
+  const filt=trucks.filter(t=>{
+    if(_jdDayF!==null && t.delivery_day!==_jdDayF) return false;
+    if(!_jdTruckTypes.has(t.truck)) return false;
+    return true;
+  });
+  const allCk = filt.every(t=>_jdSelected.has(t.id));
+  if(allCk) filt.forEach(t=>_jdSelected.delete(t.id));
+  else filt.forEach(t=>_jdSelected.add(t.id));
+  renderJD();
+}
+
+function jdDownloadTrucks(){
+  const trucks=(TRUCKS_JUN26&&TRUCKS_JUN26.trucks)||[];
+  // Wide CSV — one row per truck with visit details concatenated
+  const rows=[['trip_id','delivery_day','truck_type','salesmen_n','outlets_n','total_value_lakhs',
+               'visits','outlet_codes','centroid_lat','centroid_lon']];
+  trucks.forEach(t=>{
+    const visits=t.visits.map(v=>v.plg.toUpperCase()+'|'+v.dse+'|'+_J26_DAY[v.day]+'|'+v.value.toFixed(2)).join(' ; ');
+    const codes=(t.outlet_codes||[]).join('|');
+    rows.push([t.id, _J26_DAY[t.delivery_day], t.truck, t.salesmen_n, t.outlets_n, t.total_value,
+               '"'+visits+'"', '"'+codes+'"', t.centroid[0], t.centroid[1]]);
+  });
+  const csv=rows.map(r=>r.join(',')).join('\\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='truck_trips_jun26.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function jdDownload(){
+  const beats=(DELIVERY_JUN26&&DELIVERY_JUN26.beats)||[];
+  const rows=[['plg','dse','day','outlets','value_lakhs','truck','centroid_lat','centroid_lon']];
+  beats.forEach(b=>{
+    rows.push([b.plg,b.dse,_J26_DAY[b.day],b.outlets,b.value,b.truck,b.centroid[0],b.centroid[1]]);
+  });
+  const csv=rows.map(r=>r.join(',')).join('\\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='delivery_beats_jun26.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function j26Download(){
+  const rows=[['plg','outlet_code','lat','lon','market_day','salesman_idx','beat']];
+  BEATS_JUN26.forEach(b=>{
+    const [lat,lon,pi,m,di,bi]=b;
+    const dseInfo=DSE_JUN26.find(d=>d.idx===di)||{name:''};
+    const dseShort=dseInfo.name.indexOf(':')>0?dseInfo.name.substring(dseInfo.name.indexOf(':')+1):dseInfo.name;
+    rows.push([PLG_JUN26[pi].name,'',lat,lon,_J26_DAY[m+1],dseShort,bi]);
+  });
+  const csv=rows.map(r=>r.join(',')).join('\\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='aligned_beats_jun26.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── NAVIGATION ─────────────────────────────────────────────────────────────────
 const slidesEl=document.getElementById('slides');
 const navDots=document.querySelectorAll('.dot');
 const navEl=document.getElementById('nav-dots');
-const TOTAL_SLIDES=13;
-const DARK_SLIDES=new Set([0,1,6,7]);
+const TOTAL_SLIDES=17;
+const DARK_SLIDES=new Set([0,1,6,7,13]);
 
 const sbLogo=document.getElementById('sb-logo');
 function _updateLogoMode(idx){if(sbLogo)sbLogo.classList.toggle('on-dark',DARK_SLIDES.has(idx));}
@@ -4090,6 +4871,10 @@ const obs=new IntersectionObserver(entries=>{
     if(e.target.id==='slide-11'){renderSlide11();}
     if(e.target.id==='slide-12'){initSlide12();}
     if(e.target.id==='slide-13'){initSlide13();}
+    if(e.target.id==='slide-jun26'){initSlideJun26();setTimeout(()=>{if(_j26m)_j26m.invalidateSize();},150);}
+    if(e.target.id==='slide-jun26-terr' ){initSlideJT();  setTimeout(()=>{if(_jtm) _jtm.invalidateSize();},150);}
+    // slide-jun26-zones removed
+    if(e.target.id==='slide-jun26-del'  ){initSlideJD();  setTimeout(()=>{if(_jdm) _jdm.invalidateSize();},150);}
   });
 },{threshold:0.25,root:slidesEl});
 document.querySelectorAll('.slide').forEach(s=>obs.observe(s));
