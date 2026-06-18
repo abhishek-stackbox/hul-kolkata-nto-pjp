@@ -1940,17 +1940,18 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
       <h2 style="margin-bottom:4px">Beat Territories &amp; Overlap</h2>
-      <p class="p-sub" style="margin-bottom:8px">Convex hull per PLG-salesman-day</p>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">View</div>
-      <div class="toggle-row" style="margin-bottom:8px">
+      <p class="p-sub" style="margin-bottom:8px">Convex hull per PLG-salesman-day &middot; overlap visible across PLGs</p>
+      <div class="toggle-row" style="margin-bottom:10px">
         <button class="t-btn active" id="jt-view-prop" onclick="jtSetView('proposed')">Proposed</button>
         <button class="t-btn" id="jt-view-exist" onclick="jtSetView('existing')">Existing</button>
       </div>
-      <div class="kpi-r" id="jt-kpis"></div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Filter by Day</div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">Filter by day</div>
       <div class="filter-row" id="jt-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by PLG &amp; Salesman</div>
-      <div id="jt-plg-list" style="flex:1;overflow-y:auto;font-size:11px"></div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 5px">Filter by PLG &amp; Salesman</div>
+      <div id="jt-plg-list" style="max-height:240px;overflow-y:auto;font-size:11px"></div>
+      <div class="kpi-r" id="jt-kpis" style="margin-top:8px"></div>
+      <div id="jt-dist-table"></div>
+      <div id="jt-area-table"></div>
     </div>
   </div>
 </div>
@@ -4686,6 +4687,104 @@ function renderJT(){
     +'<div class="kpi"><div class="kpi-v">'+(allPLG?D.PLG.length:_jtPLG.size)+'</div><div class="kpi-l">PLGs</div></div>'
     +'<div class="kpi"><div class="kpi-v">'+totArea.toFixed(0)+'</div><div class="kpi-l">km² total hull area</div></div>'
     +cmpHTML;
+  _renderJTTables();
+}
+
+// Per-PLG distance + hull-area tables (mirror slide 9 layout)
+function _renderJTTables(){
+  const D=_jtd();
+  // Build per-PLG stats: { plg → {beats, outletsAvg, distAvgKm, areaAvg, areaTotal} }
+  const stats={};
+  D.PLG.forEach(p=>stats[p.idx]={name:p.name, beats:0, distSum:0, areaSum:0});
+  // Distances (per beat, day-filtered)
+  const distSrc = _jtView==='existing' ? EX_DIST_J26 : DIST_JUN26;
+  distSrc.forEach(dd=>{
+    if(_jtDayF!==null && dd.market!==_jtDayF) return;
+    if(!stats[dd.plg]) return;
+    stats[dd.plg].distSum += dd.distance_km;
+    stats[dd.plg].beats   += 1;
+  });
+  // Hull areas
+  D.HULL.forEach(h=>{
+    if(_jtDayF!==null && h.market!==_jtDayF)return;
+    if(!stats[h.plg]) return;
+    stats[h.plg].areaSum += _hullAreaKm(h.points||[]);
+  });
+  // Build comparison totals (other view)
+  const otherDist = _jtView==='existing' ? DIST_JUN26 : EX_DIST_J26;
+  const otherHull = _jtView==='existing' ? HULL_JUN26 : EX_HULL_J26;
+  let oDist=0, oBeats=0, oArea=0;
+  otherDist.forEach(dd=>{
+    if(_jtDayF!==null && dd.market!==_jtDayF)return;
+    oDist += dd.distance_km; oBeats++;
+  });
+  otherHull.forEach(h=>{
+    if(_jtDayF!==null && h.market!==_jtDayF)return;
+    oArea += _hullAreaKm(h.points||[]);
+  });
+  const curDist = Object.values(stats).reduce((s,r)=>s+r.distSum,0);
+  const curBeats= Object.values(stats).reduce((s,r)=>s+r.beats,0);
+  const curArea = Object.values(stats).reduce((s,r)=>s+r.areaSum,0);
+  const curAvg  = curBeats>0 ? curDist/curBeats : 0;
+  const otherAvg= oBeats>0 ? oDist/oBeats : 0;
+
+  // Distance table
+  const distRows = D.PLG.map(p=>{
+    const s=stats[p.idx];
+    if(s.beats===0) return '';
+    const avg = (s.distSum/s.beats);
+    return '<tr><td style="text-align:left">'+p.name+'</td>'
+      +'<td>'+s.beats+'</td>'
+      +'<td>'+avg.toFixed(1)+'</td></tr>';
+  }).filter(Boolean).join('');
+  const distLbl = _jtView==='existing' ? 'Existing' : 'Proposed';
+  const cmpLbl  = _jtView==='existing' ? 'Proposed' : 'Existing';
+  const distDelta = otherAvg>0 ? ((_jtView==='existing'?(curAvg-otherAvg):(otherAvg-curAvg))/Math.max(otherAvg,curAvg))*100 : 0;
+  const distSign = distDelta>=0 ? '↓' : '↑';
+  const distCol  = distDelta>=0 ? '#15803d' : '#b91c1c';
+  const distTotalRow = otherAvg>0
+    ? '<tr style="font-weight:700;background:#f9fafb"><td style="text-align:left">TOTAL ('+distLbl+')</td>'
+      +'<td>'+curBeats+'</td><td>'+curAvg.toFixed(1)+'</td></tr>'
+      +'<tr style="color:#9ca3af"><td style="text-align:left">'+cmpLbl+' (other view)</td>'
+      +'<td>'+oBeats+'</td><td>'+otherAvg.toFixed(1)+'</td></tr>'
+      +'<tr><td style="text-align:left;color:'+distCol+';font-weight:700">Δ vs '+cmpLbl+'</td>'
+      +'<td colspan="2" style="color:'+distCol+';font-weight:700">'+distSign+' '+Math.abs(distDelta).toFixed(0)+'%</td></tr>'
+    : '';
+
+  document.getElementById('jt-dist-table').innerHTML =
+    '<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 2px">Round-trip Distance (km/day)</div>'
+    +'<div style="font-size:10px;color:#9ca3af;margin-bottom:4px">OSRM route depot → outlets → depot, per salesman per market day</div>'
+    +'<table class="dt-tbl" style="width:100%"><thead><tr>'
+    +'<th style="text-align:left">PLG ('+distLbl+')</th><th>Beats</th><th>Avg km/day</th>'
+    +'</tr></thead><tbody>'+distTotalRow+distRows+'</tbody></table>';
+
+  // Hull area table
+  const areaRows = D.PLG.map(p=>{
+    const s=stats[p.idx];
+    if(s.beats===0) return '';
+    return '<tr><td style="text-align:left">'+p.name+'</td>'
+      +'<td>'+s.beats+'</td>'
+      +'<td>'+s.areaSum.toFixed(0)+'</td>'
+      +'<td>'+(s.areaSum/s.beats).toFixed(1)+'</td></tr>';
+  }).filter(Boolean).join('');
+  const areaDelta = oArea>0 ? ((_jtView==='existing'?(curArea-oArea):(oArea-curArea))/Math.max(oArea,curArea))*100 : 0;
+  const areaSign = areaDelta>=0 ? '↓' : '↑';
+  const areaCol  = areaDelta>=0 ? '#15803d' : '#b91c1c';
+  const areaTotalRow = oArea>0
+    ? '<tr style="font-weight:700;background:#f9fafb"><td style="text-align:left">TOTAL ('+distLbl+')</td>'
+      +'<td>'+curBeats+'</td><td>'+curArea.toFixed(0)+'</td><td>'+(curBeats>0?(curArea/curBeats).toFixed(1):'–')+'</td></tr>'
+      +'<tr style="color:#9ca3af"><td style="text-align:left">'+cmpLbl+' (other view)</td>'
+      +'<td>'+oBeats+'</td><td>'+oArea.toFixed(0)+'</td><td>'+(oBeats>0?(oArea/oBeats).toFixed(1):'–')+'</td></tr>'
+      +'<tr><td style="text-align:left;color:'+areaCol+';font-weight:700">Δ vs '+cmpLbl+'</td>'
+      +'<td colspan="3" style="color:'+areaCol+';font-weight:700">'+areaSign+' '+Math.abs(areaDelta).toFixed(0)+'%</td></tr>'
+    : '';
+
+  document.getElementById('jt-area-table').innerHTML =
+    '<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 2px">Hull Area (km²)</div>'
+    +'<div style="font-size:10px;color:#9ca3af;margin-bottom:4px">Convex hull around each (PLG, salesman, day). Lower total = less geographic spread / less overlap.</div>'
+    +'<table class="dt-tbl" style="width:100%"><thead><tr>'
+    +'<th style="text-align:left">PLG ('+distLbl+')</th><th>Beats</th><th>Total km²</th><th>Avg km²/beat</th>'
+    +'</tr></thead><tbody>'+areaTotalRow+areaRows+'</tbody></table>';
 }
 
 // ── SLIDE JUN26-DELIVERY ZONES (mirror of slide 11 Beat Area per Day) ────────
