@@ -48,6 +48,9 @@ All load functions cache to `data/*.json`. Source files are on Google Drive (not
 | `rs_overlap.json` | hull_rs_ex or hull_rs_prop change |
 | `rs_dist_stats.json` | outlets.json or rs_info lat/lon changes |
 | `flagged_pharma_outlets.json` | Manually maintained — pharma outlets with bad geocodes |
+| `beats_jun26.json` / `plg_info_jun26.json` / `dse_info_jun26.json` / `hull_jun26.json` / `conflicts_jun26.json` / `delivery_zones_jun26.json` / `distances_jun26.json` | Aligned P5 output changes — regenerate via `build_jun26_app_data.py` in salesBeatGuru/HUL-KOLKATA/218390/ |
+| `delivery_beats_jun26.json` | Aligned P5 + sales values change — regenerate via `build_jun26_delivery_data.py` |
+| `truck_assignments_jun26.json` | Delivery pairing strategy changes — regenerate via `build_truck_assignments.py` |
 
 ## JS data structures (in `DATA_BLOCK`)
 - `OUTLETS[i]` = `[lat, lon, rs_idx, new_rs_idx, outlet_name, classification, moc_2dp, primarychannel, channel_program, outlet_code]`
@@ -64,26 +67,34 @@ All load functions cache to `data/*.json`. Source files are on Google Drive (not
 - `DELIVERY_ZONES` = `{zones: [{zone, group_a_day, group_b_day, v4_hull, ex_hull, v4_area, ex_area}]}` — 6 zones, each combining 2 adjacent market days for delivery on Day N+2
 - `FLAGGED_PHARMA` = pharma outlets excluded from all calculations (bad geocodes); appended to pharma CSV with "VERIFY LOCATION" note
 
-## Slides (13 total, nav position 0-indexed)
-`TOTAL_SLIDES=13`, `DARK_SLIDES=new Set([0,1,6,7])`
+## Slides (17 total, nav position 0-indexed)
+`TOTAL_SLIDES=17`, `DARK_SLIDES=new Set([0,1,6,7,13])`
 
 | Nav pos | Slide ID | Title | Label |
 |---|---|---|---|
 | 0 | slide-0 | Title / summary | (no label, dark) |
-| 1 | slide-summary | Key Benefits | 1/13, dark |
-| 2 | slide-1 | Outlets & Distributors | 2/13 |
-| 3 | slide-2 | Territory Overlaps | 3/13 |
-| 4 | slide-4 | High Density Clusters | 4/13 |
-| 5 | slide-3 | Duplicate Outlets | 5/13 |
-| 6 | slide-11 | PLG Rules | 6/13, dark |
-| 7 | slide-8 | Benefit: PLG Purity | 7/13, dark |
-| 8 | slide-5 | Proposed Beats | 8/13 |
-| 9 | slide-9 | Beat Territories & Overlap | 9/13 |
-| 10 | slide-12 | Beat Area — Delivery Zone | 10/13 |
-| 11 | slide-7 | Benefit: Same-Day Conflicts | 11/13 |
-| 12 | slide-13 | Delivery Beats | 12/13 |
+| 1 | slide-summary | Key Benefits | 1/17, dark |
+| 2 | slide-1 | Outlets & Distributors | 2/17 |
+| 3 | slide-2 | Territory Overlaps | 3/17 |
+| 4 | slide-4 | High Density Clusters | 4/17 |
+| 5 | slide-3 | Duplicate Outlets | 5/17 |
+| 6 | slide-11 | PLG Rules | 6/17, dark |
+| 7 | slide-8 | Benefit: PLG Purity | 7/17, dark |
+| 8 | slide-5 | Proposed Beats | 8/17 |
+| 9 | slide-9 | Beat Territories & Overlap | 9/17 |
+| 10 | slide-12 | Beat Area — Delivery Zone | 10/17 |
+| 11 | slide-7 | Benefit: Same-Day Conflicts | 11/17 |
+| 12 | slide-13 | Delivery Beats | 12/17 |
+| 13 | slide-jun26-intro | Jun2026 redesign intro | 13/17, dark |
+| 14 | slide-jun26 | Aligned Beats (per-DSE round-trip km) | 14/17 |
+| 15 | slide-jun26-terr | Beat Territories — Jun2026 | 15/17 |
+| 16 | slide-jun26-del | Delivery Beats + Truck Trips (Jun2026) | 16/17 |
 
-Slides removed: slide-6 (Delivery Beats old) and slide-10 (Beat Balance / DSE Balance).
+Slides removed: slide-6 (Delivery Beats old), slide-10 (Beat Balance), slide-jun26-zones (geo-zones, removed June 2026).
+
+### Jun2026 slide internals
+- **Slide 14 (Aligned Beats):** PLG tree on left with per-salesman row showing road-distance label. Label = `X km` for selected day, `X km/day avg` for "All days" (i.e., 6-day mean). Day-chip click rebuilds the PLG tree so per-DSE labels refresh — see `j26SetDay()`.
+- **Slide 16 (Delivery + Trucks):** truck-type filter is **chips** (All / 3 Wheeler / Tata Ace / Split). Trip table has master checkbox in header + per-row checkboxes (`jdToggleAllTrips()`). 407 truck excluded (WS only, not in redesign scope).
 
 ## Architecture gotchas
 

@@ -1134,6 +1134,15 @@ _jun26_delivery  = _load_json("delivery_beats_jun26")   or {}
 _jun26_trucks    = _load_json("truck_assignments_jun26") or {}
 _jun26_dist      = _load_json("distances_jun26") or []
 
+# Existing (pre-redesign) 218390+20B801 — written by build_existing_app_data.py
+_ex_beats        = _load_json("existing_beats_jun26")            or []
+_ex_plg          = _load_json("existing_plg_info_jun26")         or []
+_ex_dse          = _load_json("existing_dse_info_jun26")         or []
+_ex_hull         = _load_json("existing_hull_jun26")             or []
+_ex_dist         = _load_json("existing_distances_jun26")        or []
+_ex_delivery     = _load_json("existing_delivery_beats_jun26")   or []
+_ex_trucks       = _load_json("existing_truck_assignments_jun26") or []
+
 DATA_BLOCK = (
     "const OUTLETS    = " + json.dumps(outlets)       + ";\n"
     "const RS_INFO    = " + json.dumps(rs_info)       + ";\n"
@@ -1177,6 +1186,13 @@ DATA_BLOCK = (
     "const DELIVERY_JUN26  = " + json.dumps(_jun26_delivery)  + ";\n"
     "const TRUCKS_JUN26    = " + json.dumps(_jun26_trucks)    + ";\n"
     "const DIST_JUN26      = " + json.dumps(_jun26_dist)      + ";\n"
+    "const EX_BEATS_J26    = " + json.dumps(_ex_beats)         + ";\n"
+    "const EX_PLG_J26      = " + json.dumps(_ex_plg)           + ";\n"
+    "const EX_DSE_J26      = " + json.dumps(_ex_dse)           + ";\n"
+    "const EX_HULL_J26     = " + json.dumps(_ex_hull)          + ";\n"
+    "const EX_DIST_J26     = " + json.dumps(_ex_dist)          + ";\n"
+    "const EX_DELIVERY_J26 = " + json.dumps(_ex_delivery)      + ";\n"
+    "const EX_TRUCKS_J26   = " + json.dumps(_ex_trucks)        + ";\n"
 )
 
 # ── HTML ───────────────────────────────────────────────────────────────────────
@@ -1891,6 +1907,11 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
       <h2 style="margin-bottom:4px">Jun 2026 Aligned Beats</h2>
       <p class="p-sub" style="margin-bottom:8px">Merged 218390+20B801 &middot; OFM split Mon/Wed/Fri vs Tue/Thu/Sat &middot; mirror-aligned for delivery bundling</p>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">View</div>
+      <div class="toggle-row" style="margin-bottom:8px">
+        <button class="t-btn active" id="j26-view-prop" onclick="j26SetView('proposed')">Proposed</button>
+        <button class="t-btn" id="j26-view-exist" onclick="j26SetView('existing')">Existing</button>
+      </div>
       <div class="kpi-r" id="j26-kpis"></div>
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Color by</div>
       <div class="toggle-row" style="margin-bottom:8px">
@@ -1920,6 +1941,11 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
       <h2 style="margin-bottom:4px">Beat Territories &amp; Overlap</h2>
       <p class="p-sub" style="margin-bottom:8px">Convex hull per PLG-salesman-day</p>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">View</div>
+      <div class="toggle-row" style="margin-bottom:8px">
+        <button class="t-btn active" id="jt-view-prop" onclick="jtSetView('proposed')">Proposed</button>
+        <button class="t-btn" id="jt-view-exist" onclick="jtSetView('existing')">Existing</button>
+      </div>
       <div class="kpi-r" id="jt-kpis"></div>
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Filter by Day</div>
       <div class="filter-row" id="jt-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
@@ -1940,6 +1966,11 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
     <div style="padding:16px 18px 10px;flex:1;min-height:0;overflow-y:auto">
       <h2 style="margin-bottom:4px">Delivery Beats</h2>
       <p class="p-sub" style="margin-bottom:8px">Truck assignment based on per-visit beat value</p>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px">View</div>
+      <div class="toggle-row" style="margin-bottom:8px">
+        <button class="t-btn active" id="jd-view-prop" onclick="jdSetView('proposed')">Proposed</button>
+        <button class="t-btn" id="jd-view-exist" onclick="jdSetView('existing')">Existing (2 salesmen, D+1)</button>
+      </div>
       <div class="kpi-r" id="jd-kpis"></div>
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px">Filter by Delivery Day</div>
       <div class="filter-row" id="jd-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
@@ -4152,11 +4183,29 @@ function renderDB13Panel(){
 // ── SLIDE JUN26 · Aligned Beats Overview (mirror of slide-5 layout) ─────────
 let _j26m, _j26lg;
 let _j26DayF=null;
+let _j26View='proposed';        // 'proposed' | 'existing'
 let _j26PLG=new Set();          // selected PLG indices (empty + !None = all)
 let _j26PLGNone=false;          // true = no PLGs selected (deselect-all)
 let _j26DSE=new Set();          // selected DSE indices (empty + !None = all)
 let _j26Expanded=new Set();     // expanded PLG indices in tree
 let _j26CB='plg';
+
+// View-aware data accessor — switches between proposed and existing datasets
+function _j26d(){
+  if(_j26View==='existing'){
+    return {BEATS:EX_BEATS_J26, PLG:EX_PLG_J26, DSE:EX_DSE_J26, HULL:EX_HULL_J26, DIST:EX_DIST_J26};
+  }
+  return {BEATS:BEATS_JUN26, PLG:PLG_JUN26, DSE:DSE_JUN26, HULL:HULL_JUN26, DIST:DIST_JUN26};
+}
+function j26SetView(v){
+  if(v===_j26View) return;
+  _j26View=v;
+  _j26PLG=new Set(); _j26DSE=new Set(); _j26PLGNone=false; _j26Expanded=new Set();
+  document.getElementById('j26-view-prop').classList.toggle('active', v==='proposed');
+  document.getElementById('j26-view-exist').classList.toggle('active', v==='existing');
+  _j26BuildTree();
+  renderJ26();
+}
 const _J26_DAY=['','Mon','Tue','Wed','Thu','Fri','Sat'];
 const _J26_DAY_COL=['#1565C0','#388e3c','#e65100','#6a1b9a','#c62828','#00838f'];
 
@@ -4167,15 +4216,16 @@ function _j26PLGGroup(p){
   return 'normal';
 }
 
-// Map: PLG idx → list of DSEs
+// Map: PLG idx → list of DSEs (view-aware)
 function _j26DSEsByPLG(){
+  const D=_j26d();
   const m={};
-  PLG_JUN26.forEach(p=>m[p.idx]=[]);
-  DSE_JUN26.forEach(d=>{
+  D.PLG.forEach(p=>m[p.idx]=[]);
+  D.DSE.forEach(d=>{
     const sep=d.name.indexOf(':');
     const plgName=d.name.substring(0,sep);
     const dseShort=d.name.substring(sep+1);
-    const plgIdx=PLG_JUN26.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_')===plgName);
+    const plgIdx=D.PLG.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_')===plgName);
     if(plgIdx>=0)m[plgIdx].push({idx:d.idx,short:dseShort,name:d.name});
   });
   return m;
@@ -4211,9 +4261,10 @@ function _j26BuildChips(){
 function j26SetDay(v){_j26DayF=(v==='null')?null:parseInt(v);_j26BuildChips();_j26BuildTree();renderJ26();}
 
 function _j26BuildTree(){
+  const D=_j26d();
   const dsesByPLG=_j26DSEsByPLG();
   const groups={normal:[],ofm:[],uni:[]};
-  PLG_JUN26.forEach(p=>{groups[_j26PLGGroup(p)].push(p);});
+  D.PLG.forEach(p=>{groups[_j26PLGGroup(p)].push(p);});
 
   // Compute checkbox state for a PLG
   function plgCbState(p){
@@ -4243,7 +4294,7 @@ function _j26BuildTree(){
       const chk=dseAllOn||_j26DSE.has(d.idx);
       // Distance: when "All" days selected → average per day; specific day → that day's km
       let distKm = 0, distCnt = 0;
-      DIST_JUN26.forEach(ddd=>{
+      D.DIST.forEach(ddd=>{
         if(ddd.plg !== p.idx) return;
         if(ddd.dse !== d.idx) return;
         if(_j26DayF !== null && ddd.market !== _j26DayF) return;
@@ -4293,7 +4344,7 @@ function _j26BuildTree(){
 
 function j26TogglePLG(i){
   i=parseInt(i);
-  const all=PLG_JUN26.map(p=>p.idx);
+  const all=_j26d().PLG.map(p=>p.idx);
   if(_j26PLGNone){
     _j26PLGNone=false;
     _j26PLG=new Set([i]);
@@ -4344,6 +4395,7 @@ function j26SetCB(mode){
 function renderJ26(){
   if(!_j26lg)return;
   _j26lg.clearLayers();
+  const D=_j26d();
   if(_j26PLGNone){
     document.getElementById('j26-kpis').innerHTML=
       '<div class="kpi"><div class="kpi-v">0</div><div class="kpi-l">visits</div></div>'
@@ -4355,34 +4407,81 @@ function renderJ26(){
   const allPLG=_j26PLG.size===0;
   const allDSE=_j26DSE.size===0;
   let n=0;
-  BEATS_JUN26.forEach(b=>{
+  D.BEATS.forEach(b=>{
     const [lat,lon,pi,m,di]=b;
     if(!allPLG && !_j26PLG.has(pi))return;
     if(!allDSE && !_j26DSE.has(di))return;
     if(_j26DayF!==null && _j26DayF!==m)return;
-    const col=(_j26CB==='day')?_J26_DAY_COL[m]:PLG_JUN26[pi].color;
+    const col=(_j26CB==='day')?_J26_DAY_COL[m]:D.PLG[pi].color;
     L.circleMarker([lat,lon],{radius:3,color:col,fillColor:col,fillOpacity:0.7,weight:0}).addTo(_j26lg);
     n++;
   });
-  const plgN=allPLG?PLG_JUN26.length:_j26PLG.size;
-  const dseN=allDSE?DSE_JUN26.length:_j26DSE.size;
-  // Round-trip road distance per (PLG,DSE,day) beat — show total OR average
-  let totDist=0, distCnt=0;
-  DIST_JUN26.forEach(dd=>{
-    if(!allPLG && !_j26PLG.has(dd.plg))return;
-    if(!allDSE && !_j26DSE.has(dd.dse))return;
-    if(_j26DayF!==null && dd.market!==_j26DayF)return;
-    totDist += dd.distance_km; distCnt++;
-  });
-  // Day filtered → show that day's km (or avg if multiple beats); All → avg per day
-  const distStr = distCnt===0 ? '–'
-    : (_j26DayF!==null ? (totDist/distCnt).toFixed(1) + ' km' : (totDist/distCnt).toFixed(1) + ' km/day');
+  const plgN=allPLG?D.PLG.length:_j26PLG.size;
+  const dseN=allDSE?D.DSE.length:_j26DSE.size;
+  // Avg distance per day for current view (used for both KPI + comparison delta)
+  function avgPerDayFor(distArr){
+    let tot=0, cnt=0;
+    distArr.forEach(dd=>{
+      if(!allPLG && !_j26PLG.has(dd.plg))return;
+      if(!allDSE && !_j26DSE.has(dd.dse))return;
+      if(_j26DayF!==null && dd.market!==_j26DayF)return;
+      tot += dd.distance_km; cnt++;
+    });
+    return cnt===0 ? null : (tot/cnt);
+  }
+  const curAvg = avgPerDayFor(D.DIST);
+  const distStr = curAvg===null ? '–'
+    : (_j26DayF!==null ? curAvg.toFixed(1) + ' km' : curAvg.toFixed(1) + ' km/day');
   const distLbl = _j26DayF!==null ? _J26_DAY[_j26DayF+1] + ' round trip avg' : 'round trip avg/day';
+
+  // Comparison delta — proposed vs existing (only when both data sets have values for the same filter)
+  let cmpHTML = '';
+  if(_j26View==='proposed'){
+    // proposed view — show reduction vs existing if comparable
+    // Caveat: filters apply by index, but PLG/DSE indices differ across views.
+    // Show overall reduction only when no PLG/DSE filter is active.
+    if(allPLG && allDSE){
+      let exTot=0, exCnt=0;
+      EX_DIST_J26.forEach(dd=>{
+        if(_j26DayF!==null && dd.market!==_j26DayF)return;
+        exTot += dd.distance_km; exCnt++;
+      });
+      if(exCnt>0 && curAvg!==null){
+        const exAvg = exTot/exCnt;
+        const delta = exAvg - curAvg;
+        const pct = (delta/exAvg)*100;
+        const sign = delta>=0 ? '↓' : '↑';
+        const col = delta>=0 ? '#15803d' : '#b91c1c';
+        cmpHTML = '<div class="kpi"><div class="kpi-v" style="color:'+col+'">'+sign+' '+Math.abs(pct).toFixed(0)+'%</div>'
+          +'<div class="kpi-l">vs existing ('+exAvg.toFixed(1)+' km)</div></div>';
+      }
+    }
+  } else {
+    // existing view — show what proposed reduces to (when no filter)
+    if(allPLG && allDSE){
+      let prTot=0, prCnt=0;
+      DIST_JUN26.forEach(dd=>{
+        if(_j26DayF!==null && dd.market!==_j26DayF)return;
+        prTot += dd.distance_km; prCnt++;
+      });
+      if(prCnt>0 && curAvg!==null){
+        const prAvg = prTot/prCnt;
+        const delta = curAvg - prAvg;
+        const pct = (delta/curAvg)*100;
+        const sign = delta>=0 ? '↓' : '↑';
+        const col = delta>=0 ? '#15803d' : '#b91c1c';
+        cmpHTML = '<div class="kpi"><div class="kpi-v" style="color:'+col+'">'+sign+' '+Math.abs(pct).toFixed(0)+'%</div>'
+          +'<div class="kpi-l">proposed = '+prAvg.toFixed(1)+' km</div></div>';
+      }
+    }
+  }
+
   document.getElementById('j26-kpis').innerHTML=
     '<div class="kpi"><div class="kpi-v">'+n.toLocaleString()+'</div><div class="kpi-l">visits</div></div>'
     +'<div class="kpi"><div class="kpi-v">'+plgN+'</div><div class="kpi-l">PLGs</div></div>'
     +'<div class="kpi"><div class="kpi-v">'+dseN+'</div><div class="kpi-l">salesmen</div></div>'
-    +'<div class="kpi"><div class="kpi-v">'+distStr+'</div><div class="kpi-l">'+distLbl+'</div></div>';
+    +'<div class="kpi"><div class="kpi-v">'+distStr+'</div><div class="kpi-l">'+distLbl+'</div></div>'
+    +cmpHTML;
   _renderJ26ConflictSummary();
 }
 
@@ -4405,10 +4504,38 @@ function _renderJ26ConflictSummary(){
 // ── SLIDE JUN26-TERRITORIES (mirror of slide 9 + slide 13 tree filter) ────────
 let _jtm, _jtlg;
 let _jtDayF=null;
+let _jtView='proposed';
 let _jtPLG=new Set();
 let _jtPLGNone=false;
 let _jtDSE=new Set();
 let _jtExpanded=new Set();
+
+function _jtd(){
+  if(_jtView==='existing') return {PLG:EX_PLG_J26, DSE:EX_DSE_J26, HULL:EX_HULL_J26};
+  return {PLG:PLG_JUN26, DSE:DSE_JUN26, HULL:HULL_JUN26};
+}
+function jtSetView(v){
+  if(v===_jtView) return;
+  _jtView=v;
+  _jtPLG=new Set(); _jtDSE=new Set(); _jtPLGNone=false; _jtExpanded=new Set();
+  document.getElementById('jt-view-prop').classList.toggle('active', v==='proposed');
+  document.getElementById('jt-view-exist').classList.toggle('active', v==='existing');
+  _buildJTTree(); renderJT();
+}
+
+// Polygon area (km²) via projection to local km plane + shoelace
+function _hullAreaKm(pts){
+  if(!pts || pts.length<3) return 0;
+  const clat = pts.reduce((s,p)=>s+p[0],0)/pts.length;
+  const kx = 111.0 * Math.cos(clat*Math.PI/180);
+  const xy = pts.map(p=>[p[1]*kx, p[0]*111.0]);
+  let a=0;
+  for(let i=0;i<xy.length;i++){
+    const j=(i+1)%xy.length;
+    a += xy[i][0]*xy[j][1] - xy[j][0]*xy[i][1];
+  }
+  return Math.abs(a)/2;
+}
 function initSlideJT(){
   if(_jtm)return;
   _jtm=L.map('map-jun26-terr',{zoomControl:true,preferCanvas:true}).setView([22.52,88.36],12);
@@ -4430,9 +4557,19 @@ function _buildJTChips(){
 }
 function _jtDay(d){_jtDayF=d;_buildJTChips();renderJT();}
 function _buildJTTree(){
-  const dsesByPLG=_j26DSEsByPLG();
+  const D=_jtd();
+  // Use view-specific DSE-by-PLG (same logic as _j26DSEsByPLG but on view data)
+  const dsesByPLG={};
+  D.PLG.forEach(p=>dsesByPLG[p.idx]=[]);
+  D.DSE.forEach(d=>{
+    const sep=d.name.indexOf(':');
+    const plgName=d.name.substring(0,sep);
+    const dseShort=d.name.substring(sep+1);
+    const plgIdx=D.PLG.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_')===plgName);
+    if(plgIdx>=0)dsesByPLG[plgIdx].push({idx:d.idx,short:dseShort,name:d.name});
+  });
   const groups={normal:[],ofm:[],uni:[]};
-  PLG_JUN26.forEach(p=>{groups[_j26PLGGroup(p)].push(p);});
+  D.PLG.forEach(p=>{groups[_j26PLGGroup(p)].push(p);});
   function plgCb(p){
     if(_jtPLGNone)return '';
     const allPLG=_jtPLG.size===0;
@@ -4482,7 +4619,7 @@ function _buildJTTree(){
 }
 function _jtTogglePLG(i){
   i=parseInt(i);
-  const all=PLG_JUN26.map(p=>p.idx);
+  const all=_jtd().PLG.map(p=>p.idx);
   if(_jtPLGNone){_jtPLGNone=false;_jtPLG=new Set([i]);}
   else if(_jtPLG.size===0){_jtPLG=new Set(all.filter(x=>x!==i));if(_jtPLG.size===0)_jtPLGNone=true;}
   else if(_jtPLG.has(i)){_jtPLG.delete(i);if(_jtPLG.size===0)_jtPLGNone=true;}
@@ -4509,21 +4646,46 @@ function _jtToggleDSE(i){
 function renderJT(){
   if(!_jtlg)return;
   _jtlg.clearLayers();
+  const D=_jtd();
   if(_jtPLGNone){document.getElementById('jt-kpis').innerHTML='<div class="kpi"><div class="kpi-v">0</div><div class="kpi-l">beats</div></div>';return;}
   const allPLG=_jtPLG.size===0, allDSE=_jtDSE.size===0;
-  let n=0;
-  HULL_JUN26.forEach(h=>{
+  let n=0, totArea=0;
+  D.HULL.forEach(h=>{
     if(!allPLG && !_jtPLG.has(h.plg))return;
     if(!allDSE && !_jtDSE.has(h.dse))return;
     if(_jtDayF!==null && h.market!==_jtDayF)return;
     if(!h.points || h.points.length<3)return;
-    const col=PLG_JUN26[h.plg].color;
+    const col=D.PLG[h.plg].color;
     L.polygon(h.points,{color:col,fillColor:col,fillOpacity:0.12,weight:1.5}).addTo(_jtlg);
+    totArea += _hullAreaKm(h.points);
     n++;
   });
+  // Comparison: aggregate hull area across full opposing dataset (when no filters)
+  let cmpHTML='';
+  if(allPLG && allDSE){
+    const otherHull = _jtView==='proposed' ? EX_HULL_J26 : HULL_JUN26;
+    let oArea=0;
+    otherHull.forEach(h=>{
+      if(_jtDayF!==null && h.market!==_jtDayF)return;
+      if(!h.points || h.points.length<3)return;
+      oArea += _hullAreaKm(h.points);
+    });
+    if(oArea>0){
+      const delta = (_jtView==='proposed') ? (oArea - totArea) : (totArea - oArea);
+      const ref   = (_jtView==='proposed') ? oArea : totArea;
+      const pct = (delta/ref)*100;
+      const sign = delta>=0 ? '↓' : '↑';
+      const col = delta>=0 ? '#15803d' : '#b91c1c';
+      const lbl = _jtView==='proposed' ? ('vs existing ('+oArea.toFixed(0)+' km²)') : ('proposed = '+oArea.toFixed(0)+' km²');
+      cmpHTML = '<div class="kpi"><div class="kpi-v" style="color:'+col+'">'+sign+' '+Math.abs(pct).toFixed(0)+'%</div>'
+        +'<div class="kpi-l">'+lbl+'</div></div>';
+    }
+  }
   document.getElementById('jt-kpis').innerHTML=
     '<div class="kpi"><div class="kpi-v">'+n+'</div><div class="kpi-l">beats shown</div></div>'
-    +'<div class="kpi"><div class="kpi-v">'+(allPLG?PLG_JUN26.length:_jtPLG.size)+'</div><div class="kpi-l">PLGs</div></div>';
+    +'<div class="kpi"><div class="kpi-v">'+(allPLG?D.PLG.length:_jtPLG.size)+'</div><div class="kpi-l">PLGs</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+totArea.toFixed(0)+'</div><div class="kpi-l">km² total hull area</div></div>'
+    +cmpHTML;
 }
 
 // ── SLIDE JUN26-DELIVERY ZONES (mirror of slide 11 Beat Area per Day) ────────
@@ -4594,7 +4756,45 @@ function renderJZ(){
 let _jdm, _jdlg;
 let _jdDayF=null;
 let _jdTruckF=null;
+let _jdView='proposed';
 const _JD_COL={'3 Wheeler':'#1565C0','Tata Ace':'#388e3c','Split':'#c62828','Split (>1.5L)':'#c62828'};
+
+// Return trucks in a normalised shape (existing data has different field names)
+function _jdTrucks(){
+  if(_jdView==='existing'){
+    // Normalise EX_TRUCKS_J26 (a flat array) to proposed-shape objects
+    return (EX_TRUCKS_J26||[]).map(t=>{
+      const truckType = t.truck_type==='Split (>1.5L)' ? 'Split' : t.truck_type;
+      // Build visits list, look up DSE short-name from EX_DSE_J26 idx
+      const visits = (t.members||[]).map(m=>{
+        const dseEntry = EX_DSE_J26.find(d=>d.idx===m.dse);
+        const dseShort = dseEntry ? dseEntry.name.split(':')[1] : String(m.dse);
+        return {plg: m.plg, dse: dseShort, day: m.day, value: m.value, outlets: m.outlets};
+      });
+      return {
+        id: t.id,
+        delivery_day: t.deliv_day,
+        truck: truckType,
+        total_value: t.value,
+        outlets_n: t.outlets,
+        salesmen_n: (t.salesmen||[]).length,
+        centroid: t.centroid,
+        positions: (t.members||[]).map(m=>m.centroid),
+        visits: visits,
+        outlet_codes: [],
+      };
+    });
+  }
+  return (TRUCKS_JUN26 && TRUCKS_JUN26.trucks) || [];
+}
+function jdSetView(v){
+  if(v===_jdView) return;
+  _jdView=v;
+  _jdSelected.clear();
+  document.getElementById('jd-view-prop').classList.toggle('active', v==='proposed');
+  document.getElementById('jd-view-exist').classList.toggle('active', v==='existing');
+  renderJD();
+}
 function initSlideJD(){
   if(_jdm)return;
   _jdm=L.map('map-jun26-del',{zoomControl:true,preferCanvas:true}).setView([22.52,88.36],12);
@@ -4652,7 +4852,7 @@ function _buildJDTruckChips(){
 function renderJD(){
   if(!_jdlg)return;
   _jdlg.clearLayers();
-  const trucks=(TRUCKS_JUN26&&TRUCKS_JUN26.trucks)||[];
+  const trucks=_jdTrucks();
   const filt=trucks.filter(t=>{
     if(_jdDayF!==null && t.delivery_day!==_jdDayF) return false;
     if(!_jdTruckTypes.has(t.truck)) return false;
@@ -4679,10 +4879,31 @@ function renderJD(){
   const selN=_jdSelected.size;
   const selVal=trucks.filter(t=>_jdSelected.has(t.id)).reduce((s,t)=>s+t.total_value,0);
   const selOutlets=trucks.filter(t=>_jdSelected.has(t.id)).reduce((s,t)=>s+t.outlets_n,0);
+  // Comparison: total truck count both views (filter ignored to keep apples-to-apples)
+  let cmpHTML='';
+  const propTotal = ((TRUCKS_JUN26&&TRUCKS_JUN26.trucks)||[]).length;
+  const exTotal   = (EX_TRUCKS_J26||[]).length;
+  if(propTotal && exTotal){
+    if(_jdView==='proposed'){
+      const delta = exTotal - propTotal;
+      const pct = (delta/exTotal)*100;
+      const sign = delta>=0 ? '↓' : '↑';
+      const col = delta>=0 ? '#15803d' : '#b91c1c';
+      cmpHTML = '<div class="kpi"><div class="kpi-v" style="color:'+col+'">'+sign+' '+Math.abs(pct).toFixed(0)+'%</div>'
+        +'<div class="kpi-l">vs existing ('+exTotal+' trucks)</div></div>';
+    } else {
+      const delta = exTotal - propTotal;
+      const pct = (delta/exTotal)*100;
+      const col = delta>=0 ? '#15803d' : '#b91c1c';
+      cmpHTML = '<div class="kpi"><div class="kpi-v" style="color:'+col+'">↓ '+pct.toFixed(0)+'%</div>'
+        +'<div class="kpi-l">proposed = '+propTotal+' trucks</div></div>';
+    }
+  }
   document.getElementById('jd-kpis').innerHTML=
     '<div class="kpi"><div class="kpi-v">'+filt.length+'</div><div class="kpi-l">trucks (filtered)</div></div>'
     +'<div class="kpi"><div class="kpi-v">'+totalOutlets.toLocaleString()+'</div><div class="kpi-l">outlets</div></div>'
     +'<div class="kpi"><div class="kpi-v">'+totalVal.toFixed(1)+'L</div><div class="kpi-l">value</div></div>'
+    +cmpHTML
     +(selN>0?'<div class="kpi" style="border-left:3px solid #1565C0"><div class="kpi-v">'+selN+'</div><div class="kpi-l">selected (' +selOutlets+' outlets, '+selVal.toFixed(1)+'L)</div></div>':'');
   document.getElementById('jd-truck-legend').innerHTML=
     '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:'+_JD_COL["3 Wheeler"]+';border-radius:50%;display:inline-block"></span>3 Wheeler &le;0.6L</span>'
@@ -4745,7 +4966,7 @@ function renderJD(){
 }
 function jdToggleAllTrips(){
   // Determine current filt
-  const trucks=(TRUCKS_JUN26&&TRUCKS_JUN26.trucks)||[];
+  const trucks=_jdTrucks();
   const filt=trucks.filter(t=>{
     if(_jdDayF!==null && t.delivery_day!==_jdDayF) return false;
     if(!_jdTruckTypes.has(t.truck)) return false;
@@ -4758,7 +4979,7 @@ function jdToggleAllTrips(){
 }
 
 function jdDownloadTrucks(){
-  const trucks=(TRUCKS_JUN26&&TRUCKS_JUN26.trucks)||[];
+  const trucks=_jdTrucks();
   // Wide CSV — one row per truck with visit details concatenated
   const rows=[['trip_id','delivery_day','truck_type','salesmen_n','outlets_n','total_value_lakhs',
                'visits','outlet_codes','centroid_lat','centroid_lon']];
