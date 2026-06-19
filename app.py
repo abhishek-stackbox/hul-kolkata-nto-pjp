@@ -1985,13 +1985,13 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
       </div>
       <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;text-align:center">
         <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.7px">Visits / week</div>
-        <div style="margin-top:6px"><span style="font-size:28px;font-weight:700;color:#374151">18,988</span> <span style="font-size:14px;color:#94a3b8">&rarr;</span> <span style="font-size:32px;font-weight:700;color:#0f172a">15,731</span></div>
-        <div style="color:#16a34a;font-weight:700;font-size:16px;margin-top:4px">&darr; 3,257 (17.2%)</div>
+        <div style="margin-top:6px"><span style="font-size:28px;font-weight:700;color:#374151">18,988</span> <span style="font-size:14px;color:#94a3b8">&rarr;</span> <span style="font-size:32px;font-weight:700;color:#0f172a">15,747</span></div>
+        <div style="color:#16a34a;font-weight:700;font-size:16px;margin-top:4px">&darr; 3,241 (17.1%)</div>
       </div>
       <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;text-align:center">
         <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.7px">Avg visits / outlet</div>
-        <div style="margin-top:6px"><span style="font-size:28px;font-weight:700;color:#374151">2.35</span> <span style="font-size:14px;color:#94a3b8">&rarr;</span> <span style="font-size:32px;font-weight:700;color:#0f172a">2.21</span></div>
-        <div style="color:#16a34a;font-weight:700;font-size:16px;margin-top:4px">&darr; 0.14 (5.8%)</div>
+        <div style="margin-top:6px"><span style="font-size:28px;font-weight:700;color:#374151">2.35</span> <span style="font-size:14px;color:#94a3b8">&rarr;</span> <span style="font-size:32px;font-weight:700;color:#0f172a">2.22</span></div>
+        <div style="color:#16a34a;font-weight:700;font-size:16px;margin-top:4px">&darr; 0.13 (5.5%)</div>
       </div>
     </div>
 
@@ -2024,10 +2024,10 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
           </tr></thead>
           <tbody>
             <tr><td style="text-align:left;font-weight:600">Starting visits (existing)</td><td><b>18,988</b></td><td></td></tr>
-            <tr style="color:#dc2626"><td style="text-align:left">&minus; Outlet count reduction</td><td>&minus;2,319</td><td style="color:#dc2626;font-weight:700">71%</td></tr>
-            <tr style="color:#dc2626"><td style="text-align:left">&minus; Visit-frequency consolidation</td><td>&minus;938</td><td style="color:#dc2626;font-weight:700">29%</td></tr>
+            <tr style="color:#dc2626"><td style="text-align:left">&minus; Outlet count reduction</td><td>&minus;2,319</td><td style="color:#dc2626;font-weight:700">72%</td></tr>
+            <tr style="color:#dc2626"><td style="text-align:left">&minus; Visit-frequency consolidation</td><td>&minus;922</td><td style="color:#dc2626;font-weight:700">28%</td></tr>
             <tr style="background:#f9fafb;font-weight:700;color:#0f172a"><td style="text-align:left">Total reduction</td><td><b>&minus;3,257</b></td><td>100%</td></tr>
-            <tr style="background:#f9fafb;font-weight:700;color:#0f172a"><td style="text-align:left">Proposed visits</td><td><b>15,731</b></td><td></td></tr>
+            <tr style="background:#f9fafb;font-weight:700;color:#0f172a"><td style="text-align:left">Proposed visits</td><td><b>15,747</b></td><td></td></tr>
           </tbody>
         </table>
         <div style="margin-top:12px;font-size:12px;color:#64748b;line-height:1.5">
@@ -2047,13 +2047,13 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
         <tbody>
           <tr><td style="text-align:left;font-weight:600">1 visit</td><td>2,257</td><td>435</td><td style="color:#16a34a;font-weight:700">&minus;1,822</td></tr>
           <tr><td style="text-align:left;font-weight:600">2 visits</td><td>1,980</td><td><span style="color:#0369a1;font-weight:700">5,710</span></td><td style="color:#dc2626;font-weight:700">+3,730</td></tr>
-          <tr><td style="text-align:left;font-weight:600">3 visits</td><td>2,789</td><td>16</td><td style="color:#16a34a;font-weight:700">&minus;2,773</td></tr>
-          <tr><td style="text-align:left;font-weight:600">4 visits</td><td>921</td><td>882</td><td style="color:#94a3b8">&minus;39</td></tr>
+          <tr><td style="text-align:left;font-weight:600">3 visits</td><td>2,789</td><td>0</td><td style="color:#16a34a;font-weight:700">&minus;2,789</td></tr>
+          <tr><td style="text-align:left;font-weight:600">4 visits</td><td>921</td><td>898</td><td style="color:#94a3b8">&minus;23</td></tr>
           <tr><td style="text-align:left;font-weight:600">5 visits</td><td>144</td><td>60</td><td style="color:#16a34a">&minus;84</td></tr>
         </tbody>
       </table>
       <div style="margin-top:10px;font-size:12px;color:#64748b;line-height:1.5">
-        The big shift: <b>3-visit outlets (-2,773) and 1-visit outlets (-1,822) consolidated into 2-visit (+3,730)</b> — driven by Rule 9/10 which sends most outlets to a single D+F+N visit + a PP visit. 4 and 5-visit categories stay roughly stable (premium PP-A/PP-B outlets and OFM channel stores).
+        The big shift: <b>3-visit outlets (-2,789) and 1-visit outlets (-1,822) consolidated into 2-visit (+3,730)</b> — driven by Rule 9/10 which sends most outlets to a single D+F+N visit + a PP visit. 4 and 5-visit categories stay roughly stable (premium PP-A/PP-B outlets and OFM channel stores).
       </div>
     </div>
   </div>
@@ -2117,7 +2117,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Per-day Summary</div>
       <table class="dt-tbl" style="font-size:11px;margin-bottom:10px">
         <thead><tr>
-          <th style="text-align:left">Deliv Day</th><th>Trucks</th><th>Outlets</th><th>Value (L)</th><th>3W</th><th>Ace</th><th>Split</th>
+          <th style="text-align:left">Deliv Day</th><th>Trucks</th><th>Visits</th><th>Value (L)</th><th>3W</th><th>Ace</th><th>Split</th>
         </tr></thead>
         <tbody id="jd-tbody"></tbody>
       </table>
@@ -5214,6 +5214,7 @@ function _jdTrucks(){
         positions: t.positions || (t.members||[]).map(m=>m.centroid),
         visits: visits,
         outlet_codes: [],
+        distance_km: t.distance_km || 0,
       };
     });
   }
@@ -5347,10 +5348,23 @@ function renderJD(){
     });
   }
   const totalVal=filt.reduce((s,t)=>s+t.total_value,0);
-  const totalOutlets=filt.reduce((s,t)=>s+(t.outlets_n||0),0);
+  // Total visit slots = sum of per-visit outlet counts (one row per outlet-PLG-day)
+  const totalVisits=filt.reduce((s,t)=>{
+    if(t.visits && t.visits.length){
+      return s + t.visits.reduce((vs,v)=>vs + (v.outlets||0), 0);
+    }
+    return s + (t.outlets_n||0);
+  }, 0);
+  const totalOutlets=totalVisits;
   const selN=_jdSelected.size;
-  const selVal=trucks.filter(t=>_jdSelected.has(t.id)).reduce((s,t)=>s+t.total_value,0);
-  const selOutlets=trucks.filter(t=>_jdSelected.has(t.id)).reduce((s,t)=>s+t.outlets_n,0);
+  const selTrucks=trucks.filter(t=>_jdSelected.has(t.id));
+  const selVal=selTrucks.reduce((s,t)=>s+t.total_value,0);
+  const selOutlets=selTrucks.reduce((s,t)=>{
+    if(t.visits && t.visits.length){
+      return s + t.visits.reduce((vs,v)=>vs + (v.outlets||0), 0);
+    }
+    return s + (t.outlets_n||0);
+  }, 0);
   // Comparison: total truck count both views (filter ignored to keep apples-to-apples)
   let cmpHTML='';
   const propTotal = ((TRUCKS_JUN26&&TRUCKS_JUN26.trucks)||[]).length;
@@ -5371,11 +5385,41 @@ function renderJD(){
         +'<div class="kpi-l">proposed = '+propTotal+' trucks</div></div>';
     }
   }
+  const filtDist = filt.reduce((s,t)=>s+(t.distance_km||0), 0);
+  const avgDist = filt.length>0 ? filtDist/filt.length : 0;
+  // Cross-view totals for headline reduction comparison
+  const propTrucksAll = (TRUCKS_JUN26 && TRUCKS_JUN26.trucks) || [];
+  const exTrucksAll   = EX_TRUCKS_J26 || [];
+  const propTotalKm = propTrucksAll.reduce((s,t)=>s+(t.distance_km||0), 0);
+  const exTotalKm   = exTrucksAll.reduce((s,t)=>s+(t.distance_km||0), 0);
+  let cmpLine = '';
+  if(propTrucksAll.length && exTrucksAll.length){
+    if(_jdView==='proposed'){
+      const dN = exTrucksAll.length - propTrucksAll.length;
+      const pctN = (dN/exTrucksAll.length)*100;
+      const dKm = exTotalKm - propTotalKm;
+      const pctKm = (dKm/exTotalKm)*100;
+      cmpLine = '<span style="color:#15803d;font-weight:700">&darr; '+Math.abs(pctN).toFixed(0)+'%</span> trucks · '
+        + '<span style="color:#15803d;font-weight:700">&darr; '+Math.abs(pctKm).toFixed(0)+'%</span> km <span style="color:#9ca3af">vs existing</span>';
+    } else {
+      cmpLine = '<span style="color:#6b7280">Proposed: '+propTrucksAll.length+' trucks · '+propTotalKm.toFixed(0)+' km/wk</span>';
+    }
+  }
+  // Compact 3-card KPI row + comparison line under it
   document.getElementById('jd-kpis').innerHTML=
-    '<div class="kpi"><div class="kpi-v">'+filt.length+'</div><div class="kpi-l">trucks (filtered)</div></div>'
-    +'<div class="kpi"><div class="kpi-v">'+totalOutlets.toLocaleString()+'</div><div class="kpi-l">outlets</div></div>'
-    +'<div class="kpi"><div class="kpi-v">'+totalVal.toFixed(1)+'L</div><div class="kpi-l">value</div></div>'
-    +cmpHTML;
+    '<div class="kpi"><div class="kpi-v">'+filt.length+'</div><div class="kpi-l">trucks · '+totalOutlets.toLocaleString()+' visits</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+totalVal.toFixed(1)+'L</div><div class="kpi-l">total value</div></div>'
+    +'<div class="kpi"><div class="kpi-v">'+filtDist.toFixed(0)+'</div><div class="kpi-l">km/wk &middot; avg '+avgDist.toFixed(1)+'</div></div>';
+  // Update or insert the comparison line into the selection bar parent
+  let cmpBar = document.getElementById('jd-cmp-bar');
+  if(!cmpBar){
+    const kpiEl = document.getElementById('jd-kpis');
+    cmpBar = document.createElement('div');
+    cmpBar.id = 'jd-cmp-bar';
+    cmpBar.style.cssText = 'font-size:11px;margin:4px 0 2px;padding:4px 8px;background:#f9fafb;border-radius:4px';
+    kpiEl.parentNode.insertBefore(cmpBar, kpiEl.nextSibling);
+  }
+  cmpBar.innerHTML = cmpLine || '';
   // Update fixed-height selection bar (no layout shift)
   const sb = document.getElementById('jd-sel-bar') || document.getElementById('jd-selection-bar');
   if(sb){
@@ -5385,7 +5429,7 @@ function renderJD(){
       sb.style.background = '#dbeafe';
       sb.style.borderColor = '#93c5fd';
       sb.style.color = '#1e40af';
-      txt.innerHTML = '<b>'+selN+'</b> trip'+(selN>1?'s':'')+' selected · <b>'+selOutlets+'</b> outlets · <b>'+selVal.toFixed(2)+'L</b>';
+      txt.innerHTML = '<b>'+selN+'</b> trip'+(selN>1?'s':'')+' selected · <b>'+selOutlets+'</b> visits · <b>'+selVal.toFixed(2)+'L</b>';
       clr.style.display = 'inline';
     } else {
       sb.style.background = '#f3f4f6';
@@ -5407,7 +5451,12 @@ function renderJD(){
     if(!arr.length)return '';
     const tc={'3 Wheeler':0,'Tata Ace':0,'Split':0};
     arr.forEach(t=>{if(tc[t.truck]!==undefined)tc[t.truck]++;});
-    const outletsSum=arr.reduce((s,t)=>s+t.outlets_n,0);
+    const outletsSum=arr.reduce((s,t)=>{
+      if(t.visits && t.visits.length){
+        return s + t.visits.reduce((vs,v)=>vs + (v.outlets||0), 0);
+      }
+      return s + (t.outlets_n||0);
+    }, 0);
     const valSum=arr.reduce((s,t)=>s+t.total_value,0);
     return '<tr><td style="text-align:left;font-weight:600">'+_J26_DAY[d]+'</td><td>'+arr.length
       +'</td><td>'+outletsSum+'</td><td>'+valSum.toFixed(1)+'</td><td>'
@@ -5427,7 +5476,7 @@ function renderJD(){
         +(allCk?'checked':'')+' onchange="jdToggleAllTrips()" title="Select / deselect all visible trips"></th>'
       +'<th style="text-align:left">#</th><th style="text-align:left">Deliv</th>'
       +'<th style="text-align:left">Salesmen (PLG &middot; DSE &middot; Day)</th>'
-      +'<th>Outlets</th><th>Value</th><th>Truck</th>'
+      +'<th>Visits</th><th>Value</th><th>km</th><th>Truck</th>'
       +'</tr></thead><tbody>'
       +rows.slice(0,600).map(t=>{
         const c=_JD_COL[t.truck]||'#666';
@@ -5446,6 +5495,7 @@ function renderJD(){
           +'<td style="text-align:left">'+visitsHtml+'</td>'
           +'<td>'+t.outlets_n+'</td>'
           +'<td>'+t.total_value.toFixed(2)+'L</td>'
+          +'<td>'+(t.distance_km||0).toFixed(1)+'</td>'
           +'<td style="color:'+c+';font-weight:600">'+t.truck+'</td></tr>';
       }).join('')+'</tbody></table>'
       +(rows.length>600?'<div style="color:#9ca3af;font-size:10px;padding:4px">Showing 600 of '+rows.length+' — download CSV for full list</div>':'');

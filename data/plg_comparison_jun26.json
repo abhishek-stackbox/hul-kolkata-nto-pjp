@@ -5,8 +5,8 @@
       "pr_plg": "D",
       "ex_km": 4.806533333333334,
       "pr_km": 3.441111111111111,
-      "ex_overlap_pct": 48.66677844577432,
-      "pr_overlap_pct": 4.168517539687066
+      "ex_overlap_pct": 48.17572426663326,
+      "pr_overlap_pct": 4.184699871991158
     },
     {
       "ex_plg": "FNB",
@@ -14,14 +14,14 @@
       "ex_km": 3.910833333333334,
       "pr_km": 1.2416666666666667,
       "ex_overlap_pct": 10.30717221919417,
-      "pr_overlap_pct": 0.015323901138816258
+      "pr_overlap_pct": 0.0
     },
     {
       "ex_plg": "NUTS",
       "pr_plg": "N",
       "ex_km": 6.846333333333333,
       "pr_km": 7.1194444444444445,
-      "ex_overlap_pct": 32.571114286057615,
+      "ex_overlap_pct": 32.53720211180086,
       "pr_overlap_pct": 1.2359264951595905
     },
     {
@@ -29,29 +29,29 @@
       "pr_plg": "F+N",
       "ex_km": 5.098092105263158,
       "pr_km": 3.3372222222222225,
-      "ex_overlap_pct": 58.991092328780695,
-      "pr_overlap_pct": 2.2477550092582588
+      "ex_overlap_pct": 58.97255501236736,
+      "pr_overlap_pct": 2.2512954980428463
     },
     {
       "ex_plg": "D+F+NUTS",
       "pr_plg": "D+F+N",
       "ex_km": 5.793076923076923,
       "pr_km": 3.081559139784948,
-      "ex_overlap_pct": 35.40874254639525,
-      "pr_overlap_pct": 3.768125977515493
+      "ex_overlap_pct": 35.277964365966184,
+      "pr_overlap_pct": 2.8015100924392513
     },
     {
       "ex_plg": "HUL+NUTS",
       "pr_plg": "D+F+N+PP",
-      "ex_km": 6.4434545454545455,
+      "ex_km": 6.443454545454546,
       "pr_km": 8.868333333333332,
-      "ex_overlap_pct": 33.96473672429332,
+      "ex_overlap_pct": 33.9157241082529,
       "pr_overlap_pct": 4.112082040844659
     },
     {
       "ex_plg": "HUL",
       "pr_plg": "D+F+N+PP",
-      "ex_km": 8.744444444444445,
+      "ex_km": 8.744444444444447,
       "pr_km": 8.868333333333332,
       "ex_overlap_pct": 10.545932137261035,
       "pr_overlap_pct": 4.112082040844659
@@ -61,24 +61,24 @@
       "pr_plg": "PP",
       "ex_km": 5.543283582089553,
       "pr_km": 3.1106451612903245,
-      "ex_overlap_pct": 47.598664839328535,
-      "pr_overlap_pct": 4.743246415032463
+      "ex_overlap_pct": 46.940882135134174,
+      "pr_overlap_pct": 3.7639995664318833
     },
     {
       "ex_plg": "PP-A",
       "pr_plg": "PP-A",
       "ex_km": 4.0123999999999995,
       "pr_km": 3.4030555555555555,
-      "ex_overlap_pct": 33.00826584113967,
-      "pr_overlap_pct": 3.388137646937852
+      "ex_overlap_pct": 32.84855817789476,
+      "pr_overlap_pct": 3.351368926516086
     },
     {
       "ex_plg": "PP-B",
       "pr_plg": "PP-B",
       "ex_km": 3.7771999999999992,
       "pr_km": 3.4030555555555555,
-      "ex_overlap_pct": 33.22380077706445,
-      "pr_overlap_pct": 3.388137646937852
+      "ex_overlap_pct": 33.07811352131612,
+      "pr_overlap_pct": 3.351368926516086
     },
     {
       "ex_plg": null,
@@ -94,7 +94,7 @@
       "ex_km": null,
       "pr_km": 6.499444444444444,
       "ex_overlap_pct": null,
-      "pr_overlap_pct": 0.7785623451520212
+      "pr_overlap_pct": 0.7778984448756912
     },
     {
       "ex_plg": null,
@@ -108,7 +108,7 @@
   "totals": {
     "ex_km": 5.2437826086956525,
     "pr_km": 3.87809294871795,
-    "ex_overlap_pct": 44.197297062390355,
-    "pr_overlap_pct": 3.5219868841959165
+    "ex_overlap_pct": 43.9238161414855,
+    "pr_overlap_pct": 2.938532425864703
   }
 }
