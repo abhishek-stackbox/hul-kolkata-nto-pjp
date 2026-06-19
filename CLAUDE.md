@@ -51,8 +51,9 @@ All load functions cache to `data/*.json`. Source files are on Google Drive (not
 | `beats_jun26.json` / `plg_info_jun26.json` / `dse_info_jun26.json` / `hull_jun26.json` / `conflicts_jun26.json` / `delivery_zones_jun26.json` / `distances_jun26.json` | Aligned P5 output changes — regenerate via `build_jun26_app_data.py` in salesBeatGuru/HUL-KOLKATA/218390/ |
 | `delivery_beats_jun26.json` | Aligned P5 + sales values change — regenerate via `build_jun26_delivery_data.py` |
 | `truck_assignments_jun26.json` | Delivery pairing strategy changes — regenerate via `build_truck_assignments.py` |
-| `existing_*_jun26.json` (7 files: beats, plg_info, dse_info, hull, distances, delivery_beats, truck_assignments) | ME BEAT SERVICE PLG changes — regenerate via `build_existing_app_data.py` |
+| `existing_*_jun26.json` (8 files: beats, plg_info, dse_info, hull, distances, delivery_beats, truck_assignments, beat_meta) | ME BEAT SERVICE PLG changes — regenerate via `build_existing_app_data.py` |
 | `plg_comparison_jun26.json` | Existing/Proposed beat data changes — regenerate via `build_plg_comparison.py` (shapely required) |
+| `static/delivery_detail_proposed.xlsx` and `static/delivery_detail_existing.xlsx` | Truck assignments / per-outlet detail changes — regenerate via `build_delivery_detail_excel.py`. Force-add past `.gitignore *.xlsx` rule. |
 
 ## JS data structures (in `DATA_BLOCK`)
 - `OUTLETS[i]` = `[lat, lon, rs_idx, new_rs_idx, outlet_name, classification, moc_2dp, primarychannel, channel_program, outlet_code]`
@@ -69,37 +70,55 @@ All load functions cache to `data/*.json`. Source files are on Google Drive (not
 - `DELIVERY_ZONES` = `{zones: [{zone, group_a_day, group_b_day, v4_hull, ex_hull, v4_area, ex_area}]}` — 6 zones, each combining 2 adjacent market days for delivery on Day N+2
 - `FLAGGED_PHARMA` = pharma outlets excluded from all calculations (bad geocodes); appended to pharma CSV with "VERIFY LOCATION" note
 
-## Slides (18 total, nav position 0-indexed)
-`TOTAL_SLIDES=18`, `DARK_SLIDES=new Set([0,1,6,7,13])`. **18 `<div class="dot">` nodes** in `#nav-dots` (one per slide).
+## Slides (19 total, nav position 0-indexed)
+`TOTAL_SLIDES=19`, `DARK_SLIDES=new Set([0,1,6,7,14])`. **19 `<div class="dot">` nodes** in `#nav-dots` (one per slide).
 
 | Nav pos | Slide ID | Title | Label |
 |---|---|---|---|
 | 0 | slide-0 | Title / summary | (no label, dark) |
-| 1 | slide-summary | Key Benefits | 1/18, dark |
-| 2 | slide-1 | Outlets & Distributors | 2/18 |
-| 3 | slide-2 | Territory Overlaps | 3/18 |
-| 4 | slide-4 | High Density Clusters | 4/18 |
-| 5 | slide-3 | Duplicate Outlets | 5/18 |
-| 6 | slide-11 | PLG Rules | 6/18, dark |
-| 7 | slide-8 | Benefit: PLG Purity | 7/18, dark |
-| 8 | slide-5 | Proposed Beats | 8/18 |
-| 9 | slide-9 | Beat Territories & Overlap (218390 V3) | 9/18 |
-| 10 | slide-12 | Beat Area — Delivery Zone | 10/18 |
-| 11 | slide-7 | Benefit: Same-Day Conflicts | 11/18 |
-| 12 | slide-13 | Delivery Beats (218390 V3) | 12/18 |
-| 13 | slide-jun26-intro | Jun2026 redesign intro | 13/18, dark |
-| 14 | slide-jun26 | Aligned Beats (in-beat km/day per DSE) | 14/18 |
-| 15 | slide-jun26-changes | Outlet & Visit Reduction breakdown | 15/18 |
-| 16 | slide-jun26-terr | Beat Territories — Jun2026 (Existing vs Proposed toggle) | 16/18 |
-| 17 | slide-jun26-del | Delivery Beats + Truck Trips (Jun2026, Existing vs Proposed toggle) | 17/18 |
+| 1 | slide-summary | Key Benefits | 1/19, dark |
+| 2 | slide-1 | Outlets & Distributors | 2/19 |
+| 3 | slide-2 | Territory Overlaps | 3/19 |
+| 4 | slide-4 | High Density Clusters | 4/19 |
+| 5 | slide-3 | Duplicate Outlets | 5/19 |
+| 6 | slide-11 | PLG Rules | 6/19, dark |
+| 7 | slide-8 | Benefit: PLG Purity | 7/19, dark |
+| 8 | slide-5 | Proposed Beats | 8/19 |
+| 9 | slide-9 | Beat Territories & Overlap (218390 V3) | 9/19 |
+| 10 | slide-12 | Beat Area — Delivery Zone | 10/19 |
+| 11 | slide-7 | Benefit: Same-Day Conflicts | 11/19 |
+| 12 | slide-13 | Delivery Beats (218390 V3) | 12/19 |
+| 13 | slide-exbeat | Existing Beats Explorer (218390 + 20B801) | 13/19 |
+| 14 | slide-jun26-intro | Jun2026 redesign intro | 14/19, dark |
+| 15 | slide-jun26 | Aligned Beats (in-beat km/day per DSE) | 15/19 |
+| 16 | slide-jun26-changes | Outlet & Visit Reduction breakdown | 16/19 |
+| 17 | slide-jun26-terr | Beat Territories — Jun2026 (Existing vs Proposed toggle) | 17/19 |
+| 18 | slide-jun26-del | Delivery Beats + Truck Trips (Jun2026, Existing vs Proposed toggle) | 18/19 |
 
 Slides removed: slide-6 (Delivery Beats old), slide-10 (Beat Balance), slide-jun26-zones (geo-zones, removed Jun 2026).
 
 ### Jun2026 slide internals
-- **Slide 14 (Aligned Beats):** PLG tree on left with per-salesman row showing in-beat km/day. Existing/Proposed toggle chip rebuilds tree on change. Salesman count is RS-namespaced for existing (218390 and 20B801 both use SMN001–8) so total = 115 existing / 100 proposed.
-- **Slide 15 (Outlet & Visit Reduction):** Light-background info slide. KPIs (outlets / visits / avg visits per outlet) + outlet reconciliation table + visit-driver decomposition (71% from outlet count, 29% from frequency consolidation) + visits-per-outlet histogram. Layout uses `position:absolute;inset:0;overflow-y:auto;padding:50px 60px 100px` because `.slide` is `overflow:hidden`.
-- **Slide 16 (Beat Territories):** Mirrors slide 9 — Ex PLG → Prop mapping tables for Distance + Avg Pairwise Hull Overlap %. Overlap is cross-day (same salesman across days also counted). OFM 4 variants collapsed into single "OFM (rotating)" row; D+PP-A + F+N+PP-B collapsed into "UNIGLOW+UNICARE".
-- **Slide 17 (Delivery + Trucks):** Existing assumes 2-salesman + D+1 delivery; truck-type chips removed (`_jdTruckTypes` initialized to all). Trip table has master checkbox + per-row checkboxes. 407 truck excluded.
+- **Slide 13 (Existing Beats Explorer):** Multi-select filters — Day (chips), PLG (chips with colors), Salesman (search + checkboxes, filtered to currently-visible PLG/Day), Beat (search + checkboxes by area). Color by PLG / Day / Beat (hash-color per geo area). Map outlets show hover tooltips.
+- **Slide 15 (Aligned Beats):** PLG tree on left with per-salesman row showing in-beat km/day. Existing/Proposed toggle chip rebuilds tree on change. Salesman count is RS-namespaced for existing (218390 and 20B801 both use SMN001–8) so total = 115 existing / 100 proposed. Hover tooltips on outlet dots.
+- **Slide 16 (Outlet & Visit Reduction):** Light-background info slide. KPIs (outlets / visits / avg visits per outlet) + outlet reconciliation table + visit-driver decomposition (71% from outlet count, 29% from frequency consolidation) + visits-per-outlet histogram. Layout uses `position:absolute;inset:0;overflow-y:auto;padding:50px 60px 100px` because `.slide` is `overflow:hidden`.
+- **Slide 17 (Beat Territories):** Mirrors slide 9 — Ex PLG → Prop mapping tables for Distance + Avg Pairwise Hull Overlap %. Overlap is cross-day (same salesman across days also counted). OFM 4 variants collapsed into single "OFM (rotating)" row; D+PP-A + F+N+PP-B collapsed into "UNIGLOW+UNICARE". Hover tooltips on hull polygons.
+- **Slide 18 (Delivery + Trucks):** Existing assumes 2-salesman + D+1 delivery; truck-type filter removed (`_jdTruckTypes` initialized to all). **Color by** chips: Truck type / Truck no / Beat in Truck (each beat hue-hashed within truck). **Fixed-height selection bar** (no UI shift on select). **Hover tooltips** on truck centroids + selected-outlet markers. **Download Delivery Detail (xlsx)** buttons — escape srcdoc iframe via `window.top.document.createElement('a')` for downloads.
+
+### Truck logic for Proposed (v12, slide 18)
+- Primary: outlet-overlap clustering by **containment ≥ 0.7** (either direction). Union-find with **day-window constraint** — clusters can only span days that fit in one valid 2-day window: `{1,2},{2,3},{3,4},{4,5},{5,6},{6,1}` (Sat-Mon wraps).
+- Sliding-pair delivery: `_compute_delivery_day(visit_days)` = `max(visit_days)+1` with Sun skip; `{1,6}` (Sat+Mon wrap) → `2` (Tue).
+- Secondary merge: 0.5 km centroid proximity with two-pass — **within-family first**, then **cross-family with affinity check** (engulfment blocked: `rmax > 0.8km AND rmin < 0.4km` → block; ratio cap 2.5× + 0.2km tolerance; combined radius cap 1.4×rmax+0.2).
+- Caps: ≤ 4 distinct salesmen per truck, ≤ 1.5L value (Tata Ace).
+- Final state: 251 trucks, distribution 38/129/8/76 (1/2/3/4 salesmen), balanced across all 6 delivery days.
+
+### Truck logic for Existing (slide 18 + build_existing_app_data.py)
+- **Beat-name normalisation** strips: PLG prefix, trailing `-N`/`-NX` numeric suffix, trailing `-A`/`-B` variant, `+NUTS`/`+HFD`/`+WS` category suffix.
+- Group by (geo_beat, day). Pure D+1 delivery (no sliding pair). 4-salesman cap, ≤ 1.5L value.
+
+### Slide 18 download infrastructure
+- Static Excel files in `static/`: `delivery_detail_proposed.xlsx`, `delivery_detail_existing.xlsx` (force-added past `.gitignore *.xlsx` rule).
+- Download function `jdOpenDownload(view)` creates `<a download>` in `window.top.document` and clicks it — escapes the srcdoc iframe, bypasses popup blocker.
+- `.streamlit/config.toml` has `[server] enableStaticServing = true`. Files served at `/app/static/<filename>`.
 
 ### Distance metric (slides 14, 16)
 - **In-beat km/day** = OSRM route through outlets only, no depot legs. Matches slide 9's `chain_km`.
