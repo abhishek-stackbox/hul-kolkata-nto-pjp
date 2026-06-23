@@ -4756,10 +4756,11 @@ function _j26BuildTree(){
     const dses=dsesByPLG[p.idx]||[];
     const cnt=dses.length;
     const dot='<div class="plg-dot" style="background:'+p.color+'"></div>';
-    const dseListHtml=isSel?dses.map(d=>{
+    // Always build DSE list when the PLG has salesmen, so users can pick
+    // DSEs across multiple PLGs even when the PLG checkbox is not "on".
+    const dseListHtml = cnt>0 ? dses.map(d=>{
       const dseAllOn=_j26DSE.size===0;
       const chk=dseAllOn||_j26DSE.has(d.idx);
-      // Distance: when "All" days selected → average per day; specific day → that day's km
       let distKm = 0, distCnt = 0;
       D.DIST.forEach(ddd=>{
         if(ddd.plg !== p.idx) return;
@@ -4772,7 +4773,6 @@ function _j26BuildTree(){
         if(_j26DayF !== null){
           distLabel = distKm.toFixed(1) + ' km';
         } else {
-          // Average per day = total / number-of-days-with-beats
           distLabel = (distKm / distCnt).toFixed(1) + ' km/day avg';
         }
         distLabel = '<span style="margin-left:auto;padding:0 6px;font-size:10px;color:#6b7280;font-weight:600">'
@@ -4781,16 +4781,16 @@ function _j26BuildTree(){
       return '<div class="dse-item" data-i="'+d.idx+'" onclick="j26ToggleDSE(this.dataset.i)">'
         +'<div class="dse-cb'+(chk?' on':'')+'"></div>'
         +'<span class="dse-label">'+d.short+'</span>'+distLabel+'</div>';
-    }).join(''):'';
+    }).join('') : '';
     return '<div class="plg-item'+(isSel?' sel':'')+'">'
       +'<div class="plg-row">'
       +'<div class="plg-cb '+cbCls+'" data-i="'+p.idx+'" onclick="j26TogglePLG(this.dataset.i)"></div>'
       +(_j26CB==='plg'?dot:'')
       +'<span class="plg-name">'+p.name+'</span>'
       +'<span class="plg-cnt">'+cnt+' Salesm'+(cnt===1?'an':'en')+'</span>'
-      +(isSel&&cnt>0?'<span class="plg-chev'+(isOpen?' open':'')+'" data-i="'+p.idx+'" onclick="j26ToggleExpand(this.dataset.i,event)">&#9660;</span>':'')
+      +(cnt>0?'<span class="plg-chev'+(isOpen?' open':'')+'" data-i="'+p.idx+'" onclick="j26ToggleExpand(this.dataset.i,event)">&#9660;</span>':'')
       +'</div>'
-      +(isSel&&cnt>0&&isOpen?'<div class="dse-list open">'+dseListHtml+'</div>':'')
+      +(cnt>0&&isOpen?'<div class="dse-list open">'+dseListHtml+'</div>':'')
       +'</div>';
   }
 
@@ -4812,21 +4812,36 @@ function _j26BuildTree(){
 function j26TogglePLG(i){
   i=parseInt(i);
   const all=_j26d().PLG.map(p=>p.idx);
+  const dsesByPLG=_j26DSEsByPLG();
+  const plgDses = (dsesByPLG[i]||[]).map(d=>d.idx);
+  // Determine: are we turning this PLG ON or OFF?
+  let turningOn;
   if(_j26PLGNone){
     _j26PLGNone=false;
     _j26PLG=new Set([i]);
+    turningOn=true;
   } else if(_j26PLG.size===0){
     // currently "All on" — switch to subset = all except this
     _j26PLG=new Set(all.filter(x=>x!==i));
     if(_j26PLG.size===0)_j26PLGNone=true;
+    turningOn=false;
   } else if(_j26PLG.has(i)){
     _j26PLG.delete(i);
     if(_j26PLG.size===0)_j26PLGNone=true;
+    turningOn=false;
   } else {
     _j26PLG.add(i);
     if(_j26PLG.size===all.length)_j26PLG.clear();
+    turningOn=true;
   }
-  _j26DSE.clear();
+  // Keep per-DSE selections from OTHER PLGs intact; just add/remove this PLG's DSEs.
+  if(turningOn){
+    // If user has explicit DSE filters active, add this PLG's DSEs into the set
+    if(_j26DSE.size>0) plgDses.forEach(d=>_j26DSE.add(d));
+  } else {
+    // Remove this PLG's DSEs from the filter set (may leave set empty → all-on)
+    if(_j26DSE.size>0) plgDses.forEach(d=>_j26DSE.delete(d));
+  }
   _j26BuildTree(); renderJ26();
 }
 function j26ClearPLGs(){
@@ -4849,7 +4864,28 @@ function j26ToggleExpand(i, ev){
 }
 function j26ToggleDSE(i){
   i=parseInt(i);
-  if(_j26DSE.has(i))_j26DSE.delete(i); else _j26DSE.add(i);
+  if(_j26DSE.has(i)){
+    _j26DSE.delete(i);
+  } else {
+    _j26DSE.add(i);
+    // Ensure this DSE's parent PLG is allowed by the PLG filter — otherwise the
+    // PLG filter would block the outlets even though the DSE checkbox is ticked.
+    const D=_j26d();
+    const dseObj = D.DSE[i];
+    if(dseObj && dseObj.name && dseObj.name.indexOf(':')>=0){
+      const plgName = dseObj.name.substring(0, dseObj.name.indexOf(':')).toLowerCase();
+      const plgIdx = D.PLG.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_')===plgName);
+      if(plgIdx >= 0){
+        if(_j26PLGNone){
+          _j26PLGNone = false;
+          _j26PLG = new Set([plgIdx]);
+        } else if(_j26PLG.size > 0 && !_j26PLG.has(plgIdx)){
+          _j26PLG.add(plgIdx);
+          if(_j26PLG.size === D.PLG.length) _j26PLG.clear();  // back to all-on
+        }
+      }
+    }
+  }
   _j26BuildTree(); renderJ26();
 }
 function j26SetCB(mode){
@@ -5102,7 +5138,7 @@ function _buildJTTree(){
     const isOpen=_jtExpanded.has(p.idx);
     const ds=dsesByPLG[p.idx]||[];
     const cnt=ds.length;
-    const dseHtml=isSel?ds.map(d=>{
+    const dseHtml=cnt>0?ds.map(d=>{
       const chk=_jtDSE.size===0||_jtDSE.has(d.idx);
       return '<div class="dse-item" data-i="'+d.idx+'" onclick="_jtToggleDSE(this.dataset.i)">'
         +'<div class="dse-cb'+(chk?' on':'')+'"></div>'
@@ -5114,9 +5150,9 @@ function _buildJTTree(){
       +'<div class="plg-dot" style="background:'+p.color+'"></div>'
       +'<span class="plg-name">'+p.name+'</span>'
       +'<span class="plg-cnt">'+cnt+'</span>'
-      +(isSel&&cnt>0?'<span class="plg-chev'+(isOpen?' open':'')+'" data-i="'+p.idx+'" onclick="_jtToggleExpand(this.dataset.i,event)">&#9660;</span>':'')
+      +(cnt>0?'<span class="plg-chev'+(isOpen?' open':'')+'" data-i="'+p.idx+'" onclick="_jtToggleExpand(this.dataset.i,event)">&#9660;</span>':'')
       +'</div>'
-      +(isSel&&cnt>0&&isOpen?'<div class="dse-list open">'+dseHtml+'</div>':'')
+      +(cnt>0&&isOpen?'<div class="dse-list open">'+dseHtml+'</div>':'')
       +'</div>';
   }
   const allOn=!_jtPLGNone && _jtPLG.size===0;
@@ -5136,11 +5172,23 @@ function _buildJTTree(){
 function _jtTogglePLG(i){
   i=parseInt(i);
   const all=_jtd().PLG.map(p=>p.idx);
-  if(_jtPLGNone){_jtPLGNone=false;_jtPLG=new Set([i]);}
-  else if(_jtPLG.size===0){_jtPLG=new Set(all.filter(x=>x!==i));if(_jtPLG.size===0)_jtPLGNone=true;}
-  else if(_jtPLG.has(i)){_jtPLG.delete(i);if(_jtPLG.size===0)_jtPLGNone=true;}
-  else {_jtPLG.add(i);if(_jtPLG.size===all.length)_jtPLG.clear();}
-  _jtDSE.clear();
+  // Compute this PLG's DSE indices using same logic as the tree
+  const D = _jtd();
+  const plgDses = (D.DSE||[]).filter(d=>{
+    if(!d.name || d.name.indexOf(':')<0) return false;
+    const plgName=d.name.substring(0,d.name.indexOf(':')).toLowerCase();
+    const matchPi=D.PLG.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_')===plgName);
+    return matchPi===i;
+  }).map(d=>d.idx);
+  let turningOn;
+  if(_jtPLGNone){_jtPLGNone=false;_jtPLG=new Set([i]);turningOn=true;}
+  else if(_jtPLG.size===0){_jtPLG=new Set(all.filter(x=>x!==i));if(_jtPLG.size===0)_jtPLGNone=true;turningOn=false;}
+  else if(_jtPLG.has(i)){_jtPLG.delete(i);if(_jtPLG.size===0)_jtPLGNone=true;turningOn=false;}
+  else {_jtPLG.add(i);if(_jtPLG.size===all.length)_jtPLG.clear();turningOn=true;}
+  if(_jtDSE.size>0){
+    if(turningOn) plgDses.forEach(d=>_jtDSE.add(d));
+    else plgDses.forEach(d=>_jtDSE.delete(d));
+  }
   _buildJTTree(); renderJT();
 }
 function _jtClearPLGs(){
@@ -5156,7 +5204,26 @@ function _jtToggleExpand(i,ev){
 }
 function _jtToggleDSE(i){
   i=parseInt(i);
-  if(_jtDSE.has(i))_jtDSE.delete(i); else _jtDSE.add(i);
+  if(_jtDSE.has(i)){
+    _jtDSE.delete(i);
+  } else {
+    _jtDSE.add(i);
+    const D=_jtd();
+    const dseObj = D.DSE[i];
+    if(dseObj && dseObj.name && dseObj.name.indexOf(':')>=0){
+      const plgName = dseObj.name.substring(0, dseObj.name.indexOf(':')).toLowerCase();
+      const plgIdx = D.PLG.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_')===plgName);
+      if(plgIdx >= 0){
+        if(_jtPLGNone){
+          _jtPLGNone = false;
+          _jtPLG = new Set([plgIdx]);
+        } else if(_jtPLG.size > 0 && !_jtPLG.has(plgIdx)){
+          _jtPLG.add(plgIdx);
+          if(_jtPLG.size === D.PLG.length) _jtPLG.clear();
+        }
+      }
+    }
+  }
   _buildJTTree(); renderJT();
 }
 function renderJT(){
