@@ -1144,6 +1144,8 @@ _ex_delivery     = _load_json("existing_delivery_beats_jun26")   or []
 _ex_trucks       = _load_json("existing_truck_assignments_jun26") or []
 _plg_compare     = _load_json("plg_comparison_jun26") or {"rows":[],"totals":{}}
 _ex_beat_meta    = _load_json("existing_beat_meta_jun26") or []
+_outlet_meta     = _load_json("outlet_meta_jun26") or []
+_ex_outlet_meta  = _load_json("existing_outlet_meta_jun26") or []
 
 DATA_BLOCK = (
     "const OUTLETS    = " + json.dumps(outlets)       + ";\n"
@@ -1197,6 +1199,8 @@ DATA_BLOCK = (
     "const EX_TRUCKS_J26   = " + json.dumps(_ex_trucks)        + ";\n"
     "const PLG_CMP_J26     = " + json.dumps(_plg_compare)       + ";\n"
     "const EX_BEAT_META    = " + json.dumps(_ex_beat_meta)      + ";\n"
+    "const OUTLET_META     = " + json.dumps(_outlet_meta)       + ";\n"
+    "const EX_OUTLET_META  = " + json.dumps(_ex_outlet_meta)    + ";\n"
 )
 
 # ── HTML ───────────────────────────────────────────────────────────────────────
@@ -1887,6 +1891,12 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE EXBEAT · Existing Beats Explorer (218390 + 20B801, ME BEAT) -->
 <div class="slide" id="slide-exbeat" style="background:white">
   <div class="map-wrap" id="map-exbeat"></div>
+  <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:1000;background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.12);padding:6px 10px;display:flex;align-items:center;gap:6px;width:320px;pointer-events:auto">
+    <span style="color:#6b7280;font-size:13px">🔍</span>
+    <input type="text" id="exb-search" placeholder="Search outlet code / name / beat" oninput="exbSetOutletSearch(this.value)" style="flex:1;border:0;outline:none;font-size:12px;background:transparent">
+    <span id="exb-search-count" style="font-size:10px;color:#9ca3af;white-space:nowrap"></span>
+    <a href="javascript:void(0)" onclick="exbClearSearch()" id="exb-search-clear" style="display:none;color:#dc2626;cursor:pointer;font-size:11px">×</a>
+  </div>
   <div class="page-lbl">13 / 19 &middot; Existing Beats Explorer &middot; RS 218390 + 20B801</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
@@ -1937,6 +1947,12 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE JUN26 · ALIGNED BEATS (218390 + 20B801 merged, Jun 2026) -->
 <div class="slide" id="slide-jun26" style="background:white">
   <div class="map-wrap" id="map-jun26"></div>
+  <div class="map-search" style="position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:1000;background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.12);padding:6px 10px;display:flex;align-items:center;gap:6px;width:320px;pointer-events:auto">
+    <span style="color:#6b7280;font-size:13px">🔍</span>
+    <input type="text" id="j26-search" placeholder="Search outlet code / name / beat" oninput="j26SetSearch(this.value)" style="flex:1;border:0;outline:none;font-size:12px;background:transparent">
+    <span id="j26-search-count" style="font-size:10px;color:#9ca3af;white-space:nowrap"></span>
+    <a href="javascript:void(0)" onclick="j26ClearSearch()" id="j26-search-clear" style="display:none;color:#dc2626;cursor:pointer;font-size:11px">×</a>
+  </div>
   <div class="page-lbl">15 / 19 &middot; Aligned Beats &middot; Jun 2026 &middot; RS 218390 + 20B801</div>
   <div class="zoom-hint">Ctrl+Scroll or Pinch to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
@@ -2089,6 +2105,12 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 <!-- SLIDE JUN26-DEL · Delivery Beats &amp; Truck Assignment (Jun 2026) -->
 <div class="slide" id="slide-jun26-del">
   <div class="map-wrap" id="map-jun26-del"></div>
+  <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:1000;background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.12);padding:6px 10px;display:flex;align-items:center;gap:6px;width:320px;pointer-events:auto">
+    <span style="color:#6b7280;font-size:13px">🔍</span>
+    <input type="text" id="jd-search" placeholder="Search truck / beat / outlet code / name" oninput="jdSetSearch(this.value)" style="flex:1;border:0;outline:none;font-size:12px;background:transparent">
+    <span id="jd-search-count" style="font-size:10px;color:#9ca3af;white-space:nowrap"></span>
+    <a href="javascript:void(0)" onclick="jdClearSearch()" id="jd-search-clear" style="display:none;color:#dc2626;cursor:pointer;font-size:11px">×</a>
+  </div>
   <div class="page-lbl">18 / 19 &middot; Delivery Beats &middot; Jun 2026</div>
   <div class="zoom-hint">Ctrl+Scroll to zoom</div>
   <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:#fff;">
@@ -4326,6 +4348,8 @@ let _exbPLGs = new Set();      // empty = all
 let _exbDSEs = new Set();      // empty = all (DSE idx)
 let _exbBeats = new Set();     // empty = all (beat key plg|dse|market)
 let _exbCB = 'plg';
+let _exbOutletSearch = '';     // outlet code/name search
+function exbSetOutletSearch(v){ _exbOutletSearch = v || ''; renderEXB(); }
 const _EXB_DAY = ['Mon','Tue','Wed','Thu','Fri','Sat'];
 const _EXB_DAY_COL = ['#1565C0','#388e3c','#e65100','#6a1b9a','#c62828','#00838f'];
 
@@ -4494,28 +4518,48 @@ function renderEXB(){
   EX_BEAT_META.forEach(m=>{
     metaMap.set(m.plg+'|'+m.dse+'|'+m.market, m);
   });
-  let nOutlets = 0;
+  let nOutlets = 0, exbMatchCount = 0;
+  const exbMatchBounds = [];
   const visibleBeats = new Set();
   EX_BEATS_J26.forEach(b=>{
-    const [lat,lon,pi,mk,di] = b;
+    const [lat,lon,pi,mk,di,bi,oi] = b;
     if(!allDays && !_exbDays.has(mk)) return;
     if(!allPLGs && !_exbPLGs.has(pi)) return;
     if(!allDSEs && !_exbDSEs.has(di)) return;
     const beatKey = pi+'|'+di+'|'+mk;
     if(!allBeats && !_exbBeats.has(beatKey)) return;
     visibleBeats.add(beatKey);
+    // Outlet metadata for tooltip + search (matches against code, name, OR beat name)
+    const om = (oi !== undefined) ? (EX_OUTLET_META[oi] || null) : null;
+    const beatMeta = metaMap.get(beatKey);
+    const sq = _exbOutletSearch.toLowerCase().trim();
+    let isMatch = false;
+    if(sq){
+      const hay = ((om?.code||'')+' '+(om?.name||'')+' '+(beatMeta?.name||'')+' '+(beatMeta?.geo||'')).toLowerCase();
+      if(!hay.includes(sq)) return;
+      isMatch = true;
+    }
     let col;
     if(_exbCB==='day') col = _EXB_DAY_COL[mk];
-    else if(_exbCB==='beat'){ const m = metaMap.get(beatKey); col = m ? strColor(m.geo||'') : '#999'; }
+    else if(_exbCB==='beat'){ const mm = metaMap.get(beatKey); col = mm ? strColor(mm.geo||'') : '#999'; }
     else col = EX_PLG_J26[pi]?.color || '#666';
-    const meta = metaMap.get(beatKey);
     const dseObj = EX_DSE_J26[di] || {};
     const dseShort = (dseObj.name && dseObj.name.indexOf(':')>=0) ? dseObj.name.split(':',2)[1] : (dseObj.name||'?');
-    const tip = '<b>'+(meta?.geo||'—')+'</b><br>'
-      + (EX_PLG_J26[pi]?.name||'?')+' · '+dseShort+' · '+_EXB_DAY[mk]
-      + (meta? '<br>'+meta.name : '');
-    L.circleMarker([lat,lon],{radius:3,color:col,fillColor:col,fillOpacity:0.75,weight:0})
-      .bindTooltip(tip,{sticky:true,direction:'top'}).addTo(_exblg);
+    let tip = '<b>'+(om?.name || om?.code || 'Outlet')+'</b>';
+    if(om?.code) tip += '<br>'+om.code;
+    tip += '<br><span style="color:#94a3b8">Beat:</span> '+(beatMeta?.name||'—');
+    tip += '<br><span style="color:#94a3b8">PLG·DSE·Day:</span> '+(EX_PLG_J26[pi]?.name||'?')+' · '+dseShort+' · '+_EXB_DAY[mk];
+    if(om?.ch || om?.cls) tip += '<br><span style="color:#94a3b8">Channel:</span> '+(om.ch||'')+' · '+(om.cls||'');
+    if(om?.prog && om.prog !== '0') tip += '<br><span style="color:#94a3b8">Program:</span> '+om.prog;
+    if(isMatch){
+      L.circleMarker([lat,lon],{radius:7,color:'#1d4ed8',fillColor:col,fillOpacity:1,weight:2.5})
+        .bindTooltip(tip,{sticky:true,direction:'top'}).addTo(_exblg);
+      exbMatchBounds.push([lat,lon]);
+      exbMatchCount++;
+    } else {
+      L.circleMarker([lat,lon],{radius:3,color:col,fillColor:col,fillOpacity:sq?0.25:0.75,weight:0})
+        .bindTooltip(tip,{sticky:true,direction:'top'}).addTo(_exblg);
+    }
     nOutlets++;
   });
   const nBeats = visibleBeats.size;
@@ -4524,6 +4568,25 @@ function renderEXB(){
     '<div class="kpi"><div class="kpi-v">'+nOutlets.toLocaleString()+'</div><div class="kpi-l">visits shown</div></div>'
     +'<div class="kpi"><div class="kpi-v">'+nBeats+'</div><div class="kpi-l">beats</div></div>'
     +'<div class="kpi"><div class="kpi-v">'+nPlgs+'</div><div class="kpi-l">PLGs</div></div>';
+  // Update search overlay UI
+  const cntEl = document.getElementById('exb-search-count');
+  const clrEl = document.getElementById('exb-search-clear');
+  const sq = _exbOutletSearch.toLowerCase().trim();
+  if(sq){
+    if(cntEl) cntEl.textContent = exbMatchCount+' match'+(exbMatchCount===1?'':'es');
+    if(clrEl) clrEl.style.display = 'inline';
+    if(exbMatchBounds.length>0 && exbMatchCount<=200){
+      try { _exbm.fitBounds(exbMatchBounds, {padding:[40,40], maxZoom:15}); } catch(e){}
+    }
+  } else {
+    if(cntEl) cntEl.textContent = '';
+    if(clrEl) clrEl.style.display = 'none';
+  }
+}
+function exbClearSearch(){
+  _exbOutletSearch='';
+  const el=document.getElementById('exb-search'); if(el) el.value='';
+  renderEXB();
 }
 
 // ── SLIDE JUN26 · Aligned Beats Overview (mirror of slide-5 layout) ─────────
@@ -4535,6 +4598,56 @@ let _j26PLGNone=false;          // true = no PLGs selected (deselect-all)
 let _j26DSE=new Set();          // selected DSE indices (empty + !None = all)
 let _j26Expanded=new Set();     // expanded PLG indices in tree
 let _j26CB='plg';
+let _j26Search='';              // outlet code/name search filter
+
+function _j26OutletMeta(){
+  return _j26View==='existing' ? (EX_OUTLET_META||[]) : (OUTLET_META||[]);
+}
+// Build beat lookup: (plg_idx, dse_idx, market_0idx) → beat name
+// Proposed: from TRUCKS_JUN26.trucks[].beat (each truck spans visits)
+// Existing: from EX_BEAT_META rows
+let _j26PropBeatLookup = null;
+function _j26BeatNameFor(D, pi, di, mk){
+  if(_j26View==='existing'){
+    const row = (EX_BEAT_META||[]).find(b=>b.plg===pi && b.dse===di && b.market===mk);
+    return row ? (row.name || row.geo || '') : '';
+  }
+  if(!_j26PropBeatLookup){
+    _j26PropBeatLookup = {};
+    const trucks = (TRUCKS_JUN26 && TRUCKS_JUN26.trucks) || [];
+    const dseList = D.DSE || [];
+    trucks.forEach(t=>{
+      (t.visits||[]).forEach(v=>{
+        // v.plg = 'd+f+n' (string), v.dse = 'S001' (short), v.day = 1-6
+        // Need to map to (plg_idx, dse_idx, market_0idx)
+        const piMatch = D.PLG.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_') === v.plg);
+        if(piMatch<0) return;
+        const diMatch = dseList.findIndex(d=>{
+          if(!d.name || d.name.indexOf(':')<0) return false;
+          const [pn, dn] = d.name.split(':',2);
+          return pn.toLowerCase() === v.plg && dn === v.dse;
+        });
+        if(diMatch<0) return;
+        _j26PropBeatLookup[piMatch+'|'+diMatch+'|'+(v.day-1)] = t.beat || '';
+      });
+    });
+  }
+  return _j26PropBeatLookup[pi+'|'+di+'|'+mk] || '';
+}
+function _j26OutletTip(b, D){
+  const [lat,lon,pi,m,di,bi,oi] = b;
+  const meta = (_j26OutletMeta()[oi]) || {};
+  const dseObj = D.DSE[di] || {};
+  const dseShort = (dseObj.name && dseObj.name.indexOf(':')>=0) ? dseObj.name.split(':',2)[1] : (dseObj.name||'?');
+  const beatName = _j26BeatNameFor(D, pi, di, m);
+  let s = '<b>'+(meta.name || meta.code || 'Outlet')+'</b>';
+  if(meta.code) s += '<br>'+meta.code;
+  if(beatName) s += '<br><span style="color:#94a3b8">Beat:</span> '+beatName;
+  s += '<br><span style="color:#94a3b8">PLG·DSE·Day:</span> '+D.PLG[pi].name+' · '+dseShort+' · '+_J26_DAY[m+1];
+  if(meta.ch || meta.cls) s += '<br><span style="color:#94a3b8">Channel:</span> '+(meta.ch||'')+' · '+(meta.cls||'');
+  if(meta.prog && meta.prog !== '0') s += '<br><span style="color:#94a3b8">Program:</span> '+meta.prog;
+  return s;
+}
 
 // View-aware data accessor — switches between proposed and existing datasets
 function _j26d(){
@@ -4546,6 +4659,7 @@ function _j26d(){
 function j26SetView(v){
   if(v===_j26View) return;
   _j26View=v;
+  _j26PropBeatLookup = null;   // reset beat-name cache
   _j26PLG=new Set(); _j26DSE=new Set(); _j26PLGNone=false; _j26Expanded=new Set();
   document.getElementById('j26-view-prop').classList.toggle('active', v==='proposed');
   document.getElementById('j26-view-exist').classList.toggle('active', v==='existing');
@@ -4606,6 +4720,12 @@ function _j26BuildChips(){
   }).join('');
 }
 function j26SetDay(v){_j26DayF=(v==='null')?null:parseInt(v);_j26BuildChips();_j26BuildTree();renderJ26();}
+function j26SetSearch(v){_j26Search=v||'';renderJ26();}
+function j26ClearSearch(){
+  _j26Search='';
+  const el=document.getElementById('j26-search'); if(el) el.value='';
+  renderJ26();
+}
 
 function _j26BuildTree(){
   const D=_j26d();
@@ -4753,20 +4873,48 @@ function renderJ26(){
   }
   const allPLG=_j26PLG.size===0;
   const allDSE=_j26DSE.size===0;
-  let n=0;
+  const meta = _j26OutletMeta();
+  const searchQ = (_j26Search||'').toLowerCase().trim();
+  let n=0, nMatches=0;
+  const matchBounds=[];
   D.BEATS.forEach(b=>{
-    const [lat,lon,pi,m,di]=b;
+    const [lat,lon,pi,m,di,bi,oi]=b;
     if(!allPLG && !_j26PLG.has(pi))return;
     if(!allDSE && !_j26DSE.has(di))return;
     if(_j26DayF!==null && _j26DayF!==m)return;
+    let isMatch = false;
+    if(searchQ){
+      const om = (oi!==undefined) ? meta[oi] : null;
+      const beatName = _j26BeatNameFor(D, pi, di, m);
+      const hay = ((om?.code||'')+' '+(om?.name||'')+' '+beatName).toLowerCase();
+      if(!hay.includes(searchQ)) return;
+      isMatch = true;
+    }
     const col=(_j26CB==='day')?_J26_DAY_COL[m]:D.PLG[pi].color;
-    const dseObj = D.DSE[di] || {};
-    const dseShort = (dseObj.name && dseObj.name.indexOf(':')>=0) ? dseObj.name.split(':',2)[1] : (dseObj.name||'?');
-    const tip = '<b>'+D.PLG[pi].name+'</b> · '+dseShort+' · '+_J26_DAY[m+1];
-    L.circleMarker([lat,lon],{radius:3,color:col,fillColor:col,fillOpacity:0.7,weight:0})
-      .bindTooltip(tip,{sticky:true,direction:'top'}).addTo(_j26lg);
+    if(isMatch){
+      // Highlighted: larger radius, dark border, full opacity
+      L.circleMarker([lat,lon],{radius:7,color:'#1d4ed8',fillColor:col,fillOpacity:1,weight:2.5})
+        .bindTooltip(_j26OutletTip(b,D),{sticky:true,direction:'top'}).addTo(_j26lg);
+      nMatches++; matchBounds.push([lat,lon]);
+    } else {
+      L.circleMarker([lat,lon],{radius:3,color:col,fillColor:col,fillOpacity:searchQ?0.25:0.7,weight:0})
+        .bindTooltip(_j26OutletTip(b,D),{sticky:true,direction:'top'}).addTo(_j26lg);
+    }
     n++;
   });
+  // Update search-bar UI (count + clear button + fit bounds)
+  const cntEl = document.getElementById('j26-search-count');
+  const clrEl = document.getElementById('j26-search-clear');
+  if(searchQ){
+    if(cntEl) cntEl.textContent = nMatches+' match'+(nMatches===1?'':'es');
+    if(clrEl) clrEl.style.display = 'inline';
+    if(matchBounds.length>0 && nMatches<=200){
+      try { _j26m.fitBounds(matchBounds, {padding:[40,40], maxZoom:15}); } catch(e){}
+    }
+  } else {
+    if(cntEl) cntEl.textContent = '';
+    if(clrEl) clrEl.style.display = 'none';
+  }
   const plgN=allPLG?D.PLG.length:_j26PLG.size;
   // Salesman count: proposed has per-PLG S001..S00N (one PLG = one person), so each entry is unique;
   // existing has shared RSSP codes across PLGs (one person serves DETS+FNB+NUTS), so dedupe by RSSP.
@@ -5178,6 +5326,39 @@ let _jdm, _jdlg;
 let _jdDayF=null;
 let _jdTruckF=null;
 let _jdView='proposed';
+let _jdSearch='';
+// Build outlet code → meta lookup once per view, lazily
+let _jdOutletByCodeCache = {proposed:null, existing:null};
+function _jdOutletByCode(){
+  const view = _jdView;
+  if(_jdOutletByCodeCache[view]) return _jdOutletByCodeCache[view];
+  const src = view==='existing' ? (EX_OUTLET_META||[]) : (OUTLET_META||[]);
+  const m = {};
+  src.forEach(o=>{ if(o && o.code) m[o.code] = o; });
+  _jdOutletByCodeCache[view] = m;
+  return m;
+}
+function jdSetSearch(v){_jdSearch=v||'';renderJD();}
+function jdClearSearch(){_jdSearch='';const el=document.getElementById('jd-search');if(el)el.value='';renderJD();}
+// Does this truck match the current search? Match on id, beat, salesman, or any outlet code/name.
+function _jdTruckMatches(t, q){
+  if(!q) return true;
+  q = q.toLowerCase();
+  if((t.id||'').toLowerCase().includes(q)) return true;
+  if((t.beat||'').toLowerCase().includes(q)) return true;
+  // Visits' PLG · DSE
+  for(const v of (t.visits||[])){
+    if(((v.plg||'')+' '+(v.dse||'')).toLowerCase().includes(q)) return true;
+  }
+  // Outlet codes + names
+  const lookup = _jdOutletByCode();
+  for(const code of (t.outlet_codes||[])){
+    if(code.toLowerCase().includes(q)) return true;
+    const om = lookup[code];
+    if(om && (om.name||'').toLowerCase().includes(q)) return true;
+  }
+  return false;
+}
 const _JD_COL={'3 Wheeler':'#1565C0','Tata Ace':'#388e3c','Split':'#c62828','Split (>1.5L)':'#c62828'};
 let _jdCB='truck-type';  // 'truck-type' | 'truck' | 'beat'
 function _jdHash(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h)+s.charCodeAt(i);return Math.abs(h);}
@@ -5213,7 +5394,8 @@ function _jdTrucks(){
         centroid: t.centroid,
         positions: t.positions || (t.members||[]).map(m=>m.centroid),
         visits: visits,
-        outlet_codes: [],
+        outlet_codes: t.outlet_codes || [],
+        beat: t.beat || '',
         distance_km: t.distance_km || 0,
       };
     });
@@ -5224,6 +5406,7 @@ function jdSetView(v){
   if(v===_jdView) return;
   _jdView=v;
   _jdSelected.clear();
+  _jdOutletByCodeCache = {proposed:null, existing:null};
   document.getElementById('jd-view-prop').classList.toggle('active', v==='proposed');
   document.getElementById('jd-view-exist').classList.toggle('active', v==='existing');
   renderJD();
@@ -5286,9 +5469,11 @@ function renderJD(){
   if(!_jdlg)return;
   _jdlg.clearLayers();
   const trucks=_jdTrucks();
+  const sq = (_jdSearch||'').trim();
   const filt=trucks.filter(t=>{
     if(_jdDayF!==null && t.delivery_day!==_jdDayF) return false;
     if(!_jdTruckTypes.has(t.truck)) return false;
+    if(sq && !_jdTruckMatches(t, sq)) return false;
     return true;
   });
   function truckColor(t){
@@ -5303,8 +5488,8 @@ function renderJD(){
   // Compose a tooltip string for an outlet visit
   function _outletTip(t, v){
     return '<b>'+t.id+'</b> · '+t.truck+' · '+_J26_DAY[t.delivery_day]+' deliv<br>'
-      + v.plg.toUpperCase()+' · '+v.dse+' · '+_J26_DAY[v.day]+' visit<br>'
-      + 'Beat: '+(t.beat||'—');
+      + '<span style="color:#94a3b8">Visit:</span> '+v.plg.toUpperCase()+' · '+v.dse+' · '+_J26_DAY[v.day]+'<br>'
+      + '<span style="color:#94a3b8">Beat:</span> '+(t.beat||'—');
   }
   function _truckTip(t){
     const vs = t.visits.map(v=>v.plg.toUpperCase()+'/'+v.dse+'/'+_J26_DAY[v.day]).join(', ');
@@ -5340,12 +5525,32 @@ function renderJD(){
       }
     });
   } else {
-    // Show truck centroids
+    // Show truck centroids; highlight matches when searching
     filt.forEach(t=>{
       const col=truckColor(t);
-      L.circleMarker(t.centroid,{radius:Math.max(4,Math.sqrt(t.outlets_n)*1.2),color:col,fillColor:col,fillOpacity:0.6,weight:1})
-        .bindTooltip(_truckTip(t),{sticky:true,direction:'top'}).addTo(_jdlg);
+      const r=Math.max(4,Math.sqrt(t.outlets_n)*1.2);
+      if(sq){
+        L.circleMarker(t.centroid,{radius:r+3,color:'#1d4ed8',fillColor:col,fillOpacity:1,weight:2.5})
+          .bindTooltip(_truckTip(t),{sticky:true,direction:'top'}).addTo(_jdlg);
+      } else {
+        L.circleMarker(t.centroid,{radius:r,color:col,fillColor:col,fillOpacity:0.6,weight:1})
+          .bindTooltip(_truckTip(t),{sticky:true,direction:'top'}).addTo(_jdlg);
+      }
     });
+  }
+  // Update search overlay UI + fit bounds
+  const cntEl = document.getElementById('jd-search-count');
+  const clrEl = document.getElementById('jd-search-clear');
+  if(sq){
+    if(cntEl) cntEl.textContent = filt.length+' match'+(filt.length===1?'':'es');
+    if(clrEl) clrEl.style.display = 'inline';
+    if(filt.length>0 && filt.length<=200){
+      const bounds = filt.map(t=>t.centroid);
+      try { _jdm.fitBounds(bounds, {padding:[40,40], maxZoom:15}); } catch(e){}
+    }
+  } else {
+    if(cntEl) cntEl.textContent = '';
+    if(clrEl) clrEl.style.display = 'none';
   }
   const totalVal=filt.reduce((s,t)=>s+t.total_value,0);
   // Total visit slots = sum of per-visit outlet counts (one row per outlet-PLG-day)
