@@ -1425,7 +1425,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
 
 <!-- SLIDE SUMMARY · KEY BENEFITS -->
 <div class="slide info-slide" id="slide-summary" style="background:linear-gradient(135deg,#0a1929 0%,#1a3a5c 100%);display:flex;flex-direction:column;justify-content:center;padding:40px 48px;overflow-y:auto">
-  <div class="page-lbl" style="background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.7)">1 / 12 &middot; Key Benefits</div>
+  <div class="page-lbl" style="background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.7)">1 / 18 &middot; Key Benefits</div>
   <div style="max-width:820px;margin:0 auto;width:100%">
     <div style="font-size:11px;font-weight:700;color:#60a5fa;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px">What This Redesign Delivers</div>
     <h2 style="font-size:30px;font-weight:800;color:white;margin-bottom:6px;line-height:1.2">Route Redesign &mdash; Calcutta Metro</h2>
