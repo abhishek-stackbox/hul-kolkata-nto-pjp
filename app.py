@@ -4479,7 +4479,7 @@ function _j26PLGGroup(p){
   return 'normal';
 }
 
-// Map: PLG idx → list of DSEs (view-aware, case-insensitive PLG match)
+// Map: PLG idx → alphabetically-sorted list of DSEs (view-aware, case-insensitive PLG match)
 function _j26DSEsByPLG(){
   const D=_j26d();
   const m={};
@@ -4492,6 +4492,7 @@ function _j26DSEsByPLG(){
     const plgIdx=D.PLG.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_')===plgName);
     if(plgIdx>=0)m[plgIdx].push({idx:d.idx,short:dseShort,name:d.name});
   });
+  Object.keys(m).forEach(k=>m[k].sort((a,b)=>a.short.localeCompare(b.short,undefined,{numeric:true})));
   return m;
 }
 
