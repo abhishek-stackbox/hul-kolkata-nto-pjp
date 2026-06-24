@@ -71,41 +71,55 @@ All load functions cache to `data/*.json`. Source files are on Google Drive (not
 - `DELIVERY_ZONES` = `{zones: [{zone, group_a_day, group_b_day, v4_hull, ex_hull, v4_area, ex_area}]}` — 6 zones, each combining 2 adjacent market days for delivery on Day N+2
 - `FLAGGED_PHARMA` = pharma outlets excluded from all calculations (bad geocodes); appended to pharma CSV with "VERIFY LOCATION" note
 
-## Slides (19 total, nav position 0-indexed)
-`TOTAL_SLIDES=19`, `DARK_SLIDES=new Set([0,1,6,7,14])`. **19 `<div class="dot">` nodes** in `#nav-dots` (one per slide).
+## Slides (18 total, nav position 0-indexed)
+`TOTAL_SLIDES=18`, `DARK_SLIDES=new Set([0,1,6,7,13])`. **18 `<div class="dot">` nodes** in `#nav-dots` (one per slide).
 
 | Nav pos | Slide ID | Title | Label |
 |---|---|---|---|
 | 0 | slide-0 | Title / summary | (no label, dark) |
-| 1 | slide-summary | Key Benefits | 1/19, dark |
-| 2 | slide-1 | Outlets & Distributors | 2/19 |
-| 3 | slide-2 | Territory Overlaps | 3/19 |
-| 4 | slide-4 | High Density Clusters | 4/19 |
-| 5 | slide-3 | Duplicate Outlets | 5/19 |
-| 6 | slide-11 | PLG Rules | 6/19, dark |
-| 7 | slide-8 | Benefit: PLG Purity | 7/19, dark |
-| 8 | slide-5 | Proposed Beats | 8/19 |
-| 9 | slide-9 | Beat Territories & Overlap (218390 V3) | 9/19 |
-| 10 | slide-12 | Beat Area — Delivery Zone | 10/19 |
-| 11 | slide-7 | Benefit: Same-Day Conflicts | 11/19 |
-| 12 | slide-13 | Delivery Beats (218390 V3) | 12/19 |
-| 13 | slide-exbeat | Existing Beats Explorer (218390 + 20B801) | 13/19 |
-| 14 | slide-jun26-intro | Jun2026 redesign intro | 14/19, dark |
-| 15 | slide-jun26 | Aligned Beats (in-beat km/day per DSE) | 15/19 |
-| 16 | slide-jun26-changes | Outlet & Visit Reduction breakdown | 16/19 |
-| 17 | slide-jun26-terr | Beat Territories — Jun2026 (Existing vs Proposed toggle) | 17/19 |
-| 18 | slide-jun26-del | Delivery Beats + Truck Trips (Jun2026, Existing vs Proposed toggle) | 18/19 |
+| 1 | slide-summary | Key Benefits | 1/18, dark |
+| 2 | slide-1 | Outlets & Distributors | 2/18 |
+| 3 | slide-2 | Territory Overlaps | 3/18 |
+| 4 | slide-4 | High Density Clusters | 4/18 |
+| 5 | slide-3 | Duplicate Outlets | 5/18 |
+| 6 | slide-11 | PLG Rules | 6/18, dark |
+| 7 | slide-8 | Benefit: PLG Purity | 7/18, dark |
+| 8 | slide-5 | Proposed Beats | 8/18 |
+| 9 | slide-9 | Beat Territories & Overlap (218390 V3) | 9/18 |
+| 10 | slide-12 | Beat Area — Delivery Zone | 10/18 |
+| 11 | slide-7 | Benefit: Same-Day Conflicts | 11/18 |
+| 12 | slide-exbeat | Existing Beats Explorer (218390 + 20B801) | 12/18 |
+| 13 | slide-jun26-intro | Jun2026 redesign intro | 13/18, dark |
+| 14 | slide-jun26 | Aligned Beats (in-beat km/day per DSE) | 14/18 |
+| 15 | slide-jun26-changes | Outlet & Visit Reduction breakdown | 15/18 |
+| 16 | slide-jun26-terr | Beat Territories — Jun2026 (Existing vs Proposed toggle) | 16/18 |
+| 17 | slide-jun26-del | Delivery Beats + Truck Trips (Jun2026, Existing vs Proposed toggle) | 17/18 |
 
-Slides removed: slide-6 (Delivery Beats old), slide-10 (Beat Balance), slide-jun26-zones (geo-zones, removed Jun 2026).
+Slides removed: slide-6 (Delivery Beats old), slide-10 (Beat Balance), slide-jun26-zones (geo-zones), and **slide-13 V3 Delivery Beats (Jun 2026 — removed to fix fly OOM; was inlining 5.6 MB delivery_data.json on a 512 MB machine)**. Slide-17 Jun 2026 Delivery Beats supersedes it.
 
 ### Jun2026 slide internals
-- **Slide 13 (Existing Beats Explorer):** Multi-select filters — Day (chips), PLG (chips with colors), Salesman (search + checkboxes, filtered to currently-visible PLG/Day), Beat (search + checkboxes by area). Color by PLG / Day / Beat (hash-color per geo area). Map outlets show hover tooltips. **Search overlay (top-center of map)** searches across outlet code / name / beat name; matched outlets render larger with dark-blue border, non-matching dim to 25% opacity; auto-fit to match bounds.
-- **Slide 15 (Aligned Beats):** PLG tree on left with per-salesman row showing in-beat km/day. Existing/Proposed toggle chip rebuilds tree on change. Salesman count is RS-namespaced for existing (218390 and 20B801 both use SMN001–8) so total = 115 existing / 100 proposed. **Hover tooltips** show outlet name, code, beat name, PLG·DSE·Day, channel, classification, channel program. **Search overlay** (top-center of map) — same UX as slide 13. Beat-name lookup: proposed via TRUCKS_JUN26 (truck.beat per visit (plg, dse, day)), existing via EX_BEAT_META.
-- **Slide 16 (Outlet & Visit Reduction):** Light-background info slide. KPIs (outlets / visits / avg visits per outlet) + outlet reconciliation table + visit-driver decomposition (71% from outlet count, 29% from frequency consolidation) + visits-per-outlet histogram. Layout uses `position:absolute;inset:0;overflow-y:auto;padding:50px 60px 100px` because `.slide` is `overflow:hidden`.
-- **Slide 17 (Beat Territories):** Mirrors slide 9 — Ex PLG → Prop mapping tables for Distance + Avg Pairwise Hull Overlap %. Overlap is cross-day (same salesman across days also counted). OFM 4 variants collapsed into single "OFM (rotating)" row; D+PP-A + F+N+PP-B collapsed into "UNIGLOW+UNICARE". Hover tooltips on hull polygons.
-- **Slide 18 (Delivery + Trucks):** Existing pure D+1; proposed sliding-pair (Mon+Tue→Wed etc.). **OSRM round-trip distance per truck** stored in `t.distance_km`; trip table has km column; KPIs show total km/wk + avg km/truck + cross-view comparison. **KPI row compacted to 3 cards** + one-line comparison bar. **"Outlets" → "Visits"** label everywhere — counts visit slots (proposed 15,747; existing 18,954), not unique outlets. **Color by** chips: Truck type / Truck no / Beat in Truck. **Fixed-height selection bar**. **Hover tooltips** on markers. **Search overlay** (top-center) searches across truck id / beat / outlet code / outlet name (joins via OUTLET_META + EX_OUTLET_META). Matched truck centroids highlighted with larger radius + dark-blue border; trip table narrows; map auto-fits to matches (≤200). **Existing trucks now carry `outlet_codes`** (built into `build_existing_app_data.py`) so outlet search works in Existing view. **Download Delivery Detail (xlsx)** via `window.top.document.createElement('a')`.
+- **Slide 12 (Existing Beats Explorer):** Multi-select filters — Day (chips), PLG (chips with colors), Salesman (search + checkboxes, filtered to currently-visible PLG/Day), Beat (search + checkboxes by area). Color by PLG / Day / Beat (hash-color per geo area). Map outlets show hover tooltips. **Search overlay (top-center of map)** searches across outlet code / name / beat name; matched outlets render larger with dark-blue border, non-matching dim to 25% opacity; auto-fit to match bounds. **Tooltips include beat outlet count** (e.g. "Beat: D-3A BUS STAND (30 outlets)").
+- **Slide 14 (Aligned Beats):** PLG tree on left with per-salesman row showing in-beat km/day. Existing/Proposed toggle chip rebuilds tree on change. Salesman count is RS-namespaced for existing (218390 and 20B801 both use SMN001–8) so total = 115 existing / 100 proposed. **Hover tooltips** show outlet name, code, beat name (+ outlet count), PLG·DSE·Day, channel, classification, channel program. **Search overlay** (top-center of map) — same UX as slide 12. Beat-name lookup: proposed via TRUCKS_JUN26 (truck.beat per visit (plg, dse, day)), existing via EX_BEAT_META. **Salesmen sorted alphabetically** within each PLG (numeric-aware compare: S001 < S010 < S100).
+- **Slide 15 (Outlet & Visit Reduction):** Light-background info slide. KPIs (outlets / visits / avg visits per outlet) + outlet reconciliation table + visit-driver decomposition (71% from outlet count, 29% from frequency consolidation) + visits-per-outlet histogram. Layout uses `position:absolute;inset:0;overflow-y:auto;padding:50px 60px 100px` because `.slide` is `overflow:hidden`.
+- **Slide 16 (Beat Territories):** Mirrors slide 9 — Ex PLG → Prop mapping tables for Distance + Avg Pairwise Hull Overlap %. Overlap is cross-day (same salesman across days also counted). OFM 4 variants collapsed into single "OFM (rotating)" row; D+PP-A + F+N+PP-B collapsed into "UNIGLOW+UNICARE". Hover tooltips on hull polygons **include outlet count** for that hull. Same multi-select tree as slide 14 (alphabetical DSEs, cross-PLG-aware toggle).
+- **Slide 17 (Delivery + Trucks):** Existing pure D+1; proposed sliding-pair (Mon+Tue→Wed etc.). **OSRM round-trip distance per truck** stored in `t.distance_km`; trip table has km column; KPIs show total km/wk + avg km/truck + cross-view comparison. **KPI row compacted to 3 cards** + one-line comparison bar. **"Outlets" → "Visits"** label everywhere — counts visit slots (proposed 15,747; existing 18,954), not unique outlets. **Color by** chips: Truck type / Truck no / Beat in Truck. **Fixed-height selection bar**. **Hover tooltips** on markers. **Search overlay** (top-center) searches across truck id / beat / outlet code / outlet name (joins via OUTLET_META + EX_OUTLET_META). Matched truck centroids highlighted with larger radius + dark-blue border; trip table narrows; map auto-fits to matches (≤200). **Existing trucks now carry `outlet_codes`** (built into `build_existing_app_data.py`) so outlet search works in Existing view. **Download Delivery Detail (xlsx)** via `window.top.document.createElement('a')`.
 
-### Truck logic for Proposed (v12, slide 18)
+### PLG / Salesman multi-select semantics (slides 14 & 16)
+State model:
+- `_j26PLG` (or `_jtPLG`): empty Set + `!_*PLGNone` = "all PLGs on"; non-empty Set = subset selected; `_*PLGNone=true` = none
+- `_j26DSE` (or `_jtDSE`): same — empty Set = "all DSEs on"; non-empty = subset
+
+Click behaviour expected (Gmail/Excel style):
+- From all-on, clicking a ticked DSE/PLG → materialise the set to (ALL - {clicked}) and remove the clicked one (so the rest stay ticked)
+- From subset state, clicking adds/removes that one item; reaching the full set rolls back to all-on
+- Toggling a DSE auto-includes its parent PLG in the PLG filter (so the PLG filter doesn't block the outlet)
+- Toggling a PLG cb keeps DSE selections of OTHER PLGs intact
+
+Visual consistency: a DSE checkbox is rendered ticked iff its parent PLG is in the visible set AND (DSE filter is all-on OR contains this DSE). When you uncheck a PLG, its DSEs visually become unchecked even if the DSE filter is still all-on.
+
+Tree DSE ordering: `_j26DSEsByPLG()` returns each PLG's DSEs **sorted by short code with numeric-aware compare** so S001 < S002 < S010 < S100.
+
+### Truck logic for Proposed (v12, slide 17)
 - Primary: outlet-overlap clustering by **containment ≥ 0.7** (either direction). Union-find with **day-window constraint** — clusters can only span days that fit in one valid 2-day window: `{1,2},{2,3},{3,4},{4,5},{5,6},{6,1}` (Sat-Mon wraps).
 - Sliding-pair delivery: `_compute_delivery_day(visit_days)` = `max(visit_days)+1` with Sun skip; `{1,6}` (Sat+Mon wrap) → `2` (Tue).
 - Secondary merge: 0.5 km centroid proximity with two-pass — **within-family first**, then **cross-family with affinity check** (engulfment blocked: `rmax > 0.8km AND rmin < 0.4km` → block; ratio cap 2.5× + 0.2km tolerance; combined radius cap 1.4×rmax+0.2).
@@ -117,7 +131,12 @@ Slides removed: slide-6 (Delivery Beats old), slide-10 (Beat Balance), slide-jun
 - **Beat-name normalisation** strips: PLG prefix, trailing `-N`/`-NX` numeric suffix, trailing `-A`/`-B` variant, `+NUTS`/`+HFD`/`+WS` category suffix.
 - Group by (geo_beat, day). Pure D+1 delivery (no sliding pair). 4-salesman cap, ≤ 1.5L value.
 
-### Slide 18 download infrastructure
+### fly.io memory pressure
+fly machine is `shared-cpu-1x` / **512mb** RAM. Total inline HTML ≈ 15 MB after Jun 2026 dropped slide-13 V3 Delivery Beats. Symptom of OOM: `/_stcore/health` returns **502 Bad Gateway** and browser shows blank page with "WebSocket onclose" loop in console. If adding new heavy data, watch this — devops approval needed to bump past 512mb. Recovery: remove the heaviest contributor (delivery_data.json was 5.6 MB), or compact data (object → tuple form saves ~30%).
+
+CI gotcha: deleting 3+ files from `apps/<app>/data/` triggers "App deletion detected" in the One app per PR check, which only @stackbox-dev/devops can override. Workaround: replace the deleted JSONs with empty stubs (`{}`) — the app doesn't load them anyway.
+
+### Slide 17 download infrastructure
 - Static Excel files in `static/`: `delivery_detail_proposed.xlsx`, `delivery_detail_existing.xlsx` (force-added past `.gitignore *.xlsx` rule).
 - Download function `jdOpenDownload(view)` creates `<a download>` in `window.top.document` and clicks it — escapes the srcdoc iframe, bypasses popup blocker.
 - `.streamlit/config.toml` has `[server] enableStaticServing = true`. Files served at `/app/static/<filename>`.
@@ -146,7 +165,7 @@ Slides removed: slide-6 (Delivery Beats old), slide-10 (Beat Balance), slide-jun
 
 **Multi-line arrow functions inside `.map()` callbacks in string literals** can trigger ASI-related parse errors in srcdoc. Keep them on a single line.
 
-**`delivery_data.json` is ~5.7 MB** — the total generated HTML is ~13.7 MB. This is expected.
+**Total generated HTML is ~15 MB** (after slide-13 V3 Delivery Beats removal in Jun 2026). Previously ~17 MB with the now-removed `delivery_data.json` (5.7 MB) which was the heaviest single contributor.
 
 **OFM PLG name mismatch:** `plg_info` chip names use underscores (`D_OFM`, `F+N_OFM`) but `beat_distances.json` uses hyphens (`D-OFM`, `F-OFM`). The `_CHIP_TO_DIST` map in `renderBeatDists9()` handles the translation. Do not "fix" either source — the mapping is intentional.
 
