@@ -4325,7 +4325,7 @@ function renderEXB(){
     const dseShort = (dseObj.name && dseObj.name.indexOf(':')>=0) ? dseObj.name.split(':',2)[1] : (dseObj.name||'?');
     let tip = '<b>'+(om?.name || om?.code || 'Outlet')+'</b>';
     if(om?.code) tip += '<br>'+om.code;
-    tip += '<br><span style="color:#94a3b8">Beat:</span> '+(beatMeta?.name||'—');
+    tip += '<br><span style="color:#94a3b8">Beat:</span> '+(beatMeta?.name||'—')+(beatMeta?.outlets?' <span style="color:#9ca3af">('+beatMeta.outlets+' outlets)</span>':'');
     tip += '<br><span style="color:#94a3b8">PLG·DSE·Day:</span> '+(EX_PLG_J26[pi]?.name||'?')+' · '+dseShort+' · '+_EXB_DAY[mk];
     if(om?.ch || om?.cls) tip += '<br><span style="color:#94a3b8">Channel:</span> '+(om.ch||'')+' · '+(om.cls||'');
     if(om?.prog && om.prog !== '0') tip += '<br><span style="color:#94a3b8">Program:</span> '+om.prog;
@@ -4393,6 +4393,21 @@ function _j26OutletMeta(){
 // Proposed: from TRUCKS_JUN26.trucks[].beat (each truck spans visits)
 // Existing: from EX_BEAT_META rows
 let _j26PropBeatLookup = null;
+// Pre-compute outlet count per (plg, dse, day) beat — lazy per view
+let _j26BeatCounts = {proposed: null, existing: null};
+function _j26BeatOutletCount(pi, di, mk){
+  const view = _j26View;
+  if(!_j26BeatCounts[view]){
+    const D = _j26d();
+    const map = {};
+    D.BEATS.forEach(b=>{
+      const k = b[2]+'|'+b[4]+'|'+b[3];
+      map[k] = (map[k]||0) + 1;
+    });
+    _j26BeatCounts[view] = map;
+  }
+  return _j26BeatCounts[view][pi+'|'+di+'|'+mk] || 0;
+}
 function _j26BeatNameFor(D, pi, di, mk){
   if(_j26View==='existing'){
     const row = (EX_BEAT_META||[]).find(b=>b.plg===pi && b.dse===di && b.market===mk);
@@ -4426,9 +4441,10 @@ function _j26OutletTip(b, D){
   const dseObj = D.DSE[di] || {};
   const dseShort = (dseObj.name && dseObj.name.indexOf(':')>=0) ? dseObj.name.split(':',2)[1] : (dseObj.name||'?');
   const beatName = _j26BeatNameFor(D, pi, di, m);
+  const outletsInBeat = _j26BeatOutletCount(pi, di, m);
   let s = '<b>'+(meta.name || meta.code || 'Outlet')+'</b>';
   if(meta.code) s += '<br>'+meta.code;
-  if(beatName) s += '<br><span style="color:#94a3b8">Beat:</span> '+beatName;
+  if(beatName) s += '<br><span style="color:#94a3b8">Beat:</span> '+beatName+(outletsInBeat?' <span style="color:#9ca3af">('+outletsInBeat+' outlets)</span>':'');
   s += '<br><span style="color:#94a3b8">PLG·DSE·Day:</span> '+D.PLG[pi].name+' · '+dseShort+' · '+_J26_DAY[m+1];
   if(meta.ch || meta.cls) s += '<br><span style="color:#94a3b8">Channel:</span> '+(meta.ch||'')+' · '+(meta.cls||'');
   if(meta.prog && meta.prog !== '0') s += '<br><span style="color:#94a3b8">Program:</span> '+meta.prog;
@@ -4445,7 +4461,8 @@ function _j26d(){
 function j26SetView(v){
   if(v===_j26View) return;
   _j26View=v;
-  _j26PropBeatLookup = null;   // reset beat-name cache
+  _j26PropBeatLookup = null;
+  _j26BeatCounts = {proposed:null, existing:null};
   _j26PLG=new Set(); _j26DSE=new Set(); _j26PLGNone=false; _j26Expanded=new Set();
   document.getElementById('j26-view-prop').classList.toggle('active', v==='proposed');
   document.getElementById('j26-view-exist').classList.toggle('active', v==='existing');
@@ -4544,9 +4561,12 @@ function _j26BuildTree(){
     const dot='<div class="plg-dot" style="background:'+p.color+'"></div>';
     // Always build DSE list when the PLG has salesmen, so users can pick
     // DSEs across multiple PLGs even when the PLG checkbox is not "on".
+    const allPLGOn = !_j26PLGNone && _j26PLG.size===0;
+    const plgInFilter = allPLGOn || _j26PLG.has(p.idx);
     const dseListHtml = cnt>0 ? dses.map(d=>{
       const dseAllOn=_j26DSE.size===0;
-      const chk=dseAllOn||_j26DSE.has(d.idx);
+      // DSE shows ticked iff filter allows it AND parent PLG is on
+      const chk = plgInFilter && (dseAllOn || _j26DSE.has(d.idx));
       let distKm = 0, distCnt = 0;
       D.DIST.forEach(ddd=>{
         if(ddd.plg !== p.idx) return;
@@ -4650,25 +4670,51 @@ function j26ToggleExpand(i, ev){
 }
 function j26ToggleDSE(i){
   i=parseInt(i);
-  if(_j26DSE.has(i)){
+  const D=_j26d();
+  const allDseIdx = D.DSE.map(d=>d.idx);
+  // "Visually checked" depends on three things:
+  //   - DSE filter is in all-on state (size===0), OR
+  //   - DSE filter has this DSE, AND parent PLG is allowed
+  // Determine parent PLG idx for this DSE so we can fix PLG state in sync.
+  let plgIdx = -1;
+  const dseObj = D.DSE[i];
+  if(dseObj && dseObj.name && dseObj.name.indexOf(':')>=0){
+    const plgName = dseObj.name.substring(0, dseObj.name.indexOf(':')).toLowerCase();
+    plgIdx = D.PLG.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_')===plgName);
+  }
+  const allPlgOn = !_j26PLGNone && _j26PLG.size===0;
+  const plgVisible = plgIdx<0 ? true : (allPlgOn || _j26PLG.has(plgIdx));
+  const allDseOn = _j26DSE.size===0;
+  const visiblyChecked = (allDseOn && plgVisible) || _j26DSE.has(i);
+  if(visiblyChecked){
+    // Untick this DSE — if currently in "all-on" state, materialise the set first
+    if(allDseOn){
+      _j26DSE = new Set(allDseIdx);
+    }
     _j26DSE.delete(i);
+    // Empty set means nothing — back to all-on "none" semantics is not what user wants;
+    // empty here is a real "no DSE" state. Leave as-is.
   } else {
+    // Tick this DSE
+    if(allDseOn){
+      // Treat current state as full set; click just affirms — no change
+      // (clicking an already-checked item shouldn't do anything else here)
+      // But user might also be unticking even though "all-on" looks ticked.
+      // The visiblyChecked branch above handles that. Here, parent PLG was OFF.
+    }
     _j26DSE.add(i);
-    // Ensure this DSE's parent PLG is allowed by the PLG filter — otherwise the
-    // PLG filter would block the outlets even though the DSE checkbox is ticked.
-    const D=_j26d();
-    const dseObj = D.DSE[i];
-    if(dseObj && dseObj.name && dseObj.name.indexOf(':')>=0){
-      const plgName = dseObj.name.substring(0, dseObj.name.indexOf(':')).toLowerCase();
-      const plgIdx = D.PLG.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_')===plgName);
-      if(plgIdx >= 0){
-        if(_j26PLGNone){
-          _j26PLGNone = false;
-          _j26PLG = new Set([plgIdx]);
-        } else if(_j26PLG.size > 0 && !_j26PLG.has(plgIdx)){
-          _j26PLG.add(plgIdx);
-          if(_j26PLG.size === D.PLG.length) _j26PLG.clear();  // back to all-on
-        }
+    if(_j26DSE.size === allDseIdx.length){
+      // All DSEs back in → reset to all-on
+      _j26DSE = new Set();
+    }
+    // Ensure parent PLG is allowed
+    if(plgIdx >= 0){
+      if(_j26PLGNone){
+        _j26PLGNone = false;
+        _j26PLG = new Set([plgIdx]);
+      } else if(!allPlgOn && !_j26PLG.has(plgIdx)){
+        _j26PLG.add(plgIdx);
+        if(_j26PLG.size === D.PLG.length) _j26PLG.clear();
       }
     }
   }
@@ -4924,8 +4970,10 @@ function _buildJTTree(){
     const isOpen=_jtExpanded.has(p.idx);
     const ds=dsesByPLG[p.idx]||[];
     const cnt=ds.length;
+    const allPLGOn = !_jtPLGNone && _jtPLG.size===0;
+    const plgInFilter = allPLGOn || _jtPLG.has(p.idx);
     const dseHtml=cnt>0?ds.map(d=>{
-      const chk=_jtDSE.size===0||_jtDSE.has(d.idx);
+      const chk = plgInFilter && (_jtDSE.size===0 || _jtDSE.has(d.idx));
       return '<div class="dse-item" data-i="'+d.idx+'" onclick="_jtToggleDSE(this.dataset.i)">'
         +'<div class="dse-cb'+(chk?' on':'')+'"></div>'
         +'<span class="dse-label">'+d.short+'</span></div>';
@@ -4990,23 +5038,29 @@ function _jtToggleExpand(i,ev){
 }
 function _jtToggleDSE(i){
   i=parseInt(i);
-  if(_jtDSE.has(i)){
+  const D=_jtd();
+  const allDseIdx = D.DSE.map(d=>d.idx);
+  let plgIdx=-1;
+  const dseObj = D.DSE[i];
+  if(dseObj && dseObj.name && dseObj.name.indexOf(':')>=0){
+    const plgName = dseObj.name.substring(0, dseObj.name.indexOf(':')).toLowerCase();
+    plgIdx = D.PLG.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_')===plgName);
+  }
+  const allPlgOn = !_jtPLGNone && _jtPLG.size===0;
+  const plgVisible = plgIdx<0 ? true : (allPlgOn || _jtPLG.has(plgIdx));
+  const allDseOn = _jtDSE.size===0;
+  const visiblyChecked = (allDseOn && plgVisible) || _jtDSE.has(i);
+  if(visiblyChecked){
+    if(allDseOn) _jtDSE = new Set(allDseIdx);
     _jtDSE.delete(i);
   } else {
     _jtDSE.add(i);
-    const D=_jtd();
-    const dseObj = D.DSE[i];
-    if(dseObj && dseObj.name && dseObj.name.indexOf(':')>=0){
-      const plgName = dseObj.name.substring(0, dseObj.name.indexOf(':')).toLowerCase();
-      const plgIdx = D.PLG.findIndex(p=>p.name.toLowerCase().replace('ofm-','ofm_')===plgName);
-      if(plgIdx >= 0){
-        if(_jtPLGNone){
-          _jtPLGNone = false;
-          _jtPLG = new Set([plgIdx]);
-        } else if(_jtPLG.size > 0 && !_jtPLG.has(plgIdx)){
-          _jtPLG.add(plgIdx);
-          if(_jtPLG.size === D.PLG.length) _jtPLG.clear();
-        }
+    if(_jtDSE.size === allDseIdx.length) _jtDSE = new Set();
+    if(plgIdx >= 0){
+      if(_jtPLGNone){ _jtPLGNone=false; _jtPLG=new Set([plgIdx]); }
+      else if(!allPlgOn && !_jtPLG.has(plgIdx)){
+        _jtPLG.add(plgIdx);
+        if(_jtPLG.size === D.PLG.length) _jtPLG.clear();
       }
     }
   }
@@ -5027,7 +5081,11 @@ function renderJT(){
     const col=D.PLG[h.plg].color;
     const dseObj = D.DSE[h.dse] || {};
     const dseShort = (dseObj.name && dseObj.name.indexOf(':')>=0) ? dseObj.name.split(':',2)[1] : (dseObj.name||'?');
-    const tip = '<b>'+D.PLG[h.plg].name+'</b> · '+dseShort+' · '+_J26_DAY[h.market+1];
+    // Outlet count for this hull — count BEATS rows matching (plg,dse,market)
+    let outletsInBeat = 0;
+    D.BEATS.forEach(b=>{ if(b[2]===h.plg && b[4]===h.dse && b[3]===h.market) outletsInBeat++; });
+    const tip = '<b>'+D.PLG[h.plg].name+'</b> · '+dseShort+' · '+_J26_DAY[h.market+1]
+      + (outletsInBeat?' <span style="color:#9ca3af">('+outletsInBeat+' outlets)</span>':'');
     L.polygon(h.points,{color:col,fillColor:col,fillOpacity:0.12,weight:1.5})
       .bindTooltip(tip,{sticky:true,direction:'top'}).addTo(_jtlg);
     n++;
