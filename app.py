@@ -4530,7 +4530,7 @@ function renderEXB(){
     if(!allBeats && !_exbBeats.has(beatKey)) return;
     visibleBeats.add(beatKey);
     // Outlet metadata for tooltip + search (matches against code, name, OR beat name)
-    const om = (oi !== undefined) ? (EX_OUTLET_META[oi] || null) : null;
+    const om = (oi !== undefined) ? _outletObj(EX_OUTLET_META[oi]) : null;
     const beatMeta = metaMap.get(beatKey);
     const sq = _exbOutletSearch.toLowerCase().trim();
     let isMatch = false;
@@ -4600,6 +4600,14 @@ let _j26Expanded=new Set();     // expanded PLG indices in tree
 let _j26CB='plg';
 let _j26Search='';              // outlet code/name search filter
 
+// Outlet meta is stored as compact tuple [code, name, ch, cls, prog] to keep
+// the inlined HTML small. This helper normalises a row to a tiny object for
+// callers that still expect property access.
+function _outletObj(row){
+  if(!row) return null;
+  if(Array.isArray(row)) return {code:row[0]||'', name:row[1]||'', ch:row[2]||'', cls:row[3]||'', prog:row[4]||''};
+  return row; // legacy object form (back-compat)
+}
 function _j26OutletMeta(){
   return _j26View==='existing' ? (EX_OUTLET_META||[]) : (OUTLET_META||[]);
 }
@@ -4636,7 +4644,7 @@ function _j26BeatNameFor(D, pi, di, mk){
 }
 function _j26OutletTip(b, D){
   const [lat,lon,pi,m,di,bi,oi] = b;
-  const meta = (_j26OutletMeta()[oi]) || {};
+  const meta = _outletObj(_j26OutletMeta()[oi]) || {};
   const dseObj = D.DSE[di] || {};
   const dseShort = (dseObj.name && dseObj.name.indexOf(':')>=0) ? dseObj.name.split(':',2)[1] : (dseObj.name||'?');
   const beatName = _j26BeatNameFor(D, pi, di, m);
@@ -4920,7 +4928,7 @@ function renderJ26(){
     if(_j26DayF!==null && _j26DayF!==m)return;
     let isMatch = false;
     if(searchQ){
-      const om = (oi!==undefined) ? meta[oi] : null;
+      const om = (oi!==undefined) ? _outletObj(meta[oi]) : null;
       const beatName = _j26BeatNameFor(D, pi, di, m);
       const hay = ((om?.code||'')+' '+(om?.name||'')+' '+beatName).toLowerCase();
       if(!hay.includes(searchQ)) return;
@@ -5401,7 +5409,10 @@ function _jdOutletByCode(){
   if(_jdOutletByCodeCache[view]) return _jdOutletByCodeCache[view];
   const src = view==='existing' ? (EX_OUTLET_META||[]) : (OUTLET_META||[]);
   const m = {};
-  src.forEach(o=>{ if(o && o.code) m[o.code] = o; });
+  src.forEach(row=>{
+    const o = _outletObj(row);
+    if(o && o.code) m[o.code] = o;
+  });
   _jdOutletByCodeCache[view] = m;
   return m;
 }
