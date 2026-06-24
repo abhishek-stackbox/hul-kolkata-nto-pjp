@@ -1845,6 +1845,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
         <button class="t-btn active" id="exb-cb-plg" onclick="exbSetCB('plg')">PLG</button>
         <button class="t-btn" id="exb-cb-day" onclick="exbSetCB('day')">Day</button>
         <button class="t-btn" id="exb-cb-beat" onclick="exbSetCB('beat')">Beat</button>
+        <button class="t-btn" id="exb-cb-sm" onclick="exbSetCB('sm')">Salesman</button>
       </div>
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by Day (multi)</div>
       <div class="filter-row" id="exb-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
@@ -1905,6 +1906,7 @@ kbd{background:#1565C0;padding:2px 7px;border-radius:3px;font-size:12px;
       <div class="toggle-row" style="margin-bottom:8px">
         <button class="t-btn active" id="j26-cb-plg" onclick="j26SetCB('plg')">PLG</button>
         <button class="t-btn" id="j26-cb-day" onclick="j26SetCB('day')">Day</button>
+        <button class="t-btn" id="j26-cb-sm" onclick="j26SetCB('sm')">Salesman</button>
       </div>
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px">Filter by Day</div>
       <div class="filter-row" id="j26-day-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
@@ -4194,9 +4196,10 @@ function exbClearFilters(){
 }
 function exbSetCB(mode){
   _exbCB = mode;
-  document.getElementById('exb-cb-plg').classList.toggle('active', mode==='plg');
-  document.getElementById('exb-cb-day').classList.toggle('active', mode==='day');
-  document.getElementById('exb-cb-beat').classList.toggle('active', mode==='beat');
+  ['plg','day','beat','sm'].forEach(m=>{
+    const el = document.getElementById('exb-cb-'+m);
+    if(el) el.classList.toggle('active', mode===m);
+  });
   renderEXB();
 }
 function exbToggleDse(i){
@@ -4320,6 +4323,7 @@ function renderEXB(){
     let col;
     if(_exbCB==='day') col = _EXB_DAY_COL[mk];
     else if(_exbCB==='beat'){ const mm = metaMap.get(beatKey); col = mm ? strColor(mm.geo||'') : '#999'; }
+    else if(_exbCB==='sm'){ col = _jdColorFor((EX_DSE_J26[di]&&EX_DSE_J26[di].name)||('dse-'+di)); }
     else col = EX_PLG_J26[pi]?.color || '#666';
     const dseObj = EX_DSE_J26[di] || {};
     const dseShort = (dseObj.name && dseObj.name.indexOf(':')>=0) ? dseObj.name.split(':',2)[1] : (dseObj.name||'?');
@@ -4723,8 +4727,10 @@ function j26ToggleDSE(i){
 }
 function j26SetCB(mode){
   _j26CB=mode;
-  document.getElementById('j26-cb-plg').classList.toggle('active',mode==='plg');
-  document.getElementById('j26-cb-day').classList.toggle('active',mode==='day');
+  ['plg','day','sm'].forEach(m=>{
+    const el=document.getElementById('j26-cb-'+m);
+    if(el) el.classList.toggle('active', mode===m);
+  });
   _j26BuildChips(); _j26BuildTree(); renderJ26();
 }
 
@@ -4759,7 +4765,10 @@ function renderJ26(){
       if(!hay.includes(searchQ)) return;
       isMatch = true;
     }
-    const col=(_j26CB==='day')?_J26_DAY_COL[m]:D.PLG[pi].color;
+    let col;
+    if(_j26CB==='day') col=_J26_DAY_COL[m];
+    else if(_j26CB==='sm') col=_jdColorFor((D.DSE[di]&&D.DSE[di].name)||('dse-'+di));
+    else col=D.PLG[pi].color;
     if(isMatch){
       // Highlighted: larger radius, dark border, full opacity
       L.circleMarker([lat,lon],{radius:7,color:'#1d4ed8',fillColor:col,fillOpacity:1,weight:2.5})
